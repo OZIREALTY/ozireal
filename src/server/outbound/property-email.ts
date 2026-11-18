@@ -132,13 +132,13 @@ export function propertyEmailHtml(o: {
   unsubscribeUrl: string;
   agencyLine: string;
 }) {
+  const p = o.property;
+  const c = o.card;
   const paras = o.body
     .trim()
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .map((x) => `<p style="margin:0 0 14px">${emphasise(x, p?.priceDisplay ?? null).replace(/\n/g, "<br>")}</p>`)
     .join("");
-  const p = o.property;
-  const c = o.card;
 
   const advantages = (c?.advantages ?? []).slice(0, 6);
   const advRows: string[] = [];
@@ -188,12 +188,28 @@ You are receiving this because you asked us about property. <a href="${esc(o.uns
 </body></html>`;
 }
 
+/**
+ * The body's **marked phrases** in bold navy, and the price wording (verbatim) in an
+ * orange highlight wherever it appears (2026-11-18). Everything else is escaped.
+ */
+export function emphasise(text: string, price: string | null) {
+  let h = esc(text).replace(/\*\*([^*\n]{1,160})\*\*/g, `<strong style="color:${NAVY}">$1</strong>`);
+  h = h.replace(/\*\*/g, "");
+  if (price) {
+    const ep = esc(price);
+    h = h
+      .split(ep)
+      .join(`<span style="background:#FFE8DF;color:#B23A12;font-weight:bold;padding:1px 6px;border-radius:4px;white-space:nowrap">${ep}</span>`);
+  }
+  return h;
+}
+
 /** The plain-text twin, with the link, the private-viewing offer and the unsubscribe line. */
 export function propertyEmailText(o: { body: string; property: EmailProperty | null; card?: EmailCard | null; unsubscribeUrl: string; agencyLine: string }) {
   const p = o.property;
   const adv = (o.card?.advantages ?? []).map((a) => `- ${a.title}${a.detail ? `: ${a.detail}` : ""}`);
   return [
-    o.body.trim(),
+    o.body.trim().replace(/\*\*/g, ""),
     "",
     ...(p
       ? [

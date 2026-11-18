@@ -829,7 +829,7 @@ function DraftCard({
                   <strong>Why them:</strong> {d.why.replace(/\s*\[Opening:.*\]$/, "")}
                 </p>
               )}
-              <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap">{d.body}</div>
+              <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap"><Marked text={d.body} /></div>
               <EmailPreview itemId={d.itemId} hasCard={d.hasCard} />
               {d.status === "pending" && !result && (
                 <div className="flex flex-wrap gap-2">
@@ -946,5 +946,22 @@ function EmailPreview({ itemId, hasCard }: { itemId: string | null; hasCard: boo
         </div>
       )}
     </div>
+  );
+}
+
+/** The draft's **marked phrases** in bold, as the email shows them. */
+function Marked({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\*\*[^*\n]{1,160}\*\*)/g).map((part, i) =>
+        /^\*\*.*\*\*$/.test(part) ? (
+          <strong key={i} className="text-[#13254A] dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          part.replace(/\*\*/g, "")
+        ),
+      )}
+    </>
   );
 }

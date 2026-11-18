@@ -92,7 +92,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
     .filter((x) => x !== null)
     .join("\n");
 
-  const prompt = loadPrompt("match-email.v3");
+  const prompt = loadPrompt("match-email.v4");
   try {
     const { data, generationId } = await runTask(draftSchema, {
       task: "match-email",
