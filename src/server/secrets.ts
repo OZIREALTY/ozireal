@@ -32,6 +32,8 @@ export const SECRET_NAMES = [
   "DEEPGRAM_API_KEY",
   "MESSAGEMEDIA_KEY",
   "MESSAGEMEDIA_SECRET",
+  /** Google Workspace app password for admin@ozirealty.com.au (2026-11-18): sends marketing email through Gmail. */
+  "GMAIL_APP_PASSWORD",
 ] as const;
 export type SecretName = (typeof SECRET_NAMES)[number];
 

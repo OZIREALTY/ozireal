@@ -103,7 +103,14 @@ export async function sendMarketingEmail(m: {
   text: string;
   html: string;
   unsubscribeUrl: string;
+  /** When given, and a Gmail app password is stored for the tenant, Google sends it. */
+  tenantId?: string;
 }): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
+  if (m.tenantId) {
+    const { getSecret } = await import("@/server/secrets");
+    const pass = await getSecret(m.tenantId, "GMAIL_APP_PASSWORD").catch(() => null);
+    if (pass) return sendViaGmail(m, pass.replace(/\s+/g, ""));
+  }
   try {
     const oneClick = m.unsubscribeUrl.replace("/unsubscribe?", "/api/unsubscribe?");
     const r = await client().send(
@@ -128,6 +135,40 @@ export async function sendMarketingEmail(m: {
     const name = (e as { name?: string }).name ?? "Error";
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: `${name}: ${msg.slice(0, 200)}` };
+  }
+}
+
+/**
+ * Send through the agency's own Google Workspace mailbox (owner's choice, 2026-11-18,
+ * while SES is still in the sandbox). Goes out from admin@ozirealty.com.au, lands in its
+ * Sent folder, and is DKIM-signed by Google for ozirealty.com.au.
+ */
+const GMAIL_USER = process.env.GMAIL_USER ?? "admin@ozirealty.com.au";
+async function sendViaGmail(
+  m: { to: string; subject: string; text: string; html: string; unsubscribeUrl: string },
+  pass: string,
+): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
+  try {
+    const { createTransport } = await import("nodemailer");
+    const t = createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user: GMAIL_USER, pass } });
+    const oneClick = m.unsubscribeUrl.replace("/unsubscribe?", "/api/unsubscribe?");
+    const info = await t.sendMail({
+      from: { name: FROM_NAME, address: GMAIL_USER },
+      to: m.to,
+      subject: m.subject,
+      text: m.text,
+      html: m.html,
+      headers: { "List-Unsubscribe": `<${oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+    });
+    return { ok: true, id: info.messageId ?? null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: /Invalid login|Username and Password not accepted|535/i.test(msg)
+        ? "Google refused the Gmail app password. Create a new one and save it in Settings → Credentials."
+        : `Gmail: ${msg.slice(0, 200)}`,
+    };
   }
 }
 

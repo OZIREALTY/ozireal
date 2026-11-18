@@ -44,6 +44,11 @@ const LABELS: Record<string, { label: string; hint: string; where: string }> = {
     hint: "Paired with the key above.",
     where: "hub.messagemedia.com → API credentials",
   },
+  GMAIL_APP_PASSWORD: {
+    label: "Gmail app password",
+    hint: "Sends property emails from admin@ozirealty.com.au through Google instead of Amazon SES.",
+    where: "myaccount.google.com → Security → App passwords (needs 2-Step Verification)",
+  },
 };
 
 function Row({ status }: { status: SecretStatus }) {

@@ -72,6 +72,7 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
   const html = propertyEmailHtml({ body: req.body, property, unsubscribeUrl: unsub, agencyLine });
   const r = await sendMarketingEmail({
     to: contact.email,
+    tenantId: req.tenantId,
     subject: req.subject?.trim() || "From Ozi Realty",
     text,
     html,
