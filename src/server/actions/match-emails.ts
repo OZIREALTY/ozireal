@@ -186,7 +186,7 @@ export const aiRewriteDraft = defineAction({
     if (item.status !== "pending") throw new ActionError("That email was already handled.");
     const [profile] = item.contactId ? await clientProfiles(ctx.tx, [item.contactId], { enquiries: 6, enquiryChars: 700 }) : [];
     const property = item.propertyId ? await propertyProfile(ctx.tx, item.propertyId) : null;
-    const prompt = loadPrompt("match-email.v2");
+    const prompt = loadPrompt("match-email.v3");
     const { data } = await runTask(rewriteOut, {
       task: "match-email-rewrite",
       model: "sonnet",

@@ -29,6 +29,8 @@ export type SendRequest = {
   agency: { name: string; licence: string | null };
   /** The listing the email is about: adds the property card (photo, price, link). */
   listingId?: string | null;
+  /** The project card the AI wrote with the email (0026). */
+  card?: import("@/db/schema").EmailCard | null;
 };
 
 export async function sendMessage(req: SendRequest): Promise<SendResult> {
@@ -68,8 +70,8 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
   const unsub = unsubscribeUrl(req.tenantId, req.contactId);
   const agencyLine = req.agency.licence ? `${req.agency.name} · ${req.agency.licence}` : req.agency.name;
   const property = req.listingId ? await emailPropertyFor(req.tenantId, req.listingId) : null;
-  const text = propertyEmailText({ body: req.body, property, unsubscribeUrl: unsub, agencyLine });
-  const html = propertyEmailHtml({ body: req.body, property, unsubscribeUrl: unsub, agencyLine });
+  const text = propertyEmailText({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
+  const html = propertyEmailHtml({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
   const r = await sendMarketingEmail({
     to: contact.email,
     tenantId: req.tenantId,

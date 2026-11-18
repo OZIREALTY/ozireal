@@ -11,6 +11,7 @@ import {
   properties,
   suburbs,
 } from "@/db/schema";
+import { newHomesCard } from "@/server/outbound/new-homes-card";
 
 /**
  * What the agency knows about a client and about a property, as compact text for the
@@ -162,6 +163,7 @@ export async function propertyProfile(tx: Tx, propertyId: string) {
     .limit(1);
 
   const name = l?.section === "new_homes" && l.projectName ? l.projectName : p.street;
+  const nh = l?.section === "new_homes" ? await newHomesCard(tx, { projectName: l.projectName, suburb: p.suburb, priceMin: l.min }) : null;
   const text = [
     `${name}, ${p.suburb ?? ""} ${p.state ?? ""}`.trim(),
     `Type: ${p.type}${l?.section === "new_homes" ? " (new build / off-the-plan project)" : ""}`,
@@ -175,6 +177,10 @@ export async function propertyProfile(tx: Tx, propertyId: string) {
     l?.highlights?.length ? `Highlights: ${l.highlights.join(", ")}` : null,
     l?.headline ? `Headline: ${l.headline}` : null,
     l?.copy ? `Description: ${clip(l.copy, 1500)}` : null,
+    nh ? `Website card: ${nh.heading}${nh.headingEm ? ` – ${nh.headingEm}` : ""}` : null,
+    nh?.specs ? `Card specs: ${Object.entries(nh.specs).map(([k, v]) => `${k} ${v}`).join(", ")}` : null,
+    nh?.highlights.length ? `Card highlights: ${nh.highlights.join("; ")}` : null,
+    nh?.bullets.length ? `Inclusions and terms:\n- ${nh.bullets.join("\n- ")}` : null,
   ]
     .filter(Boolean)
     .join("\n");

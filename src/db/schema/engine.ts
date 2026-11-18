@@ -192,6 +192,8 @@ export const approvalItems = pgTable(
     originalBody: text("original_body"),
     /** Why the AI flags this draft for a look before sending (0024). */
     reviewNote: text("review_note"),
+    /** The property card under the email text: title, urgency, advantages (0026). */
+    card: jsonb("card").$type<EmailCard>(),
 
     /**
      * Consent as it stood when the draft was written, and as it stands now. Holding
@@ -357,3 +359,9 @@ export const audienceRuns = pgTable("audience_runs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
+
+export type EmailCard = {
+  title: string;
+  urgency: string | null;
+  advantages: { title: string; detail: string }[];
+};

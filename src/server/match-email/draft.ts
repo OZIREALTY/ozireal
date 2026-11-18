@@ -13,6 +13,7 @@ import { runTask, TaskOutputError } from "@/server/ai/run-task";
 import { ClaudeError } from "@/server/ai/claude";
 import { loadPrompt } from "@/server/ai/prompts";
 import { clientProfiles, propertyProfile } from "@/server/audience/profile";
+import { emailCardSchema } from "./card";
 
 /**
  * Draft one matched-buyer email (2026-11-12): the job DraftMatchEmail, one per
@@ -30,6 +31,7 @@ const draftSchema = z.object({
   subject: z.preprocess((v) => String(v ?? "").slice(0, 120), z.string().min(3)),
   body: z.preprocess((v) => String(v ?? "").slice(0, 3000), z.string().min(20)),
   reviewNote: z.preprocess((v) => (v == null || v === "" ? null : String(v).slice(0, 200)), z.string().nullable()),
+  card: emailCardSchema,
 });
 
 export async function draftMatchEmail(tenantId: string, recipientId: string) {
@@ -90,7 +92,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
     .filter((x) => x !== null)
     .join("\n");
 
-  const prompt = loadPrompt("match-email.v2");
+  const prompt = loadPrompt("match-email.v3");
   try {
     const { data, generationId } = await runTask(draftSchema, {
       task: "match-email",
@@ -98,7 +100,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
       output: "structured",
       system: [{ text: prompt.text, cache: true }],
       messages: [{ role: "user", content: request }],
-      maxTokens: 1200,
+      maxTokens: 2000,
       tenantId,
       entity: { type: "campaign_recipient", id: r.id },
       promptVersion: prompt.version,
@@ -124,6 +126,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
           draftSubject: data.subject,
           draftBody: data.body,
           reviewNote: data.reviewNote,
+          card: data.card,
           consentAtDraft: gate.consentStatus,
           consentCheckedAt: new Date(),
           aiGenerationId: generationId,
