@@ -30,7 +30,7 @@ export default function Page() {
           heading: "Who we are",
           body: [
             `${A.name} (ABN ${A.abn}, ${A.licence}) is a real estate agency at ${A.office}. In this policy "we" and "us" means ${A.name}.`,
-            `${A.name} is one of a group of associated businesses with Prospect Business Centre Pty Ltd (ABN 38 603 202 875), alongside AussiAcc, Smart Loanz and Aussie Will. Each business is responsible for the personal information it holds. This policy covers ${A.name}; the other businesses have their own privacy policies.`,
+            `${A.name}, AussiAcc, Smart Loanz and Aussie Will all operate under Prospect Business Centre Pty Ltd (ABN 38 603 202 875), as one group of businesses. When you give your personal information to any one of them, it is shared across the whole group, as explained in Sharing within our group of businesses below.`,
             `Questions about this policy or your information go to ${A.email} or ${A.phone}.`,
           ],
         },
@@ -88,10 +88,10 @@ export default function Page() {
         {
           heading: "Sharing within our group of businesses",
           body: [
-            `${A.name}, Prospect Business Centre, AussiAcc, Smart Loanz and Aussie Will offer related services: property, accounting, lending and wills. Information moves between them only in these ways:`,
-            "When you ask to be referred, for example to Smart Loanz for finance on a purchase or to AussiAcc for tax advice on an investment property, we pass on the details needed for that referral, and tell you what we are passing on.",
-            "Where the businesses share office administration and systems (such as reception, phone and IT support), staff of the group may see your information only to perform those tasks, under the same confidentiality and security rules as our own staff.",
-            "We do not give your information to another group business for it to market its services to you unless you have agreed to that. If you have agreed, you can withdraw at any time and each business will stop.",
+            `${A.name}, AussiAcc, Smart Loanz and Aussie Will all operate under Prospect Business Centre Pty Ltd, and together offer property, accounting, lending and wills services.`,
+            "When you give your personal information to any business in the group, it is shared with, held by and may be used by every business in the group. This lets each of them help you without asking for the same details again, and lets them tell you about related services, such as finance for a purchase, tax advice on an investment property, or a will.",
+            "Every business in the group handles your information under this policy and the same confidentiality and security rules, and it is not shared outside the group except as this policy describes.",
+            "Any business in the group may contact you about its services. You can opt out at any time, using the unsubscribe option in any message or by contacting us, and the opt-out applies across the whole group.",
             "Credit information you provide for a loan is handled by Smart Loanz under its own credit and privacy policy, not by us.",
           ],
         },
