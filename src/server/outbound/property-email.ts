@@ -71,7 +71,7 @@ export async function emailPropertyFor(tenantId: string, listingId: string): Pro
 
     const newHomes = l.section === "new_homes";
     const onSite = !newHomes && ["live", "under_offer"].includes(l.status);
-    const nh = newHomes ? await newHomesCard(tx, { projectName: l.projectName, suburb: l.suburb, priceMin: l.priceMin }) : null;
+    const nh = newHomes ? await newHomesCard(tx, { projectName: l.projectName, suburb: l.suburb, priceMin: l.priceMin, priceDisplay: l.priceDisplay }) : null;
 
     const url = onSite ? `${SITE}/property/${l.slug}` : null;
     const link = url

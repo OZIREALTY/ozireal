@@ -163,7 +163,7 @@ export async function propertyProfile(tx: Tx, propertyId: string) {
     .limit(1);
 
   const name = l?.section === "new_homes" && l.projectName ? l.projectName : p.street;
-  const nh = l?.section === "new_homes" ? await newHomesCard(tx, { projectName: l.projectName, suburb: p.suburb, priceMin: l.min }) : null;
+  const nh = l?.section === "new_homes" ? await newHomesCard(tx, { projectName: l.projectName, suburb: p.suburb, priceMin: l.min, priceDisplay: l.price }) : null;
   const text = [
     `${name}, ${p.suburb ?? ""} ${p.state ?? ""}`.trim(),
     `Type: ${p.type}${l?.section === "new_homes" ? " (new build / off-the-plan project)" : ""}`,
