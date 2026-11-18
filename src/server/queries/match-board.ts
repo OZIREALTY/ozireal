@@ -59,6 +59,7 @@ export type BoardDraft = {
   body: string | null;
   reviewNote: string | null;
   note: string | null;
+  hasCard: boolean;
 };
 
 export type BoardBatch = {
@@ -192,6 +193,7 @@ export async function getMatchBoard(): Promise<{ properties: BoardProperty[]; co
         subject: approvalItems.draftSubject,
         body: approvalItems.draftBody,
         reviewNote: approvalItems.reviewNote,
+        hasCard: sql<boolean>`${approvalItems.card} is not null`,
         blockReason: approvalItems.blockReason,
       })
       .from(campaigns)
@@ -280,6 +282,7 @@ export async function getMatchBoard(): Promise<{ properties: BoardProperty[]; co
                 subject: r.subject,
                 body: r.body,
                 reviewNote: r.reviewNote,
+                hasCard: !!r.hasCard,
                 note: r.blockReason ?? r.blocked,
               })),
             }

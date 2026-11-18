@@ -566,6 +566,17 @@ function Review({ p, batch }: { p: BoardProperty; batch: NonNullable<BoardProper
     router.refresh();
   }
 
+  const noCard = pending.filter((d) => !d.hasCard);
+  async function addCards() {
+    setRewriting({ done: 0, total: noCard.length });
+    for (const [i, d] of noCard.entries()) {
+      await aiRewriteDraft({ id: d.itemId!, instruction: KEEP_TEXT_ADD_CARD }).catch(() => null);
+      setRewriting({ done: i + 1, total: noCard.length });
+    }
+    setRewriting(null);
+    router.refresh();
+  }
+
   async function approveAll() {
     const list = pending.filter((d) => !results[d.itemId!]);
     setSending({ done: 0, total: list.length });
@@ -617,6 +628,24 @@ function Review({ p, batch }: { p: BoardProperty; batch: NonNullable<BoardProper
           {sending ? `Sending ${sending.done}/${sending.total}…` : `Approve & send ${pending.length}`}
         </button>
       </div>
+
+      {noCard.length > 0 && (
+        <div className="rounded-xl border border-[#F3D9A8] bg-[#FFF7E0] p-3 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="flex-1 min-w-[220px]">
+            <strong>{noCard.length} {noCard.length === 1 ? "email has" : "emails have"} no project card yet</strong> (written before the
+            card existed). Add it: your text stays exactly as it is.
+          </span>
+          <button
+            type="button"
+            onClick={addCards}
+            disabled={!!rewriting || !!sending}
+            className="rounded-md bg-[var(--accent)] text-white text-[13px] font-medium px-3 min-h-9 disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            {rewriting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            {rewriting ? `Adding ${rewriting.done}/${rewriting.total}…` : `Add the card to ${noCard.length}`}
+          </button>
+        </div>
+      )}
 
       {pending.length > 1 && (
         <form
@@ -801,10 +830,7 @@ function DraftCard({
                 </p>
               )}
               <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap">{d.body}</div>
-              <p className="text-3 text-[11.5px]">
-                Then: the property photo, price and a &ldquo;View the property&rdquo; button, your signature, and the
-                unsubscribe link.
-              </p>
+              <EmailPreview itemId={d.itemId} hasCard={d.hasCard} />
               {d.status === "pending" && !result && (
                 <div className="flex flex-wrap gap-2">
                   <AiEdit itemId={d.itemId!} />
@@ -874,5 +900,51 @@ function AiEdit({ itemId }: { itemId: string }) {
       </button>
       {err && <p className="basis-full text-[12px] text-[#b02f2f]">{err}</p>}
     </form>
+  );
+}
+
+const KEEP_TEXT_ADD_CARD =
+  "Keep the subject and the email text exactly as they are, word for word. Only write the project card (title, urgency, advantages).";
+
+/** The email exactly as the client will get it: text, project card, signature. */
+function EmailPreview({ itemId, hasCard }: { itemId: string | null; hasCard: boolean }) {
+  const [open, setOpen] = React.useState(false);
+  const [html, setHtml] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+  async function show() {
+    if (open) return setOpen(false);
+    setOpen(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/email-preview/${itemId}`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      setHtml(await r.text());
+    } catch {
+      setErr("The preview could not be loaded. Reload the page and try again.");
+    }
+  }
+  if (!itemId) return null;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-[12px]">
+        <button type="button" onClick={show} className="inline-flex items-center gap-1 rounded-md border border-[var(--accent)]/40 text-[var(--accent)] px-2.5 min-h-8 font-medium">
+          <Mail size={12} /> {open ? "Hide preview" : "Preview the email"}
+        </button>
+        {!hasCard && <span className="text-[#8A4B00]">No project card yet: use &ldquo;Add the card&rdquo; above.</span>}
+      </div>
+      {open && (
+        <div className="rounded-lg border overflow-hidden bg-[#EEF1F6]">
+          {err ? (
+            <p className="p-3 text-[12.5px] text-[#b02f2f]">{err}</p>
+          ) : html ? (
+            <iframe title="Email preview" srcDoc={html} sandbox="" className="w-full h-[900px] border-0 bg-white" />
+          ) : (
+            <p className="p-3 text-[12.5px] text-2 inline-flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" /> Loading…
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

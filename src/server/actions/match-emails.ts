@@ -8,6 +8,7 @@ import { approvalItems, audienceRuns, campaignRecipients, campaigns, listings, m
 import { runTask } from "@/server/ai/run-task";
 import { loadPrompt } from "@/server/ai/prompts";
 import { clientProfiles, propertyProfile } from "@/server/audience/profile";
+import { emailCardSchema } from "@/server/match-email/card";
 import { enqueue } from "@/server/jobs/queues";
 
 /**
@@ -159,6 +160,7 @@ export const findAudienceFor = defineAction({
 const rewriteOut = z.object({
   subject: z.preprocess((v) => String(v ?? "").slice(0, 120), z.string().min(3)),
   body: z.preprocess((v) => String(v ?? "").slice(0, 3000), z.string().min(20)),
+  card: emailCardSchema,
 });
 
 /**
@@ -175,6 +177,7 @@ export const aiRewriteDraft = defineAction({
         contactId: approvalItems.contactId,
         subject: approvalItems.draftSubject,
         body: approvalItems.draftBody,
+        card: approvalItems.card,
         original: approvalItems.originalBody,
         propertyId: campaigns.propertyId,
       })
@@ -205,20 +208,21 @@ export const aiRewriteDraft = defineAction({
             "THE CURRENT EMAIL",
             `Subject: ${item.subject ?? ""}`,
             item.body,
+            item.card ? `Current card: ${JSON.stringify(item.card)}` : "Current card: none yet",
             "",
             `REWRITE IT, following this instruction from Esi exactly, and every rule above: ${input.instruction}`,
-            'Return ONLY {"subject": "...", "body": "..."}.',
+            'Also write the project card as the rules above describe (keep it if the instruction does not concern it). Return ONLY {"subject": "...", "body": "...", "card": {"title": "...", "urgency": "...", "advantages": [{"title": "...", "detail": "..."}]}}.',
           ].join("\n"),
         },
       ],
-      maxTokens: 1500,
+      maxTokens: 2200,
       tenantId: ctx.tenantId,
       entity: { type: "approval_item", id: input.id },
       promptVersion: prompt.version,
     });
     await ctx.tx
       .update(approvalItems)
-      .set({ draftSubject: data.subject, draftBody: data.body, originalBody: item.original ?? item.body, reviewNote: null })
+      .set({ draftSubject: data.subject, draftBody: data.body, originalBody: item.original ?? item.body, reviewNote: null, ...(data.card ? { card: data.card } : {}) })
       .where(eq(approvalItems.id, input.id));
     revalidatePath("/matching");
     return data;

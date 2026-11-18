@@ -45,6 +45,8 @@ export const PRIVATE_PREFIXES = [
   "/settings",
   /** Contact details leave the building through here. It is not a public route. */
   "/api/export",
+  /** Draft emails rendered for review (2026-11-18). */
+  "/api/email-preview",
 ] as const;
 
 /**
