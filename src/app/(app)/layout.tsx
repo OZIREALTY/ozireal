@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import { ConsoleShell, type ShellData } from "@/components/shell/nav";
 import { SignOutButton } from "@/components/shell/sign-out";
 import { getAgency, getCounts, getContacts, getListings } from "@/server/queries";
@@ -25,6 +26,18 @@ export const metadata: Metadata = {
   manifest: "/crm-manifest.json",
   appleWebApp: { capable: true, title: "Ozi CRM", statusBarStyle: "default" },
 };
+
+/**
+ * One typeface for the whole console (2026-11-19): Inter, as in the approved mobile
+ * redesign. Self-hosted (fontsource latin variable, SIL OFL) for the same reason the
+ * public site self-hosts: no build-time fetch to Google.
+ */
+const inter = localFont({
+  src: [{ path: "./fonts/inter-latin.woff2", weight: "100 900", style: "normal" }],
+  display: "swap",
+  variable: "--font-crm",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Arial", "sans-serif"],
+});
 
 export const viewport: Viewport = { themeColor: "#13254A", viewportFit: "cover" };
 
@@ -67,8 +80,10 @@ export default async function ConsoleLayout({
   };
 
   return (
-    <ConsoleShell data={data} signOut={<SignOutButton />}>
-      {children}
-    </ConsoleShell>
+    <div className={`crm ${inter.variable}`}>
+      <ConsoleShell data={data} signOut={<SignOutButton />}>
+        {children}
+      </ConsoleShell>
+    </div>
   );
 }

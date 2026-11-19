@@ -16,10 +16,10 @@ export function PageHeader({
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6 border-b pb-4 mb-5 sm:mb-6">
       <div className="min-w-0">
-        <h1 className="text-[17px] sm:text-[19px] font-semibold tracking-[-0.01em]">
+        <h1 className="text-[24px] sm:text-[26px] leading-tight font-extrabold tracking-[-0.02em]">
           {title}
         </h1>
-        {subtitle && <p className="text-2 mt-1 text-[13px] max-w-2xl">{subtitle}</p>}
+        {subtitle && <p className="text-2 mt-1 text-[14px] max-w-2xl">{subtitle}</p>}
       </div>
       {actions && (
         <div className="flex items-center gap-2 shrink-0 flex-wrap">{actions}</div>
@@ -86,7 +86,7 @@ export function Card({
 }
 
 export function CardTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[13px] font-semibold mb-2">{children}</h3>;
+  return <h3 className="text-[14px] font-bold mb-2">{children}</h3>;
 }
 
 /* ------------------------------------------------------------------ stat */
@@ -113,10 +113,10 @@ export function Stat({
 
   const inner = (
     <div className={cn("surface-2 border rounded-lg p-3.5 h-full", toneRing)}>
-      <div className="text-3 text-[11px] uppercase tracking-[0.06em] font-medium">
+      <div className="text-2 text-[11.5px] uppercase tracking-[0.08em] font-bold">
         {label}
       </div>
-      <div className="text-[26px] font-semibold leading-tight mt-1 tabular">{value}</div>
+      <div className="text-[28px] font-extrabold leading-tight mt-1 tabular">{value}</div>
       {sub && <div className="text-3 text-[12px] mt-0.5 leading-snug">{sub}</div>}
     </div>
   );
@@ -144,7 +144,7 @@ type BadgeTone =
 
 const badgeTones: Record<BadgeTone, string> = {
   neutral: "border-[var(--line-strong)] text-2",
-  brand: "border-[#2a78d6]/40 text-[#1c5cab] dark:text-[#7fb3f0] bg-[#2a78d6]/8",
+  brand: "border-[var(--accent)]/40 text-[#A6330F] dark:text-[#FF9B7A] bg-[var(--accent)]/8",
   stock: "border-[#1baf7a]/45 text-[#0d7a54] dark:text-[#5fd3a8] bg-[#1baf7a]/8",
   queue: "border-[#eda100]/50 text-[#8a5f00] dark:text-[#e8b64a] bg-[#eda100]/10",
   ai: "border-[#4a3aa7]/40 text-[#4a3aa7] dark:text-[#a79bf0] bg-[#4a3aa7]/8",
@@ -203,7 +203,7 @@ export function Button({
       type="button"
       title={title ?? "Inert in the prototype — no backend is wired up"}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors cursor-default",
+        "inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors cursor-default",
         size === "sm"
           ? "text-[12px] px-2.5 min-h-8"
           : "text-[13px] px-3 min-h-9",
@@ -345,7 +345,7 @@ export function Callout({
     queue: "border-[#eda100]/45 bg-[#eda100]/8",
     blocked: "border-[#d03b3b]/45 bg-[#d03b3b]/8",
     ai: "border-[#4a3aa7]/35 bg-[#4a3aa7]/6",
-    brand: "border-[#2a78d6]/35 bg-[#2a78d6]/6",
+    brand: "border-[var(--accent)]/35 bg-[var(--accent)]/6",
   };
   return (
     <div className={cn("border rounded-lg p-3 text-[12.5px]", tones[tone])}>

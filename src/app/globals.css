@@ -155,3 +155,68 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
+
+/*
+ * The console theme (2026-11-19): every internal page in the look of the approved mobile
+ * redesign - Inter, navy ink, Ozi orange, blue-grey paper. Keyed on the console wrapper
+ * with :has() so it also reaches portals, sheets and the page background, and never
+ * touches the public site (which carries its own tokens under .site anyway).
+ */
+:root:has(.crm) {
+  --surface: #eef1f6;
+  --surface-2: #ffffff;
+  --surface-3: #f4f6fa;
+  --line: #dce2ec;
+  --line-strong: #b9c3d4;
+  --text: #13254a;
+  --text-2: #4a5672;
+  --text-3: #7a859c;
+  --accent: #d84315;
+  --accent-soft: #fdebe4;
+  --chart-grid: #dce2ec;
+  --chart-axis: #b9c3d4;
+  --chart-text: #4a5672;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):has(.crm) {
+    --surface: #0e1524;
+    --surface-2: #172238;
+    --surface-3: #1c2942;
+    --line: #2a3853;
+    --line-strong: #3b4c6e;
+    --text: #f2f5fb;
+    --text-2: #a9b4ca;
+    --text-3: #7f8aa3;
+    --accent: #ff6a3d;
+    --accent-soft: #3a2218;
+    --chart-grid: #2a3853;
+    --chart-axis: #3b4c6e;
+    --chart-text: #a9b4ca;
+  }
+}
+:root[data-theme="dark"]:has(.crm) {
+  --surface: #0e1524;
+  --surface-2: #172238;
+  --surface-3: #1c2942;
+  --line: #2a3853;
+  --line-strong: #3b4c6e;
+  --text: #f2f5fb;
+  --text-2: #a9b4ca;
+  --text-3: #7f8aa3;
+  --accent: #ff6a3d;
+  --accent-soft: #3a2218;
+  --chart-grid: #2a3853;
+  --chart-axis: #3b4c6e;
+  --chart-text: #a9b4ca;
+}
+.crm {
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  font-family: var(--font-crm), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14.5px;
+  letter-spacing: -0.005em;
+}
+.crm h1 {
+  letter-spacing: -0.02em;
+}

@@ -201,7 +201,7 @@ export default async function DashboardPage() {
         <Tile
           href="/contacts"
           icon={Users}
-          color="#2a78d6"
+          color="var(--accent)"
           title="My contacts"
           blurb="Buyers, sellers, landlords, tenants and agents"
           big={c.contacts}
