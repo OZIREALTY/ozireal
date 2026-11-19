@@ -85,7 +85,7 @@ function buildGroups(
         { href: "/properties", label: "Properties", icon: Home },
         { href: "/tasks", label: "Tasks", icon: ListTodo, badge: counts.tasksOpen, badgeTone: "plain" },
         { href: "/calendar", label: "Calendar", icon: CalendarDays },
-        { href: "/matching", label: "Emails to send", icon: GitCompareArrows },
+        { href: "/matching", label: "Matching", icon: GitCompareArrows },
         { href: "/approvals", label: "Waiting for my OK", icon: ShieldCheck, badge: counts.approvals, badgeTone: "queue" },
       ],
     },
