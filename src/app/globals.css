@@ -220,3 +220,15 @@ body {
 .crm h1 {
   letter-spacing: -0.02em;
 }
+
+/*
+ * Reading size on a computer (2026-11-19, owner: "body text size is very bad"). Pages
+ * were written at 12-13px; rather than chase hundreds of sizes, the working area is
+ * drawn 15% larger on desktop, spacing included, so proportions hold. Phones already
+ * use the large-type mobile layout.
+ */
+@media (min-width: 1024px) {
+  .crm main {
+    zoom: 1.15;
+  }
+}

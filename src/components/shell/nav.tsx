@@ -76,27 +76,34 @@ function buildGroups(
 ): { label: string; collapsible?: boolean; items: Item[] }[] {
   return [
     {
+      // The day's work, in the order a day runs (2026-11-19): what to do, who, what, when,
+      // and what is waiting for a yes. Queues with a badge live up here, never hidden.
       label: "",
       items: [
-        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/contacts", label: "My contacts", icon: Users },
-        { href: "/properties", label: "My properties", icon: Home },
-        // The owner's "building-check" skill as a feature (2026-11-11).
-        { href: "/building-checks", label: "Building checks", icon: ClipboardCheck },
-        { href: "/matching", label: "Matching", icon: GitCompareArrows },
-        { href: "/tasks", label: "My tasks", icon: ListTodo, badge: counts.tasksOpen, badgeTone: "plain" },
+        { href: "/dashboard", label: "Today", icon: LayoutDashboard },
+        { href: "/contacts", label: "Clients", icon: Users },
+        { href: "/properties", label: "Properties", icon: Home },
+        { href: "/tasks", label: "Tasks", icon: ListTodo, badge: counts.tasksOpen, badgeTone: "plain" },
+        { href: "/calendar", label: "Calendar", icon: CalendarDays },
+        { href: "/matching", label: "Emails to send", icon: GitCompareArrows },
+        { href: "/approvals", label: "Waiting for my OK", icon: ShieldCheck, badge: counts.approvals, badgeTone: "queue" },
       ],
     },
     {
-      label: "Advanced",
-      collapsible: true,
+      label: "Tools",
       items: [
-        { href: "/approvals", label: "Approvals", icon: ShieldCheck, badge: counts.approvals, badgeTone: "queue" },
-        { href: "/confirm", label: "Confirm queue", icon: CheckCheck, badge: counts.confirms + counts.merges, badgeTone: "queue" },
-        { href: "/campaigns", label: "Campaigns", icon: Send },
-        { href: "/calendar", label: "Calendar", icon: CalendarDays },
+        // The owner's "building-check" skill as a feature (2026-11-11).
+        { href: "/building-checks", label: "Building checks", icon: ClipboardCheck },
         { href: "/voice", label: "Voice notes", icon: Mic },
         { href: "/insights", label: "Insights", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "More",
+      collapsible: true,
+      items: [
+        { href: "/confirm", label: "AI suggestions to confirm", icon: CheckCheck, badge: counts.confirms + counts.merges, badgeTone: "queue" },
+        { href: "/campaigns", label: "Campaigns", icon: Send },
         { href: "/compliance", label: "Compliance", icon: Scale },
         { href: "/proposals", label: "Proposals", icon: FileText },
         { href: "/content", label: "Content & social", icon: Newspaper },
@@ -141,7 +148,7 @@ function NavList({
               type="button"
               onClick={() => setAdvancedOpen((o) => !o)}
               aria-expanded={open}
-              className="w-full flex items-center gap-1.5 text-3 text-[10.5px] uppercase tracking-[0.09em] font-semibold px-2 min-h-8 mb-0.5 rounded-md hover:surface-3"
+              className="w-full flex items-center gap-1.5 text-3 text-[12px] uppercase tracking-[0.09em] font-bold px-2 min-h-9 mb-0.5 rounded-md hover:surface-3"
             >
               <ChevronRight
                 size={13}
@@ -167,7 +174,7 @@ function NavList({
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   // min-h-9 keeps every row a comfortable tap target on a phone.
-                  "flex items-center gap-2.5 rounded-md px-2 min-h-9 text-[13px] mb-0.5 transition-colors",
+                  "flex items-center gap-3 rounded-md px-2.5 min-h-11 text-[15px] font-semibold mb-0.5 transition-colors",
                   collapsed && "justify-center",
                   active
                     ? "accent-soft font-medium text-[var(--accent)]"

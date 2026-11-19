@@ -160,13 +160,10 @@ export default async function DashboardPage() {
   return (
     <>
     <MobileToday data={todayData} firstName={firstName} />
-    <div className="max-w-[1120px] hidden lg:block">
+    <div className="max-w-[1120px] hidden lg:block mt-10 pt-6 border-t">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
         <div>
-          <p className="text-3 text-[11.5px] uppercase tracking-[0.08em] font-medium">{today}</p>
-          <h1 className="text-[21px] sm:text-[25px] font-semibold tracking-[-0.02em] mt-0.5">
-            {greeting}, {firstName}
-          </h1>
+          <h2 className="text-[13px] font-bold tracking-[0.08em] uppercase text-2" title={`${greeting} · ${today}`}>The business at a glance</h2>
         </div>
         <AskButton
           send="What needs my attention today?"

@@ -11,7 +11,7 @@ import { openAssistant } from "@/components/assistant/ask-button";
 /**
  * The mobile Today screen (owner-approved preview, 2026-11-19). Thumb-first: one column,
  * 17px body text, 52px buttons, a word on every icon, status in colour AND words, at most
- * two taps per job, Undo after every change. Shown below the lg breakpoint only.
+ * two taps per job, Undo after every change. On a computer the same list heads the dashboard, two columns wide.
  */
 
 type Item = TodayEnquiry | TodayBatch | TodayTask;
@@ -97,7 +97,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
   ];
 
   return (
-    <div className="lg:hidden -mx-4 -mt-4 px-4 pt-3 pb-28 text-[17px] leading-relaxed">
+    <div className="-mx-4 -mt-4 px-4 pt-3 pb-28 text-[17px] leading-relaxed lg:m-0 lg:p-0 lg:max-w-[1120px] lg:text-[16px]">
       <header className="flex items-center gap-3 py-2">
         <div className="min-w-0 flex-1">
           <p className="text-2 text-[14px] font-medium">{today}</p>
@@ -129,7 +129,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
       )}
 
       <h2 className="mt-6 mb-2.5 text-[13px] font-bold tracking-[0.08em] uppercase text-2">Today at a glance</h2>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {counts.map((c) => (
           <button
             key={c.l}
@@ -149,7 +149,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
       {items.length === 0 ? (
         <p className="text-center text-2 py-8">All done for now. Nice work.</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {items.map((i) => (
             <article key={keyOf(i)} data-kind={i.kind === "emails" ? "emails" : i.kind} className="surface-2 border rounded-2xl p-4">
               {i.kind === "enquiry" && (
