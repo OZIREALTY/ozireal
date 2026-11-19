@@ -62,7 +62,7 @@ export const TOOLS = {
   search_knowledge: {
     kind: "read",
     description:
-      "Search the owner's AI training (Settings → AI training) beyond what is already in your instructions: the 'office' shelf (the agency's own checklists, agreements, fee schedule, scripts, procedures, FAQs) and the 'legal' shelf (Acts, regulations, official guidance). Use it for ANY question about how the office does something, its fees, templates or policies, and for ANY legal or compliance question, before answering from general knowledge. Returns the matching passages with the document title, and for legal ones the jurisdiction, instrument, section and version date. Cite every answer from it: name the document (office) or 'jurisdiction, instrument, s. section' (legal). If nothing relevant comes back, say the knowledge base does not cover it rather than guessing. Legal answers are research support, to be verified with a licensee or solicitor; never a definitive legal ruling.",
+      "Look up the owner's AI training (Settings → AI training) when your instructions say more is on file, or for any legal or compliance question. Shelves: 'office' (what the owner taught you about the agency, beyond what already fits in your instructions) and 'legal' (Acts, regulations, official guidance). Returns passages with the source title, and for legal ones the jurisdiction, instrument, section and version date. Legal answers must cite 'jurisdiction, instrument, s. section', are research support to be verified with a licensee or solicitor, and are never a definitive ruling. If nothing relevant comes back, say your training does not cover it rather than guessing.",
     schema: z.object({
       query: z.string().trim().min(2).max(300),
       shelf: z.enum(["office", "legal"]).optional(),
@@ -487,7 +487,7 @@ export async function runReadTool(name: ToolName, rawInput: unknown): Promise<un
       });
       return hits.length
         ? { passages: hits }
-        : { passages: [], note: "Nothing in the knowledge base matches. Say so; do not answer as if it did." };
+        : { passages: [], note: "Nothing in the AI training matches. Say so; do not answer as if it did." };
     }
     case "get_overview":
       return getHomeCounts();

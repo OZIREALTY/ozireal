@@ -135,7 +135,7 @@ export function KnowledgeShelves({
   }
 
   async function remove(d: Doc) {
-    if (!window.confirm(`Remove "${d.title}" from the knowledge base?`)) return;
+    if (!window.confirm(`Remove "${d.title}" from the AI training? The AI stops using it straight away.`)) return;
     const r = await removeKnowledge({ id: d.id }).catch(() => null);
     if (!r?.ok) return setNote({ ok: false, msg: r && !r.ok ? r.error : "Could not reach the server." });
     router.refresh();
@@ -257,7 +257,7 @@ export function KnowledgeShelves({
         </h2>
         {list.length > 0 && (
           <button type="button" onClick={() => openAssistant({ prefill: meta.ask })} className="inline-flex items-center gap-1.5 rounded-full border px-3 min-h-9 text-[14px] font-semibold surface-2 hover:text-[var(--accent)]">
-            <Sparkles size={15} className="text-[var(--accent)]" /> Ask this shelf
+            <Sparkles size={15} className="text-[var(--accent)]" /> Test the AI on this
           </button>
         )}
       </div>

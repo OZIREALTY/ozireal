@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
--- Knowledge base (owner's request, 2026-11-19): one place under Settings with two
--- shelves - "office" (the agency's own documents) and "legal" (legislation and
--- official guidance). The owner adds to both by upload, paste or link; official
+-- AI training (owner, 2026-11-19: "the knowledge base is for the AI training"). Three
+-- shelves: "rules" and "office" ride on every AI call; "legal" is searched and cited.
+-- The owner adds to any shelf by typing, upload or link; official legal
 -- sources are loaded only after their licence is confirmed (CLAUDE.md §15).
 --
 -- A document is split into chunks, by section where the text has sections. Each

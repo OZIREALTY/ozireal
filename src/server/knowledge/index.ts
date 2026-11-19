@@ -4,7 +4,7 @@ import { knowledgeChunks, knowledgeDocs } from "@/db/schema";
 import { embedDocuments, embedQuery, embeddingsAvailable, toVectorLiteral } from "@/server/ai/embeddings";
 
 /**
- * The knowledge base (2026-11-19): read a document, split it by section, store the
+ * AI training (2026-11-19): read what the owner teaches, split it by section, store the
  * pieces, and search them by exact words and by meaning. Both the office shelf and the
  * legal shelf go through here; the shelf only changes what a citation shows.
  *
