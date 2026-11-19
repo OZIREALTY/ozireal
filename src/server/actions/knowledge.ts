@@ -5,10 +5,10 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { defineAction, ActionError } from "./action";
 import { knowledgeDocs } from "@/db/schema";
-import { embedDocument, extractText, storeDocument } from "@/server/knowledge";
+import { embedDocument, extractText, forgetTraining, storeDocument } from "@/server/knowledge";
 
 /**
- * Add to the knowledge base (Settings, 2026-11-19): a file (PDF, Word, text), pasted
+ * Train the AI (Settings → AI training, 2026-11-19): a file (PDF, Word, text), pasted
  * text, or a web link, on either shelf. Saved at once and searchable by its words;
  * the meaning index is built just after, and a failure there never loses the document.
  */
@@ -29,7 +29,7 @@ const legalMeta = {
 
 export const addKnowledge = defineAction({
   input: z.object({
-    shelf: z.enum(["office", "legal"]),
+    shelf: z.enum(["rules", "office", "legal"]),
     title: z.string().trim().max(200).optional(),
     from: z.discriminatedUnion("type", [
       z.object({
@@ -106,6 +106,7 @@ export const addKnowledge = defineAction({
       metadata: { shelf: input.shelf, chunks: saved.chunks },
     });
     ctx.afterCommit(() => embedDocument(ctx.tenantId, saved.id));
+    ctx.afterCommit(async () => forgetTraining(ctx.tenantId));
     revalidatePath("/settings/knowledge");
     return { id: saved.id, title, chunks: saved.chunks };
   },
@@ -120,6 +121,7 @@ export const removeKnowledge = defineAction({
       .returning({ title: knowledgeDocs.title });
     if (!row) throw new ActionError("That document is already gone.");
     await ctx.audit({ kind: "edit", action: "knowledge.remove", target: row.title, entityType: "knowledge_doc", entityId: input.id });
+    ctx.afterCommit(async () => forgetTraining(ctx.tenantId));
     revalidatePath("/settings/knowledge");
   },
 });

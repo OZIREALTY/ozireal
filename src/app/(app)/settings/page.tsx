@@ -73,8 +73,8 @@ export default async function SettingsPage() {
           <BookOpen size={22} />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block text-[16px] font-bold">Knowledge base</span>
-          <span className="block text-2 text-[14px]">Your office documents and the legal library. The assistant answers from them and names its source.</span>
+          <span className="block text-[16px] font-bold">AI training</span>
+          <span className="block text-2 text-[14px]">Teach the AI your instructions, your agency and the law. Every AI feature follows it.</span>
         </span>
         <ChevronRight size={20} className="text-3 shrink-0" />
       </Link>

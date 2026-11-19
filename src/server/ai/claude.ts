@@ -152,11 +152,22 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
   const model = call.model === "haiku" ? config.fastModel : config.writingModel;
   const temperature =
     call.output === "structured" ? config.structuredTemperature : config.proseTemperature;
-  const system = call.system?.map((b) =>
-    b.cache
-      ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const } }
-      : { type: "text" as const, text: b.text },
-  );
+  /**
+   * The owner's AI training (Settings → AI training, 2026-11-19) rides on every call,
+   * first and cached, so every feature follows it and repeats cost a tenth. A failure
+   * to load it never fails the call.
+   */
+  const training = await import("@/server/knowledge")
+    .then((m) => m.trainingText(call.tenantId))
+    .catch(() => "");
+  const system = [
+    ...(training ? [{ type: "text" as const, text: training, cache_control: { type: "ephemeral" as const } }] : []),
+    ...(call.system ?? []).map((b) =>
+      b.cache
+        ? { type: "text" as const, text: b.text, cache_control: { type: "ephemeral" as const } }
+        : { type: "text" as const, text: b.text },
+    ),
+  ];
 
   /**
    * Newer models refuse `temperature` outright ("`temperature` is deprecated for this

@@ -48,7 +48,7 @@ const MAX = 2200;
  * a chunk is one section. A section too long for one piece is split at paragraphs and
  * every piece repeats its section and heading.
  */
-export function chunkText(raw: string, shelf: "office" | "legal"): Chunk[] {
+export function chunkText(raw: string, shelf: "rules" | "office" | "legal"): Chunk[] {
   const text = raw.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   if (!text) return [];
 
@@ -93,7 +93,7 @@ export async function storeDocument(
   tx: Tx,
   tenantId: string,
   doc: {
-    shelf: "office" | "legal";
+    shelf: "rules" | "office" | "legal";
     title: string;
     source: "upload" | "paste" | "link" | "official";
     sourceRef?: string | null;
@@ -163,7 +163,7 @@ export async function embedDocument(tenantId: string, docId: string) {
 
 export type KnowledgeHit = {
   document: string;
-  shelf: "office" | "legal";
+  shelf: "rules" | "office" | "legal";
   section: string | null;
   heading: string | null;
   jurisdiction: string | null;
@@ -182,7 +182,7 @@ type Row = KnowledgeHit & { id: string };
 export async function searchKnowledge(
   tenantId: string,
   query: string,
-  opts: { shelf?: "office" | "legal"; jurisdiction?: string; limit?: number } = {},
+  opts: { shelf?: "rules" | "office" | "legal"; jurisdiction?: string; limit?: number } = {},
 ): Promise<KnowledgeHit[]> {
   const limit = opts.limit ?? 8;
   const shelf = opts.shelf ?? null;
@@ -234,4 +234,72 @@ export async function searchKnowledge(
 function orQuery(q: string): string {
   const words = q.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
   return [...new Set(words)].slice(0, 12).join(" | ") || "nothing";
+}
+
+/* ----------------------------------------------------------------- training */
+
+/** Characters of owner training sent with every call. Cached, so repeats are cheap. */
+const RULES_BUDGET = 12_000;
+const KNOW_BUDGET = 24_000;
+const TRAINING_TTL_MS = 60_000;
+const trainingCache = new Map<string, { text: string; at: number }>();
+
+/** Called after an add or remove so the next AI call sees the change at once. */
+export function forgetTraining(tenantId: string) {
+  trainingCache.delete(tenantId);
+}
+
+/**
+ * The owner's training for the AI (2026-11-19: "the knowledge base is for the AI
+ * training"). Instructions and agency knowledge go into the system prompt of EVERY
+ * Claude call, so the assistant, email drafts, matching and content all follow them.
+ * Anything past the budget is still reachable through search_knowledge. The legal
+ * library is never pasted in: it is searched and cited (§3.3).
+ */
+export async function trainingText(tenantId: string): Promise<string> {
+  const hit = trainingCache.get(tenantId);
+  if (hit && Date.now() - hit.at < TRAINING_TTL_MS) return hit.text;
+
+  const rows = await withTenant(tenantId, (tx) =>
+    tx.execute<{ shelf: "rules" | "office"; title: string; heading: string | null; text: string }>(sql`
+      select d.shelf, d.title, c.heading, c.text
+      from knowledge_chunks c join knowledge_docs d on d.id = c.doc_id
+      where d.shelf in ('rules', 'office')
+      order by d.shelf desc, d.created_at desc, c.idx`),
+  ).catch(() => []);
+
+  const take = (shelf: "rules" | "office", budget: number) => {
+    let used = 0;
+    let lastTitle = "";
+    const out: string[] = [];
+    for (const r of rows) {
+      if (r.shelf !== shelf) continue;
+      const head = r.title !== lastTitle ? `\n### ${r.title}\n` : "";
+      const piece = `${head}${r.heading ? `${r.heading}: ` : ""}${r.text}\n`;
+      if (used + piece.length > budget) {
+        out.push("\n(More on file: use search_knowledge where that tool exists.)");
+        break;
+      }
+      out.push(piece);
+      used += piece.length;
+      lastTitle = r.title;
+    }
+    return out.join("");
+  };
+
+  const rules = take("rules", RULES_BUDGET);
+  const know = take("office", KNOW_BUDGET);
+  const text =
+    rules || know
+      ? [
+          "# Training from the agency owner",
+          "The owner wrote or chose everything below to train you. Follow the instructions in all your work, and treat the knowledge as true about this agency, ahead of general knowledge. Where the task's own instructions require a fixed format (for example JSON only), keep that format and apply this training within it.",
+          rules && `\n## Instructions\n${rules}`,
+          know && `\n## What to know about the agency\n${know}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "";
+  trainingCache.set(tenantId, { text, at: Date.now() });
+  return text;
 }

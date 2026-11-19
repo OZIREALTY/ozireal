@@ -110,7 +110,7 @@ function buildGroups(
         { href: "/costs", label: "AI cost & jobs", icon: Receipt },
         { href: "/audit", label: "Audit log", icon: ScrollText },
         { href: "/settings", label: "Settings", icon: Settings },
-        { href: "/settings/knowledge", label: "Knowledge base", icon: BookOpen },
+        { href: "/settings/knowledge", label: "AI training", icon: BookOpen },
       ],
     },
   ];

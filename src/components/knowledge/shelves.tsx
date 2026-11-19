@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Scale, Upload, ClipboardPaste, Link2, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
+import { BookOpen, GraduationCap, Scale, Upload, ClipboardPaste, Link2, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
 import { addKnowledge, removeKnowledge } from "@/server/actions/knowledge";
 import { openAssistant } from "@/components/assistant/ask-button";
 
@@ -13,7 +13,7 @@ type From =
 
 type Doc = {
   id: string;
-  shelf: "office" | "legal";
+  shelf: Shelf;
   title: string;
   source: "upload" | "paste" | "link" | "official";
   sourceRef: string | null;
@@ -25,17 +25,31 @@ type Doc = {
   createdAt: Date;
 };
 
+type Shelf = "rules" | "office" | "legal";
+
 const SHELVES = {
+  rules: {
+    label: "Instructions for the AI",
+    icon: GraduationCap,
+    blurb:
+      "How every AI feature should work and write: your tone, words to use or avoid, how to sign off, what to always or never do. Applied to the assistant, email drafts, matching and content on every call.",
+    example: "e.g. Always write in Australian English. Never use the word \"nestled\". Sign every email \"Esi\". Keep emails under 150 words.",
+    ask: "Show me how you would write a short client email following my instructions.",
+  },
   office: {
-    label: "Office knowledge",
+    label: "What the AI should know",
     icon: BookOpen,
-    blurb: "Checklists, agency agreements, fee schedule, scripts, procedures, FAQs: anything your office works from.",
-    ask: "What does our office knowledge base say about ",
+    blurb:
+      "Facts about your agency the AI should treat as true: services, fees, areas you cover, team, partners, your story, good example emails. Also applied on every call.",
+    example: "e.g. We are part of Prospect Business Centre. We cover Adelaide's north and east. Our commission is…",
+    ask: "What do you know about my agency from your training?",
   },
   legal: {
     label: "Legal library",
     icon: Scale,
-    blurb: "Acts, regulations and official guidance. Answers cite the instrument and section, and are research support to check with a licensee or solicitor.",
+    blurb:
+      "Acts, regulations and official guidance. Not pasted into every call: the AI searches it when a question needs it and cites the Act and section, as research support to check with a licensee or solicitor.",
+    example: "",
     ask: "Using the legal library, ",
   },
 } as const;
@@ -66,11 +80,11 @@ export function KnowledgeShelves({
 }: {
   docs: Doc[];
   jurisdiction: string;
-  initialShelf: "office" | "legal";
+  initialShelf: Shelf;
 }) {
   const router = useRouter();
-  const [shelf, setShelf] = React.useState<"office" | "legal">(initialShelf);
-  const [mode, setMode] = React.useState<"file" | "paste" | "link">("file");
+  const [shelf, setShelf] = React.useState<Shelf>(initialShelf);
+  const [mode, setMode] = React.useState<"file" | "paste" | "link">(initialShelf === "rules" ? "paste" : "file");
   const [title, setTitle] = React.useState("");
   const [text, setText] = React.useState("");
   const [url, setUrl] = React.useState("");
@@ -100,7 +114,7 @@ export function KnowledgeShelves({
     const r = await addKnowledge({ shelf, title: title || undefined, from, ...legal }).catch(() => null);
     setBusy(false);
     if (!r?.ok) return setNote({ ok: false, msg: r && !r.ok ? r.error : `Could not reach the server while adding ${label}.` });
-    setNote({ ok: true, msg: `Added "${r.data.title}" (${r.data.chunks} ${r.data.chunks === 1 ? "section" : "sections"}). The assistant can use it now.` });
+    setNote({ ok: true, msg: `Added "${r.data.title}" (${r.data.chunks} ${r.data.chunks === 1 ? "section" : "sections"}). Every AI feature uses it from now on.` });
     reset();
     router.refresh();
   }
@@ -136,7 +150,7 @@ export function KnowledgeShelves({
   return (
     <div className="max-w-[1000px]">
       <div className="flex flex-wrap gap-2 mb-5">
-        {(Object.keys(SHELVES) as ("office" | "legal")[]).map((k) => {
+        {(Object.keys(SHELVES) as Shelf[]).map((k) => {
           const S = SHELVES[k];
           const n = docs.filter((d) => d.shelf === k).length;
           return (
@@ -155,7 +169,7 @@ export function KnowledgeShelves({
             <Upload size={17} /> Upload a file
           </button>
           <button type="button" className={tabBtn(mode === "paste")} onClick={() => setMode("paste")}>
-            <ClipboardPaste size={17} /> Paste text
+            <ClipboardPaste size={17} /> Type or paste
           </button>
           <button type="button" className={tabBtn(mode === "link")} onClick={() => setMode("link")}>
             <Link2 size={17} /> From a web link
@@ -213,7 +227,7 @@ export function KnowledgeShelves({
 
           {mode === "paste" && (
             <>
-              <textarea className={`${field} min-h-[180px] py-2.5`} placeholder="Paste the text here" value={text} onChange={(e) => setText(e.target.value)} />
+              <textarea className={`${field} min-h-[180px] py-2.5`} placeholder={meta.example || "Paste the text here"} value={text} onChange={(e) => setText(e.target.value)} />
               <button type="button" disabled={busy || text.trim().length < 20} onClick={() => send({ type: "paste", text }, "the text")} className="justify-self-start inline-flex items-center gap-2 rounded-md bg-[var(--accent)] text-white px-4 min-h-11 text-[15px] font-semibold disabled:opacity-60">
                 {busy && <Loader2 size={18} className="animate-spin" />} Add to {meta.label.toLowerCase()}
               </button>
@@ -250,7 +264,7 @@ export function KnowledgeShelves({
 
       {list.length === 0 ? (
         <p className="surface-2 border border-dashed rounded-xl p-8 text-center text-2 text-[15px]">
-          Nothing on this shelf yet. Add the first document above.
+          Nothing here yet. Add the first one above; the AI uses it from its next reply.
         </p>
       ) : (
         <ul className="surface-2 border rounded-xl divide-y">

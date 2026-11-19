@@ -377,7 +377,7 @@ export const knowledgeDocs = pgTable("knowledge_docs", {
   tenantId: uuid("tenant_id")
     .notNull()
     .references(() => tenants.id, { onDelete: "restrict" }),
-  shelf: text("shelf", { enum: ["office", "legal"] }).notNull(),
+  shelf: text("shelf", { enum: ["rules", "office", "legal"] }).notNull(),
   title: text("title").notNull(),
   source: text("source", { enum: ["upload", "paste", "link", "official"] }).notNull(),
   sourceRef: text("source_ref"),

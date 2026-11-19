@@ -40,6 +40,8 @@ export async function createBatch(
   // Batch work uses the SAME configured models and temperatures as a live call.
   // A discount must buy latency, never different behaviour.
   const config = await getLlmConfig(tenantId);
+  // The owner's AI training rides on batch work too, exactly as on a live call.
+  const training = await import("@/server/knowledge").then((m) => m.trainingText(tenantId)).catch(() => "");
   const res = await fetch(BASE, {
     method: "POST",
     headers: headers(),
@@ -53,13 +55,16 @@ export async function createBatch(
             (r.output ?? "structured") === "structured"
               ? config.structuredTemperature
               : config.proseTemperature,
-          ...(r.system?.length
+          ...(r.system?.length || training
             ? {
-                system: r.system.map((b) =>
+                system: [
+                  ...(training ? [{ type: "text", text: training, cache_control: { type: "ephemeral" } }] : []),
+                  ...(r.system ?? []).map((b) =>
                   b.cache
                     ? { type: "text", text: b.text, cache_control: { type: "ephemeral" } }
                     : { type: "text", text: b.text },
                 ),
+                ],
               }
             : {}),
           messages: r.messages,

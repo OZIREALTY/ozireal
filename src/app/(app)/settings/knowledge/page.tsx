@@ -4,11 +4,11 @@ import { knowledgeDocs, tenants } from "@/db/schema";
 import { PageHeader } from "@/components/ui";
 import { KnowledgeShelves } from "@/components/knowledge/shelves";
 
-export const metadata = { title: "Knowledge base" };
+export const metadata = { title: "AI training" };
 
 /**
- * Settings → Knowledge base (2026-11-19). The office's own documents and the legal
- * library on one page; the assistant answers from both and names its source.
+ * Settings → AI training (2026-11-19, owner: "for the AI training"). Instructions and agency knowledge ride on every AI call; the legal
+ * library is searched and cited.
  */
 export default async function KnowledgePage({ searchParams }: { searchParams: Promise<{ shelf?: string }> }) {
   const { shelf } = await searchParams;
@@ -36,10 +36,10 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader
-        title="Knowledge base"
-        subtitle="Your office documents and the legal library. Ask AI on any page answers from these and names the document or section it used."
+        title="AI training"
+        subtitle="Teach the AI how to work for you. Instructions and agency knowledge go into every AI feature: the assistant, email drafts, matching and content."
       />
-      <KnowledgeShelves docs={docs} jurisdiction={jurisdiction} initialShelf={shelf === "legal" ? "legal" : "office"} />
+      <KnowledgeShelves docs={docs} jurisdiction={jurisdiction} initialShelf={shelf === "legal" || shelf === "office" ? shelf : "rules"} />
     </>
   );
 }

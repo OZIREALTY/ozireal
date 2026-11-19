@@ -15,7 +15,7 @@
 CREATE TABLE IF NOT EXISTS "knowledge_docs" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "tenant_id" uuid NOT NULL REFERENCES "tenants"("id") ON DELETE RESTRICT,
-  "shelf" text NOT NULL CHECK ("shelf" IN ('office','legal')),
+  "shelf" text NOT NULL CHECK ("shelf" IN ('rules','office','legal')),
   "title" text NOT NULL,
   "source" text NOT NULL CHECK ("source" IN ('upload','paste','link','official')),
   "source_ref" text,
