@@ -97,7 +97,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
   ];
 
   return (
-    <div className="-mx-4 -mt-4 px-4 pt-3 pb-28 text-[17px] leading-relaxed lg:m-0 lg:p-0 lg:max-w-[1120px] lg:text-[16px]">
+    <div className="-mx-4 -mt-4 px-4 pt-3 pb-2 text-[17px] leading-relaxed lg:m-0 lg:p-0 lg:max-w-[1120px] lg:text-[16px]">
       <header className="flex items-center gap-3 py-2">
         <div className="min-w-0 flex-1">
           <p className="text-2 text-[14px] font-medium">{today}</p>

@@ -53,7 +53,7 @@ function Tile({
 
   return (
     <div
-      className="group relative rounded-xl sm:rounded-2xl border p-3.5 sm:p-4 flex flex-col min-h-[148px] sm:min-h-[172px] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+      className="group relative rounded-2xl border p-4 flex flex-col min-h-[172px] overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
       style={{
         background: `linear-gradient(150deg, ${tint(11)} 0%, var(--surface-2) 58%)`,
         borderColor: tint(28),
@@ -71,14 +71,14 @@ function Tile({
 
       <div className="relative pointer-events-none flex items-center gap-2.5 sm:gap-3">
         <span
-          className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg grid place-items-center shrink-0 text-white shadow-sm"
+          className="h-11 w-11 sm:h-10 sm:w-10 rounded-xl sm:rounded-lg grid place-items-center shrink-0 text-white shadow-sm"
           style={{ background: color }}
         >
           <Icon size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] sm:text-[16px] font-semibold leading-tight">{title}</h2>
-          <p className="hidden sm:block text-2 text-[12px] mt-0.5 leading-snug truncate">{blurb}</p>
+          <h2 className="text-[19px] sm:text-[16px] font-bold leading-tight">{title}</h2>
+          <p className="text-2 text-[15px] sm:text-[12px] mt-0.5 leading-snug">{blurb}</p>
         </div>
         <ArrowRight
           size={16}
@@ -88,10 +88,10 @@ function Tile({
       </div>
 
       <div className="relative pointer-events-none mt-3 flex items-baseline gap-1.5 sm:gap-2">
-        <span className="text-[28px] sm:text-[34px] font-semibold tabular leading-none tracking-[-0.02em]">
+        <span className="text-[34px] font-extrabold tabular leading-none tracking-[-0.02em]">
           {big}
         </span>
-        <span className="text-2 text-[11.5px] sm:text-[13px]">{bigLabel}</span>
+        <span className="text-2 text-[16px] sm:text-[13px]">{bigLabel}</span>
       </div>
 
       <div className="relative pointer-events-none mt-auto pt-3 flex items-end justify-between gap-2 flex-wrap">
@@ -101,7 +101,7 @@ function Tile({
               <Link
                 key={s.text}
                 href={s.href}
-                className={`pointer-events-auto relative z-10 text-[11.5px] rounded-full px-2 py-0.5 border hover:underline underline-offset-2 ${i > 0 ? "hidden sm:inline-block" : ""}`}
+                className={`pointer-events-auto relative z-10 text-[14.5px] sm:text-[11.5px] rounded-full px-3 sm:px-2 py-1.5 sm:py-0.5 border hover:underline underline-offset-2`}
                 style={
                   s.warn
                     ? { color: "#b02f2f", borderColor: "rgba(208,59,59,.4)", background: "rgba(208,59,59,.07)" }
@@ -129,7 +129,7 @@ function Tile({
         <AskButton
           prefill={action.prefill}
           send={action.send}
-          className="relative z-10 pointer-events-auto inline-flex items-center gap-1 rounded-md px-2.5 min-h-8 text-[12px] font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+          className="relative z-10 pointer-events-auto inline-flex items-center justify-center gap-1.5 rounded-xl sm:rounded-md px-4 sm:px-2.5 min-h-[52px] sm:min-h-8 w-full sm:w-auto text-[16px] sm:text-[12px] font-bold sm:font-medium text-white shadow-sm transition-opacity hover:opacity-90"
           style={{ background: color }}
         >
           {action.icon === "spark" ? <Sparkles size={13} /> : <Plus size={14} />}
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
   return (
     <>
     <MobileToday data={todayData} firstName={firstName} />
-    <div className="max-w-[1120px] hidden lg:block mt-10 pt-6 border-t">
+    <div className="max-w-[1120px] mt-6 lg:mt-10 pt-6 border-t pb-4">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
         <div>
           <h2 className="text-[13px] font-bold tracking-[0.08em] uppercase text-2" title={`${greeting} · ${today}`}>The business at a glance</h2>
@@ -194,7 +194,7 @@ export default async function DashboardPage() {
         </Link>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Tile
           href="/contacts"
           icon={Users}
