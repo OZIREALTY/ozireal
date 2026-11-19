@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { getAgency, getHomeCounts } from "@/server/queries";
 import { AskButton } from "@/components/assistant/ask-button";
+import { MobileToday } from "@/components/mobile/today";
+import { getToday } from "@/server/queries/today";
 
 /**
  * The home screen: four doors, and nothing else to read.
@@ -139,7 +141,7 @@ function Tile({
 }
 
 export default async function DashboardPage() {
-  const [agency, c] = await Promise.all([getAgency(), getHomeCounts()]);
+  const [agency, c, todayData] = await Promise.all([getAgency(), getHomeCounts(), getToday()]);
   const firstName = agency.user.name.split(" ")[0];
   const waiting = c.approvals + c.confirms;
 
@@ -156,7 +158,9 @@ export default async function DashboardPage() {
   }).format(now);
 
   return (
-    <div className="max-w-[1120px]">
+    <>
+    <MobileToday data={todayData} firstName={firstName} />
+    <div className="max-w-[1120px] hidden lg:block">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
         <div>
           <p className="text-3 text-[11.5px] uppercase tracking-[0.08em] font-medium">{today}</p>
@@ -257,5 +261,6 @@ export default async function DashboardPage() {
         />
       </div>
     </div>
+    </>
   );
 }

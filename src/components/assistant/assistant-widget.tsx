@@ -436,7 +436,7 @@ export function AssistantWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[55] h-14 min-w-14 sm:px-5 rounded-full bg-[var(--accent)] text-white shadow-lg inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+          className="fixed bottom-[88px] right-4 lg:bottom-6 lg:right-6 z-[55] h-14 min-w-14 sm:px-5 rounded-full bg-[var(--accent)] text-white shadow-lg inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
           aria-label="Open the assistant"
           title="Ask the assistant"
         >

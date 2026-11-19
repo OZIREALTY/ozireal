@@ -1,6 +1,7 @@
 "use client";
 
 import { FeatureAssist } from "@/components/assistant/feature-assist";
+import { MobileTabBar, SEARCH_EVENT } from "@/components/mobile/tab-bar";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -508,7 +509,12 @@ function TopBar({
       }
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onSearch = () => setOpen(true);
+    window.addEventListener(SEARCH_EVENT, onSearch);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(SEARCH_EVENT, onSearch);
+    };
   }, []);
 
   return (
@@ -589,11 +595,12 @@ export function ConsoleShell({
       <MobileDrawer open={menuOpen} onClose={() => setMenuOpen(false)} data={data} />
       <div className="flex-1 min-w-0 flex flex-col">
         <TopBar onOpenMenu={() => setMenuOpen(true)} data={data} signOut={signOut} />
-        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 w-full max-w-[1500px] min-w-0">
+        <main className="flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 lg:pb-6 w-full max-w-[1500px] min-w-0">
           <FeatureAssist />
           {children}
         </main>
       </div>
+      <MobileTabBar onMenu={() => setMenuOpen(true)} />
       <AssistantWidget />
     </div>
   );

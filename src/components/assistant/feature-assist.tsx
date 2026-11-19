@@ -36,7 +36,7 @@ export function FeatureAssist() {
   }
 
   return (
-    <div className="mb-5 print:hidden">
+    <div className={`mb-5 print:hidden ${pathname === "/dashboard" ? "hidden lg:block" : ""}`}>
       <form
         onSubmit={(e) => {
           e.preventDefault();

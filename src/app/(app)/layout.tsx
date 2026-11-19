@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ConsoleShell, type ShellData } from "@/components/shell/nav";
 import { SignOutButton } from "@/components/shell/sign-out";
 import { getAgency, getCounts, getContacts, getListings } from "@/server/queries";
@@ -21,7 +21,12 @@ export const metadata: Metadata = {
   description: "Internal CRM and operations console.",
   // Nothing in here is for a search engine, and several routes carry contact details.
   robots: { index: false, follow: false },
+  // Installable on a phone (2026-11-19): Add to Home Screen opens straight into Today.
+  manifest: "/crm.webmanifest",
+  appleWebApp: { capable: true, title: "Ozi CRM", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#13254A", viewportFit: "cover" };
 
 /**
  * The shell's data is read once here, in a server component, and handed to the client
