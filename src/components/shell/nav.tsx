@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   CheckCheck,
   ListTodo,
-  Scale,
+  BookOpen,
   Receipt,
   Settings,
   Search,
@@ -104,13 +104,13 @@ function buildGroups(
       items: [
         { href: "/confirm", label: "AI suggestions to confirm", icon: CheckCheck, badge: counts.confirms + counts.merges, badgeTone: "queue" },
         { href: "/campaigns", label: "Campaigns", icon: Send },
-        { href: "/compliance", label: "Compliance", icon: Scale },
         { href: "/proposals", label: "Proposals", icon: FileText },
         { href: "/content", label: "Content & social", icon: Newspaper },
         { href: "/website", label: "Website", icon: Globe },
         { href: "/costs", label: "AI cost & jobs", icon: Receipt },
         { href: "/audit", label: "Audit log", icon: ScrollText },
         { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/settings/knowledge", label: "Knowledge base", icon: BookOpen },
       ],
     },
   ];

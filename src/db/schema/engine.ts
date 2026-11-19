@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
   boolean,
+  date,
 } from "drizzle-orm/pg-core";
 import { tenants, users } from "./tenancy";
 import { contacts, consentStatus } from "./contacts";
@@ -365,3 +366,41 @@ export type EmailCard = {
   urgency: string | null;
   advantages: { title: string; detail: string }[];
 };
+
+/**
+ * Knowledge base (0027): the agency's own documents and the legal library, one table
+ * with a shelf. `knowledge_chunks.embedding` exists only where pgvector does, so it is
+ * not declared here; search reads and writes it in raw SQL.
+ */
+export const knowledgeDocs = pgTable("knowledge_docs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "restrict" }),
+  shelf: text("shelf", { enum: ["office", "legal"] }).notNull(),
+  title: text("title").notNull(),
+  source: text("source", { enum: ["upload", "paste", "link", "official"] }).notNull(),
+  sourceRef: text("source_ref"),
+  jurisdiction: text("jurisdiction"),
+  instrument: text("instrument"),
+  versionDate: date("version_date"),
+  chars: integer("chars").notNull().default(0),
+  chunks: integer("chunks").notNull().default(0),
+  embedded: boolean("embedded").notNull().default(false),
+  addedBy: text("added_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const knowledgeChunks = pgTable("knowledge_chunks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "restrict" }),
+  docId: uuid("doc_id")
+    .notNull()
+    .references(() => knowledgeDocs.id, { onDelete: "cascade" }),
+  idx: integer("idx").notNull(),
+  section: text("section"),
+  heading: text("heading"),
+  text: text("text").notNull(),
+});

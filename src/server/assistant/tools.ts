@@ -59,6 +59,16 @@ export const TOOLS = {
       "Open a public web page the agent linked (a listing, a developer's project page, an agency site, an article) and read it: title, description, main photo URL, any schema.org listing data, and the page text. Use it whenever the agent pastes a link, then act on what it says exactly as for a pasted screenshot (e.g. add_property_with_listing). If the site refuses (big portals often do), say so and ask for a screenshot or the pasted text.",
     schema: z.object({ url: z.string().url().max(2000) }),
   },
+  search_knowledge: {
+    kind: "read",
+    description:
+      "Search the agency's knowledge base (Settings → Knowledge base): the 'office' shelf (the agency's own checklists, agreements, fee schedule, scripts, procedures, FAQs) and the 'legal' shelf (Acts, regulations, official guidance). Use it for ANY question about how the office does something, its fees, templates or policies, and for ANY legal or compliance question, before answering from general knowledge. Returns the matching passages with the document title, and for legal ones the jurisdiction, instrument, section and version date. Cite every answer from it: name the document (office) or 'jurisdiction, instrument, s. section' (legal). If nothing relevant comes back, say the knowledge base does not cover it rather than guessing. Legal answers are research support, to be verified with a licensee or solicitor; never a definitive legal ruling.",
+    schema: z.object({
+      query: z.string().trim().min(2).max(300),
+      shelf: z.enum(["office", "legal"]).optional(),
+      jurisdiction: z.string().trim().max(10).optional(),
+    }),
+  },
   get_overview: {
     kind: "read",
     description:
@@ -467,6 +477,17 @@ export async function runReadTool(name: ToolName, rawInput: unknown): Promise<un
       } catch (e) {
         return { error: e instanceof Error ? e.message : "The page could not be read." };
       }
+    }
+    case "search_knowledge": {
+      const { searchKnowledge } = await import("@/server/knowledge");
+      const { currentTenantId } = await import("@/db");
+      const hits = await searchKnowledge(await currentTenantId(), String(input.query), {
+        shelf: input.shelf as "office" | "legal" | undefined,
+        jurisdiction: input.jurisdiction as string | undefined,
+      });
+      return hits.length
+        ? { passages: hits }
+        : { passages: [], note: "Nothing in the knowledge base matches. Say so; do not answer as if it did." };
     }
     case "get_overview":
       return getHomeCounts();

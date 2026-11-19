@@ -75,7 +75,7 @@ export type WebPage = {
   truncated: boolean;
 };
 
-export async function fetchPage(raw: string): Promise<WebPage> {
+export async function fetchPage(raw: string, maxText = MAX_TEXT): Promise<WebPage> {
   let url: URL;
   try {
     url = new URL(raw.trim());
@@ -158,7 +158,7 @@ export async function fetchPage(raw: string): Promise<WebPage> {
     description: meta(html, "og:description") ?? meta(html, "description"),
     image: imageRaw ? new URL(imageRaw, url).toString() : null,
     structuredData,
-    text: text.slice(0, MAX_TEXT),
-    truncated: text.length > MAX_TEXT,
+    text: text.slice(0, maxText),
+    truncated: text.length > maxText,
   };
 }

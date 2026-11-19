@@ -1,4 +1,5 @@
-import { Lock, Info } from "lucide-react";
+import { Lock, Info, BookOpen, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import {
   PageHeader,
   Section,
@@ -63,6 +64,20 @@ export default async function SettingsPage() {
         title="Settings"
         subtitle="Agency configuration. Everything jurisdiction-specific lives here rather than in code."
       />
+
+      <Link
+        href="/settings/knowledge"
+        className="flex items-center gap-3 surface-2 border rounded-xl p-4 mb-6 hover:border-[var(--accent)] transition-colors"
+      >
+        <span className="h-11 w-11 rounded-xl bg-[var(--accent)] text-white grid place-items-center shrink-0">
+          <BookOpen size={22} />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[16px] font-bold">Knowledge base</span>
+          <span className="block text-2 text-[14px]">Your office documents and the legal library. The assistant answers from them and names its source.</span>
+        </span>
+        <ChevronRight size={20} className="text-3 shrink-0" />
+      </Link>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Section title="Agency">
