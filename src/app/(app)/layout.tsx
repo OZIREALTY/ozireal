@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   // Nothing in here is for a search engine, and several routes carry contact details.
   robots: { index: false, follow: false },
   // Installable on a phone (2026-11-19): Add to Home Screen opens straight into Today.
-  manifest: "/crm.webmanifest",
+  manifest: "/crm-manifest.json",
   appleWebApp: { capable: true, title: "Ozi CRM", statusBarStyle: "default" },
 };
 
