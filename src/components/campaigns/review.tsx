@@ -235,12 +235,7 @@ export function Review({ campaignName, rows }: { campaignName: string; rows: Rev
                   Subject: <b>{r.subject}</b>
                 </div>
                 <div className="bg-[var(--surface)] rounded-2xl p-3">
-                  <iframe
-                    key={`${r.itemId}-${ver}`}
-                    title={`Email to ${r.name}`}
-                    src={`/api/email-preview/${r.itemId}?v=${ver}`}
-                    className="w-full h-[640px] rounded-xl bg-white border-0"
-                  />
+                  <EmailFrame key={`${r.itemId}-${ver}`} itemId={r.itemId} title={`Email to ${r.name}`} />
                 </div>
               </>
             )}
@@ -316,4 +311,26 @@ export function Review({ campaignName, rows }: { campaignName: string; rows: Rev
       </div>
     </>
   );
+}
+
+/**
+ * The site refuses to be framed (X-Frame-Options DENY in Caddy), so the email is fetched
+ * and drawn with srcDoc, as the Matching board does. sandbox: no scripts, no navigation.
+ */
+function EmailFrame({ itemId, title }: { itemId: string; title: string }) {
+  const [html, setHtml] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState(false);
+  React.useEffect(() => {
+    let live = true;
+    fetch(`/api/email-preview/${itemId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+      .then((t) => live && setHtml(t))
+      .catch(() => live && setErr(true));
+    return () => {
+      live = false;
+    };
+  }, [itemId]);
+  if (err) return <p className="text-2 py-8 text-center">The email could not be loaded. Reload the page and try again.</p>;
+  if (!html) return <p className="text-2 py-8 text-center">Loading the email…</p>;
+  return <iframe title={title} srcDoc={html} sandbox="allow-popups" className="w-full h-[640px] rounded-xl bg-white border-0" />;
 }
