@@ -232,3 +232,74 @@ body {
     zoom: 1.15;
   }
 }
+
+/*
+ * The phone (owner, 2026-11-21: "a super effective version"). Every page is built from
+ * the same parts, so they are restyled once here, below 768px: readable type, thumb-sized
+ * controls, tables drawn as cards (no sideways scrolling), and the grey explainer notes
+ * left to the desktop.
+ */
+@media (max-width: 767px) {
+  .crm main {
+    font-size: 16px;
+  }
+  .crm main .text-\[10\.5px\],
+  .crm main .text-\[11px\],
+  .crm main .text-\[11\.5px\],
+  .crm main .text-\[12px\] {
+    font-size: 13.5px;
+  }
+  .crm main .text-\[12\.5px\],
+  .crm main .text-\[13px\],
+  .crm main .text-\[13\.5px\] {
+    font-size: 14.5px;
+  }
+  .crm main .min-h-7,
+  .crm main .min-h-8,
+  .crm main .min-h-9 {
+    min-height: 44px;
+  }
+  .crm main .proto-note {
+    display: none;
+  }
+
+  /* Tables become a stack of cards. */
+  .crm main .crm-table-wrap {
+    background: transparent;
+    border: 0;
+  }
+  .crm main .crm-table {
+    min-width: 0 !important;
+    font-size: 15px;
+  }
+  .crm main .crm-table thead {
+    display: none;
+  }
+  .crm main .crm-table,
+  .crm main .crm-table tbody,
+  .crm main .crm-table tr,
+  .crm main .crm-table td {
+    display: block;
+    width: 100%;
+  }
+  .crm main .crm-table tr {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .crm main .crm-table td {
+    border: 0 !important;
+    padding: 3px 0 !important;
+    white-space: normal !important;
+    text-align: left !important;
+  }
+  .crm main .crm-table td:empty {
+    display: none;
+  }
+  .crm main .crm-table td:first-child {
+    font-size: 16.5px;
+    font-weight: 700;
+  }
+}

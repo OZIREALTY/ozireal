@@ -227,10 +227,10 @@ export function Table({
   minWidth?: number;
 }) {
   return (
-    <div className="surface-2 border rounded-lg overflow-hidden min-w-0">
+    <div className="crm-table-wrap surface-2 border rounded-lg overflow-hidden min-w-0">
       <div className="overflow-x-auto">
         <table
-          className="w-full text-[13px] border-collapse"
+          className="crm-table w-full text-[13px] border-collapse"
           style={{ minWidth }}
         >
           {children}
@@ -379,6 +379,6 @@ export function ScoreBar({ value }: { value: number }) {
 
 export function ProtoNote({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-3 text-[11.5px] italic mt-2 leading-relaxed">{children}</p>
+    <p className="proto-note text-3 text-[11.5px] italic mt-2 leading-relaxed">{children}</p>
   );
 }

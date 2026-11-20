@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, Mic, Menu, UserPlus, Building2, ListTodo, Camera, X, Sparkles } from "lucide-react";
+import { Home, Plus, Mic, Users, UserPlus, Building2, Send, Mail, Phone, Camera, X, Sparkles } from "lucide-react";
 import { openAssistant } from "@/components/assistant/ask-button";
 
 /**
@@ -14,7 +14,7 @@ import { openAssistant } from "@/components/assistant/ask-button";
 
 export const SEARCH_EVENT = "ozi:search";
 
-export function MobileTabBar({ onMenu }: { onMenu: () => void }) {
+export function MobileTabBar() {
   const pathname = usePathname();
   const [adding, setAdding] = React.useState(false);
   const tab = "flex flex-col items-center justify-center gap-0.5 min-h-[60px] text-[12.5px] font-semibold";
@@ -31,21 +31,21 @@ export function MobileTabBar({ onMenu }: { onMenu: () => void }) {
           <Link href="/dashboard" className={`${tab} ${on("/dashboard") ? "text-[var(--accent)]" : "text-2"}`}>
             <Home size={26} /> Today
           </Link>
-          <button type="button" className={`${tab} text-2`} onClick={() => window.dispatchEvent(new Event(SEARCH_EVENT))}>
-            <Search size={26} /> Search
-          </button>
+          <Link href="/contacts" className={`${tab} ${on("/contacts") ? "text-[var(--accent)]" : "text-2"}`}>
+            <Users size={26} /> Contacts
+          </Link>
           <button type="button" className={`${tab} text-2`} onClick={() => setAdding(true)} aria-label="Add">
             <span className="h-[58px] w-[58px] -mt-6 rounded-full bg-[var(--accent)] text-white grid place-items-center shadow-[0_6px_16px_rgba(216,67,21,.35)]">
               <Plus size={30} strokeWidth={2.6} />
             </span>
             Add
           </button>
-          <Link href="/voice" className={`${tab} ${on("/voice") ? "text-[var(--accent)]" : "text-2"}`}>
-            <Mic size={26} /> Voice
+          <Link href="/properties" className={`${tab} ${on("/properties") || on("/listings") ? "text-[var(--accent)]" : "text-2"}`}>
+            <Building2 size={26} /> Properties
           </Link>
-          <button type="button" className={`${tab} text-2`} onClick={onMenu}>
-            <Menu size={26} /> Menu
-          </button>
+          <Link href="/campaigns" className={`${tab} ${on("/campaigns") ? "text-[var(--accent)]" : "text-2"}`}>
+            <Send size={26} /> Campaigns
+          </Link>
         </div>
       </nav>
 
@@ -84,16 +84,19 @@ function AddSheet({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex flex-col gap-2.5">
           <button type="button" className={row} onClick={() => ask("Add a new contact: ")}>
-            <UserPlus size={22} /> Contact
+            <UserPlus size={22} /> New contact
           </button>
-          <Link href="/properties" onClick={onClose} className={row}>
-            <Building2 size={22} /> Property
+          <Link href="/voice" onClick={onClose} className={row}>
+            <Mic size={22} /> Voice note
           </Link>
-          <button type="button" className={row} onClick={() => ask("Add a task: ")}>
-            <ListTodo size={22} /> Task
+          <button type="button" className={row} onClick={() => ask("Log a call with ")}>
+            <Phone size={22} /> Log a call
           </button>
-          <button type="button" className={row} onClick={() => ask("Log a note on ")}>
-            <Sparkles size={22} /> Note on a contact
+          <Link href="/campaigns?new=1" onClick={onClose} className={row}>
+            <Mail size={22} /> Send email
+          </Link>
+          <button type="button" className={row} onClick={() => ask("")}>
+            <Sparkles size={22} /> Ask AI
           </button>
           <button
             type="button"

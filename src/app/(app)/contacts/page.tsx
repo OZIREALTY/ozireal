@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Ban } from "lucide-react";
+import { Download, Ban, Phone } from "lucide-react";
 import {
   PageHeader,
   Badge,
@@ -33,19 +33,11 @@ const roleTone = {
   agent: "brand",
 } as const;
 
-const filters = [
-  "Role: any",
-  "Intent: any",
-  "Budget: any",
-  "Suburb: any",
-  "Consent: any",
-  "Last outcome: any",
-];
 
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; role?: string }>;
+  searchParams: Promise<{ sort?: string; role?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   const order = sp.sort === "oldest" ? "oldest" : "newest";
@@ -57,18 +49,30 @@ export default async function ContactsPage({
     getSavedViews(),
     getContactsBySource(),
   ]);
-  const contacts = !roleFilter
+  /** Search (2026-11-21): name, email, phone, suburb or tag, all words must match. */
+  const q = (sp.q ?? "").trim().slice(0, 80);
+  const words = q.toLowerCase().split(/s+/).filter(Boolean);
+  const digits = q.replace(/D/g, "");
+  const byRole = !roleFilter
     ? everyone
     : everyone.filter((c) => (roleFilter === "none" ? c.roles.length === 0 : (c.roles as string[]).includes(roleFilter)));
+  const contacts = !words.length
+    ? byRole
+    : byRole.filter((c) => {
+        const hay = [c.firstName, c.lastName, c.email, c.suburb, ...c.tags].filter(Boolean).join(" ").toLowerCase();
+        const phone = [c.phone, c.secondaryPhone].filter(Boolean).join(" ").replace(/D/g, "");
+        return words.every((w) => hay.includes(w)) || (digits.length >= 4 && phone.includes(digits.replace(/^0/, "")));
+      });
   const roleCount = (r: string) =>
     everyone.filter((c) => (r === "none" ? c.roles.length === 0 : (c.roles as string[]).includes(r))).length;
   const href = (o: { sort?: string; role?: string | null }) => {
-    const q = new URLSearchParams();
+    const qp = new URLSearchParams();
     const so = o.sort ?? order;
     const ro = o.role === undefined ? roleFilter : o.role;
-    if (so === "oldest") q.set("sort", "oldest");
-    if (ro) q.set("role", ro);
-    const qs = q.toString();
+    if (so === "oldest") qp.set("sort", "oldest");
+    if (ro) qp.set("role", ro);
+    if (sp.q) qp.set("q", sp.q);
+    const qs = qp.toString();
     return qs ? `/contacts?${qs}` : "/contacts";
   };
 
@@ -96,7 +100,31 @@ export default async function ContactsPage({
         }
       />
 
-      <div className="grid lg:grid-cols-[1fr_300px] gap-4 mb-4">
+      <form action="/contacts" method="get" className="mb-4 flex gap-2" role="search">
+        {roleFilter && <input type="hidden" name="role" value={roleFilter} />}
+        {order === "oldest" && <input type="hidden" name="sort" value="oldest" />}
+        <input
+          id="contact-search"
+          name="q"
+          defaultValue={q}
+          placeholder="Search by name, phone, email, suburb or tag"
+          aria-label="Search contacts"
+          className="flex-1 min-w-0 surface-2 border-[1.5px] rounded-xl px-4 min-h-12 text-[16px]"
+        />
+        <button type="submit" className="rounded-xl bg-[var(--accent)] text-white font-bold px-5 min-h-12">Search</button>
+        {q && (
+          <Link href={roleFilter ? `/contacts?role=${roleFilter}` : "/contacts"} className="rounded-xl border font-semibold px-4 min-h-12 inline-flex items-center">
+            Clear
+          </Link>
+        )}
+      </form>
+      {q && (
+        <p className="mb-3 text-[14px] text-2">
+          {contacts.length} {contacts.length === 1 ? "match" : "matches"} for <b className="text-[var(--text)]">{q}</b>
+        </p>
+      )}
+
+      <div className="hidden md:grid lg:grid-cols-[1fr_300px] gap-4 mb-4">
         <div className="space-y-4">
           <Card className="p-3">
             <CardTitle>Saved views</CardTitle>
@@ -125,21 +153,6 @@ export default async function ContactsPage({
             </ProtoNote>
           </Card>
 
-          <Card className="p-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          {filters.map((f) => (
-            <span
-              key={f}
-              className="text-[12px] border border-dashed rounded-md px-2 py-1 surface-3 text-3"
-            >
-              {f}
-            </span>
-          ))}
-          <span className="text-3 text-[11.5px] ml-auto">
-            Filtering is not built yet — these name the filters that will exist
-          </span>
-            </div>
-          </Card>
         </div>
 
         <Card>
@@ -206,6 +219,28 @@ export default async function ContactsPage({
         allIds={contacts.map((c) => c.id)}
         names={Object.fromEntries(contacts.map((c) => [c.id, `${c.firstName} ${c.lastName}`.trim()]))}
       >
+      <div className="md:hidden space-y-2">
+        {contacts.map((c) => (
+          <div key={c.id} className="surface-2 border rounded-2xl p-3 flex items-center gap-3">
+            <span className="h-11 w-11 shrink-0 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] grid place-items-center font-extrabold">
+              {(c.firstName?.[0] ?? "") + (c.lastName?.[0] ?? "") || "?"}
+            </span>
+            <Link href={`/contacts/${c.id}`} className="min-w-0 flex-1">
+              <b className="block truncate text-[16px]">{c.firstName} {c.lastName}</b>
+              <small className="block truncate text-2 text-[13.5px]">
+                {[c.roles.map(roleLabel).join(", ") || c.tags[0], c.suburb, c.priceMax ? `up to ${Math.round(c.priceMax / 1000)}k` : null].filter(Boolean).join(" · ") || c.email || "—"}
+              </small>
+            </Link>
+            {c.phone && (
+              <a href={`tel:${c.phone.replace(/s+/g, "")}`} aria-label={`Call ${c.firstName}`} className="h-11 w-11 shrink-0 rounded-full bg-[#e3f4ea] text-[#1f7a4d] dark:bg-[#173527] dark:text-[#5fd39a] grid place-items-center">
+                <Phone size={19} />
+              </a>
+            )}
+          </div>
+        ))}
+        {!contacts.length && <p className="text-2 py-6 text-center">Nobody matches.</p>}
+      </div>
+      <div className="hidden md:block">
       <Table minWidth={940}>
         <THead>
           <TR>
@@ -326,6 +361,7 @@ export default async function ContactsPage({
           })}
         </tbody>
       </Table>
+      </div>
       </BulkSelection>
 
       {contacts.length === 0 && <Empty>No contacts yet.</Empty>}

@@ -606,7 +606,7 @@ export function ConsoleShell({
           {children}
         </main>
       </div>
-      <MobileTabBar onMenu={() => setMenuOpen(true)} />
+      <MobileTabBar />
       <AssistantWidget />
     </div>
   );

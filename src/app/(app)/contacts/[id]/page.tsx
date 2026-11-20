@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MessageSquare, History } from "lucide-react";
 import { waitingFor } from "@/server/queries/waiting";
 import { WaitingForContact } from "@/components/contacts/waiting";
 import { notFound } from "next/navigation";
@@ -107,6 +108,34 @@ export default async function ContactDetail({
         }
       />
 
+      {/* The phone (2026-11-21): the four things you do with a person, thumb-sized. */}
+      {!c.mergedIntoId && (
+        <div className="md:hidden grid grid-cols-4 gap-2 mb-5">
+          {[
+            { href: c.phone ? `tel:${c.phone.replace(/s+/g, "")}` : null, label: "Call", icon: Phone },
+            { href: c.phone ? `sms:${c.phone.replace(/s+/g, "")}` : null, label: "Text", icon: MessageSquare },
+            { href: c.email ? `/campaigns?new=1&to=${c.id}` : null, label: "Email", icon: Mail },
+            { href: "#log", label: "History", icon: History },
+          ].map((a) =>
+            a.href ? (
+              <a key={a.label} href={a.href} className="flex flex-col items-center gap-1 text-[12.5px] font-bold">
+                <span className="h-[54px] w-[54px] rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)] grid place-items-center">
+                  <a.icon size={23} />
+                </span>
+                {a.label}
+              </a>
+            ) : (
+              <span key={a.label} className="flex flex-col items-center gap-1 text-[12.5px] font-bold opacity-40">
+                <span className="h-[54px] w-[54px] rounded-2xl surface-3 grid place-items-center">
+                  <a.icon size={23} />
+                </span>
+                {a.label}
+              </span>
+            ),
+          )}
+        </div>
+      )}
+
       {c.mergedIntoId && (
         <div className="mb-6">
           <Callout tone="queue" title="This record was merged">
@@ -182,6 +211,7 @@ export default async function ContactDetail({
 
           <WaitingForContact items={waiting} name={`${c.firstName} ${c.lastName}`.trim()} />
 
+          <div id="log" className="scroll-mt-20" />
           <Section title="Interaction log" hint="append-only, every channel">
             <div className="space-y-2">
               {log.map((i) => {
