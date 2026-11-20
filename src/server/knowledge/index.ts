@@ -186,9 +186,9 @@ export async function searchKnowledge(
 ): Promise<KnowledgeHit[]> {
   const limit = opts.limit ?? 8;
   const shelf = opts.shelf ?? null;
-  const juris = opts.jurisdiction?.toUpperCase() ?? null;
+  const juris = jurisCode(opts.jurisdiction);
   const filter = sql`(${shelf}::text is null or d.shelf = ${shelf})
-    and (${juris}::text is null or d.shelf = 'office' or d.jurisdiction is null or upper(d.jurisdiction) in (${juris}, 'CTH'))`;
+    and (${juris}::text is null or d.shelf <> 'legal' or d.jurisdiction is null or d.jurisdiction = '' or upper(d.jurisdiction) in (${juris}, 'CTH', 'AU', 'AUS', 'FEDERAL', 'COMMONWEALTH', 'AUSTRALIA') or upper(d.jurisdiction) like '%' || ${juris} || '%' or upper(d.jurisdiction) like '%' || ${jurisName(juris)} || '%')`;
   const cols = sql`c.id, d.title as document, d.shelf, c.section, c.heading, d.jurisdiction, d.instrument,
     to_char(d.version_date, 'YYYY-MM-DD') as "versionDate", c.text`;
 
@@ -302,4 +302,26 @@ export async function trainingText(tenantId: string): Promise<string> {
       : "";
   trainingCache.set(tenantId, { text, at: Date.now() });
   return text;
+}
+
+/* Jurisdictions are typed by people: "SA", "South Australia", "sa ". One code. */
+const STATES: Record<string, string> = {
+  SA: "SOUTH AUSTRALIA",
+  NSW: "NEW SOUTH WALES",
+  VIC: "VICTORIA",
+  QLD: "QUEENSLAND",
+  WA: "WESTERN AUSTRALIA",
+  TAS: "TASMANIA",
+  NT: "NORTHERN TERRITORY",
+  ACT: "AUSTRALIAN CAPITAL TERRITORY",
+};
+function jurisCode(raw?: string): string | null {
+  const v = raw?.trim().toUpperCase();
+  if (!v) return null;
+  if (STATES[v]) return v;
+  const hit = Object.entries(STATES).find(([, name]) => v.includes(name));
+  return hit ? hit[0] : null; // unknown (e.g. "Australia"): do not filter at all
+}
+function jurisName(code: string | null): string {
+  return (code && STATES[code]) || "~none~";
 }

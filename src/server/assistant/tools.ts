@@ -62,11 +62,10 @@ export const TOOLS = {
   search_knowledge: {
     kind: "read",
     description:
-      "Look up the owner's AI training (Settings → AI training) when your instructions say more is on file, or for any legal or compliance question. Shelves: 'office' (what the owner taught you about the agency, beyond what already fits in your instructions) and 'legal' (Acts, regulations, official guidance). Returns passages with the source title, and for legal ones the jurisdiction, instrument, section and version date. Legal answers must cite 'jurisdiction, instrument, s. section', are research support to be verified with a licensee or solicitor, and are never a definitive ruling. If nothing relevant comes back, say your training does not cover it rather than guessing.",
+      "Look up the owner's AI training (Settings → AI training): the agency knowledge that did not fit in your instructions, and the legal library (Acts, regulations, official guidance). Call it for ANY question about how the agency works and for ANY legal, tenancy, sale or compliance question, before saying anything is not covered. The library is in English: ALWAYS write `queries` in English, whatever language the user wrote in, and give 2-4 different phrasings with the legal terms an Act would use (e.g. for a Persian question about a tenant handing a lease to someone else: 'assignment of tenancy', 'sublet consent landlord', 'condition report new tenant', 'ingoing inspection report'). Both shelves are searched. Returns passages with the source title, and for legal ones the jurisdiction, instrument, section and version date. Answer in the user's language. Legal answers must cite 'jurisdiction, instrument, s. section', are research support to be verified with a licensee or solicitor, and are never a definitive ruling. Only if every phrasing returns nothing relevant, say your training does not cover it.",
     schema: z.object({
-      query: z.string().trim().min(2).max(300),
-      shelf: z.enum(["office", "legal"]).optional(),
-      jurisdiction: z.string().trim().max(10).optional(),
+      queries: z.array(z.string().trim().min(2).max(200)).min(1).max(4),
+      jurisdiction: z.string().trim().max(40).optional(),
     }),
   },
   get_overview: {
@@ -481,13 +480,21 @@ export async function runReadTool(name: ToolName, rawInput: unknown): Promise<un
     case "search_knowledge": {
       const { searchKnowledge } = await import("@/server/knowledge");
       const { currentTenantId } = await import("@/db");
-      const hits = await searchKnowledge(await currentTenantId(), String(input.query), {
-        shelf: input.shelf as "office" | "legal" | undefined,
-        jurisdiction: input.jurisdiction as string | undefined,
-      });
+      const tenantId = await currentTenantId();
+      // Every phrasing is searched across both shelves and the best passages kept:
+      // a wrong guess about the shelf, or one phrasing unlike the document, no longer
+      // turns into "not covered" (owner's report, 2026-11-20).
+      const seen = new Map<string, Awaited<ReturnType<typeof searchKnowledge>>[number]>();
+      for (const q of input.queries as string[]) {
+        for (const h of await searchKnowledge(tenantId, q, { jurisdiction: input.jurisdiction as string | undefined, limit: 6 })) {
+          const key = `${h.document}|${h.section}|${h.text.slice(0, 80)}`;
+          if (!seen.has(key)) seen.set(key, h);
+        }
+      }
+      const hits = [...seen.values()].slice(0, 10);
       return hits.length
         ? { passages: hits }
-        : { passages: [], note: "Nothing in the AI training matches. Say so; do not answer as if it did." };
+        : { passages: [], note: "Nothing in the AI training matches any phrasing. Say so; do not answer as if it did." };
     }
     case "get_overview":
       return getHomeCounts();
