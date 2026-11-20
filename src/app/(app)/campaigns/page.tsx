@@ -80,7 +80,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       </Link>
                     )}
                     <Link href={`/campaigns/${c.id}`} className="rounded-lg border text-[13px] font-bold px-3 min-h-8 inline-flex items-center hover:bg-[var(--surface)]">
-                      Who opened, who replied
+                      Results
                     </Link>
                     <CampaignActions campaign={{ id: c.id, name: c.name, channel: c.channel, status: c.status, listingId: c.listingId }} />
                   </div>

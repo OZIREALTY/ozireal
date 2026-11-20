@@ -24,7 +24,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
         subtitle="Review and send. Each person has their own email; consent is checked again as each one sends."
         actions={
           <Link href={`/campaigns/${id}`} className="rounded-xl border font-bold px-4 min-h-10 inline-flex items-center">
-            Who opened, who replied
+            Results
           </Link>
         }
       />
