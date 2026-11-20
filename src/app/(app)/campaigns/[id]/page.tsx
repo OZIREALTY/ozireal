@@ -126,7 +126,7 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
       </div>
 
       {t.waiting > 0 && (
-        <Link href="/approvals" className="inline-flex mt-4 rounded-xl bg-[var(--accent)] text-white font-bold px-4 min-h-11 items-center">
+        <Link href={`/approvals?campaign=${id}`} className="inline-flex mt-4 rounded-xl bg-[var(--accent)] text-white font-bold px-4 min-h-11 items-center">
           Review the {t.waiting} waiting in Waiting for my OK
         </Link>
       )}

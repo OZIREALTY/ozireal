@@ -100,7 +100,7 @@ function DraftCard({ item }: { item: ApprovalItem }) {
       </div>
 
       <div className="surface-3 border rounded-md p-3 text-[12.5px] leading-relaxed whitespace-pre-wrap">
-        {item.body}
+        {item.body.replaceAll("**", "")}
       </div>
 
       {item.blockReason && (
@@ -137,8 +137,13 @@ function DraftCard({ item }: { item: ApprovalItem }) {
   );
 }
 
-export default async function ApprovalsPage() {
-  const approvals = await getApprovals();
+export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ campaign?: string }> }) {
+  const { campaign } = await searchParams;
+  const all = await getApprovals();
+  /** From a campaign card (2026-11-20): only that batch, with a way back to everything. */
+  const only = campaign && /^[0-9a-f-]{36}$/i.test(campaign) ? campaign : null;
+  const approvals = only ? all.filter((a) => a.campaignId === only) : all;
+  const othersWaiting = only ? all.filter((a) => a.status === "pending" && a.campaignId !== only).length : 0;
 
   const pending = approvals.filter((a) => a.status === "pending");
   const blocked = approvals.filter((a) => a.status === "blocked");
@@ -153,6 +158,16 @@ export default async function ApprovalsPage() {
         title="Approval queue"
         subtitle="The single door every outbound message leaves through. There is no autonomous send path, and no setting that creates one."
       />
+
+      {only && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border-2 px-4 py-3" style={{ borderColor: "var(--accent)" }}>
+          <span className="font-bold">Showing only this email batch: {pending.length} waiting.</span>
+          <Link href="/approvals" className="text-[var(--accent)] font-semibold underline underline-offset-2">
+            Show everything{othersWaiting ? ` (${othersWaiting} more waiting)` : ""}
+          </Link>
+          <Link href={`/campaigns/${only}`} className="text-2 font-semibold underline underline-offset-2">Back to the batch</Link>
+        </div>
+      )}
 
       <div className="mb-6">
         <Callout tone="brand" title="How consent is handled here">

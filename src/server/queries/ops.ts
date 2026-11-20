@@ -69,6 +69,7 @@ export async function getApprovals() {
         address: addressSql,
         subject: approvalItems.draftSubject,
         body: approvalItems.draftBody,
+        campaignId: approvalItems.campaignId,
         createdAt: approvalItems.createdAt,
         consentAtDraft: approvalItems.consentAtDraft,
         blockReason: approvalItems.blockReason,
