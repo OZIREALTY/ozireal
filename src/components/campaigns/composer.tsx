@@ -224,6 +224,8 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
         ))}
       </div>
 
+      {!done && step >= 1 && <ToBar people={chosen} onRemove={(id) => setRemoved((s) => new Set(s).add(id))} />}
+
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
         <div className="p-5 min-w-0 lg:border-r">
           {done ? (
@@ -344,7 +346,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                           onClick={() => setRemoved((s) => new Set(s).add(p.id))}
                           className={`rounded-full bg-[var(--surface)] px-2.5 py-1 text-[13px] ${p.canEmail ? "" : "line-through text-2"}`}
                         >
-                          {p.name} ×
+                          {p.name}{p.canEmail ? "" : ` (${p.why})`} ×
                         </button>
                       ))}
                     </div>
@@ -403,7 +405,12 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                   <p className="text-[19px] font-extrabold">Check and send for your OK</p>
                   <p className="text-2 mb-4">This writes one email per person and puts them in <b>Waiting for my OK</b>. You can read, edit or remove any of them there.</p>
                   <ul className="space-y-2">
-                    <Li><b>{reachable.length} {reachable.length === 1 ? "person" : "people"}</b> will get it{chosen.length > reachable.length ? `. ${chosen.length - reachable.length} left out: no email consent or address.` : "."}</Li>
+                    <Li><b>{reachable.length} {reachable.length === 1 ? "person" : "people"}</b> will get it: {reachable.map((p) => p.name).join(", ")}.</Li>
+                    {chosen.length > reachable.length && (
+                      <Li>
+                        Left out: {chosen.filter((p) => !p.canEmail).map((p) => `${p.name} (${p.why})`).join("; ")}.
+                      </Li>
+                    )}
                     <Li>About: <b>{home ? home.label : "a general message"}</b> · tone: {TONES.find((t) => t.v === tone)?.label}</Li>
                     <Li>Unsubscribe link and agency details are added to every email.</Li>
                     <Li>Consent is checked again at the moment of sending. Anyone emailed this week is held back.</Li>
@@ -520,5 +527,37 @@ function Li({ children }: { children: React.ReactNode }) {
       <Check size={16} className="text-[#1f7a4d] mt-0.5 shrink-0" />
       <span>{children}</span>
     </li>
+  );
+}
+
+/** Who the email is going to, visible on every step (owner, 2026-11-20). */
+function ToBar({ people, onRemove }: { people: ComposeData["people"]; onRemove: (id: string) => void }) {
+  const [all, setAll] = React.useState(false);
+  const ok = people.filter((p) => p.canEmail);
+  const out = people.filter((p) => !p.canEmail);
+  const shown = all ? ok : ok.slice(0, 6);
+  return (
+    <div className="px-5 py-3 border-b bg-[var(--surface)] flex flex-wrap items-center gap-1.5 text-[14px]">
+      <b className="mr-1">To:</b>
+      {!ok.length && <span className="text-[#9a6a00] dark:text-[#f0c14b] font-semibold">nobody yet: choose people in &ldquo;Who gets it?&rdquo;</span>}
+      {shown.map((p) => (
+        <span key={p.id} className="inline-flex items-center gap-1 rounded-full surface-2 border px-2.5 py-0.5">
+          {p.name}
+          <button type="button" aria-label={`Remove ${p.name}`} onClick={() => onRemove(p.id)} className="text-2 hover:text-[var(--accent)]">
+            ×
+          </button>
+        </span>
+      ))}
+      {ok.length > 6 && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="text-[var(--accent)] font-semibold underline underline-offset-2">
+          {all ? "Show fewer" : `+${ok.length - 6} more`}
+        </button>
+      )}
+      {out.length > 0 && (
+        <span className="text-[#9a6a00] dark:text-[#f0c14b] text-[13px] ml-1">
+          · {out.length} left out ({[...new Set(out.map((p) => p.why))].join(", ")})
+        </span>
+      )}
+    </div>
   );
 }

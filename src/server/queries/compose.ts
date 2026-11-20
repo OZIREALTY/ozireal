@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { query } from "@/db";
-import { consents, contactIntent, contacts, listings, matches, properties, suburbs } from "@/db/schema";
+import { approvalItems, consents, contactIntent, contacts, listings, matches, properties, suburbs } from "@/db/schema";
 
 /**
  * Everything the email composer on /campaigns needs (2026-11-20): the listings an email
@@ -61,11 +61,25 @@ export async function composeData() {
       matched.set(m.contactId, o);
     }
 
+    // The once-a-week rule (2026-11-13), shown up front rather than as a refusal at the end.
+    const heldRows = await tx
+      .select({ contactId: approvalItems.contactId, status: approvalItems.status })
+      .from(approvalItems)
+      .where(
+        and(
+          eq(approvalItems.kind, "email"),
+          sql`(${approvalItems.status} = 'pending' or (${approvalItems.status} = 'sent' and ${approvalItems.sentAt} > now() - interval '7 days'))`,
+        ),
+      );
+    const held = new Map<string, string>();
+    for (const h of heldRows) if (h.contactId) held.set(h.contactId, h.status === "pending" ? "already has an email waiting for your OK" : "emailed in the last 7 days");
+
     const tagCount = new Map<string, number>();
     const out = people.map((p) => {
       const tags = (p.tags ?? []).filter((t) => t && !/\.(csv|xlsx|vcf)$|^export_|^imported/i.test(t));
       for (const t of tags) tagCount.set(t, (tagCount.get(t) ?? 0) + 1);
-      const canEmail = !!p.email && !p.doNotContact && consent.get(p.id) === "granted";
+      const reachable = !!p.email && !p.doNotContact && consent.get(p.id) === "granted";
+      const canEmail = reachable && !held.has(p.id);
       return {
         id: p.id,
         name: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || p.email || "Unnamed",
@@ -74,7 +88,7 @@ export async function composeData() {
         suburb: p.suburb,
         intent: p.intent,
         canEmail,
-        why: canEmail ? null : !p.email ? "no email address" : p.doNotContact ? "do not contact" : "no email consent",
+        why: canEmail ? null : !p.email ? "no email address" : p.doNotContact ? "do not contact" : !reachable ? "no email consent" : held.get(p.id)!,
         matches: matched.get(p.id) ?? {},
       };
     });
