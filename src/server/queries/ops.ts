@@ -247,10 +247,10 @@ export async function getCampaigns() {
         sentAt: campaigns.sentAt,
         // Counts over real recipient rows, so they cannot drift from what happened.
         recipients: sql<number>`(select count(*)::int from ${campaignRecipients} r where r.campaign_id = ${campaigns.id})`,
-        approved: sql<number>`(select count(*)::int from ${campaignRecipients} r where r.campaign_id = ${campaigns.id} and r.sent_at is not null)`,
+        approved: sql<number>`(select count(*)::int from approval_items a where a.campaign_id = ${campaigns.id} and a.status = 'sent')`,
         blocked: sql<number>`(select count(*)::int from ${campaignRecipients} r where r.campaign_id = ${campaigns.id} and r.blocked_reason is not null)`,
-        opened: sql<number>`(select count(*)::int from ${campaignRecipients} r where r.campaign_id = ${campaigns.id} and r.opened_at is not null)`,
-        replied: sql<number>`(select count(*)::int from ${campaignRecipients} r where r.campaign_id = ${campaigns.id} and r.replied_at is not null)`,
+        opened: sql<number>`(select count(*)::int from approval_items a where a.campaign_id = ${campaigns.id} and a.opened_at is not null)`,
+        replied: sql<number>`(select count(*)::int from approval_items a where a.campaign_id = ${campaigns.id} and a.replied_at is not null)`,
       })
       .from(campaigns)
       .leftJoin(listings, eq(listings.id, campaigns.listingId))

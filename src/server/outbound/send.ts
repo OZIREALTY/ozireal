@@ -5,6 +5,7 @@ import { getSecret } from "@/server/secrets";
 import { withComplianceFooter } from "./gate";
 import { unsubscribeUrl } from "./unsubscribe";
 import { sendMarketingEmail } from "./notices";
+import { addTracking } from "./tracking";
 import { emailPropertyFor, propertyEmailHtml, propertyEmailText } from "./property-email";
 
 /**
@@ -31,6 +32,8 @@ export type SendRequest = {
   listingId?: string | null;
   /** The project card the AI wrote with the email (0026). */
   card?: import("@/db/schema").EmailCard | null;
+  /** The approval item being sent: adds the open image and click-recorded links (0028). */
+  trackId?: string;
 };
 
 export async function sendMessage(req: SendRequest): Promise<SendResult> {
@@ -71,7 +74,8 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
   const agencyLine = req.agency.licence ? `${req.agency.name} · ${req.agency.licence}` : req.agency.name;
   const property = req.listingId ? await emailPropertyFor(req.tenantId, req.listingId) : null;
   const text = propertyEmailText({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
-  const html = propertyEmailHtml({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
+  const base = propertyEmailHtml({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
+  const html = req.trackId ? addTracking(base, req.tenantId, req.trackId) : base;
   const r = await sendMarketingEmail({
     to: contact.email,
     tenantId: req.tenantId,

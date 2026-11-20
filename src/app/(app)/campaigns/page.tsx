@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { PageHeader, Section, Card, Empty } from "@/components/ui";
-import { Bars } from "@/components/charts";
-import { getCampaignPerformance, getCampaigns } from "@/server/queries";
+import { PageHeader, Section, Empty } from "@/components/ui";
+import { getCampaigns } from "@/server/queries";
 import { composeData } from "@/server/queries/compose";
 import { relative } from "@/lib/utils";
 import { CampaignActions } from "@/components/forms/content-forms";
 import { Composer } from "@/components/campaigns/composer";
+import { CampaignTabs } from "@/components/campaigns/tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +24,7 @@ const status: Record<string, { label: string; cls: string; stage: number }> = {
 };
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
-  const [{ new: startNew }, campaigns, performance, data] = await Promise.all([
-    searchParams,
-    getCampaigns(),
-    getCampaignPerformance(),
-    composeData(),
-  ]);
+  const [{ new: startNew }, campaigns, data] = await Promise.all([searchParams, getCampaigns(), composeData()]);
 
   return (
     <>
@@ -37,6 +32,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
         title="Campaigns"
         subtitle="Write one email, choose who gets it, and approve it. AI writes a personal draft for each person. Nothing goes out until you press send in Waiting for my OK."
       />
+      <CampaignTabs active="write" />
 
       <div className="mb-8">
         <Composer data={data} startOpen={startNew === "1" || campaigns.length === 0} />
@@ -56,7 +52,9 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     <span className={`rounded-full px-2.5 py-0.5 text-[12.5px] font-bold ${s.cls}`}>{s.label}</span>
                     <span className="text-[12.5px] text-2 uppercase font-semibold">{c.channel}</span>
                   </div>
-                  <b className="text-[15.5px] leading-snug">{c.name.replace(/^Matched buyers: /, "")}</b>
+                  <Link href={`/campaigns/${c.id}`} className="text-[15.5px] font-bold leading-snug hover:underline underline-offset-2">
+                    {c.name.replace(/^Matched buyers: /, "")}
+                  </Link>
                   {c.listingId && c.address && (
                     <Link href={`/listings/${c.listingId}`} className="text-[13px] text-2 hover:underline underline-offset-2 -mt-1.5">
                       {c.address}
@@ -72,6 +70,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     {c.approved > 0 && <span>{c.approved} sent</span>}
                     {waiting > 0 && c.status !== "sent" && c.status !== "cancelled" && <span>{waiting} waiting</span>}
                     {c.blocked > 0 && <span className="text-[#b02f2f] dark:text-[#f08a8a]">{c.blocked} skipped</span>}
+                    {c.opened > 0 && <span>{c.opened} opened</span>}
                     {c.replied > 0 && <span>{c.replied} replied</span>}
                     <span>{relative(c.createdAt)}</span>
                   </div>
@@ -81,6 +80,9 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                         Review and approve
                       </Link>
                     )}
+                    <Link href={`/campaigns/${c.id}`} className="rounded-lg border text-[13px] font-bold px-3 min-h-8 inline-flex items-center hover:bg-[var(--surface)]">
+                      Who opened, who replied
+                    </Link>
                     <CampaignActions campaign={{ id: c.id, name: c.name, channel: c.channel, status: c.status, listingId: c.listingId }} />
                   </div>
                 </div>
@@ -90,14 +92,6 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
         )}
       </Section>
 
-      {performance.length > 0 && (
-        <Section title="How they did" hint="sent, opened, replied">
-          <Card>
-            <Bars data={performance} keys={["Sent", "Opened", "Replied"]} xKey="name" height={230} />
-            <p className="text-[13px] text-2 mt-2">Replies are the number that matters. Opens are a weak signal.</p>
-          </Card>
-        </Section>
-      )}
     </>
   );
 }

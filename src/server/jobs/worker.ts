@@ -115,6 +115,11 @@ const handlers: Record<JobName, Handler> = {
     return { pending: "B7", tenantId: job.data.tenantId };
   },
   /** Fixed-template notices for a new website enquiry — no AI, no marketing. */
+  /** Replies to sent emails, from the agency Gmail (option A, 2026-11-20). */
+  async CheckReplies() {
+    const { checkReplies } = await import("@/server/outbound/replies");
+    return checkReplies();
+  },
   async NotifyEnquiry(job) {
     const { notifyEnquiry } = await import("@/server/outbound/notices");
     return notifyEnquiry(job.data.tenantId, job.data.entityId);
@@ -133,6 +138,11 @@ export function startWorker() {
         "MatchAllProperties",
         { pattern: "0 30 2 * * *", tz: "Australia/Adelaide" },
         { name: "MatchAllProperties", data: { tenantId: "all", entityId: "all" } },
+      );
+      await getQueue().upsertJobScheduler(
+        "CheckReplies",
+        { every: 5 * 60_000 },
+        { name: "CheckReplies", data: { tenantId: "all", entityId: "all" } },
       );
     } catch (e) {
       console.error("[worker] could not schedule the nightly match:", e instanceof Error ? e.message : e);

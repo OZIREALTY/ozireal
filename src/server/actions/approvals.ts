@@ -239,6 +239,7 @@ export const approveAndSend = defineAction({
       agency: { name: agency.name, licence: agency.licence },
       listingId: item.listingId,
       card: item.card,
+      trackId: input.id,
     });
 
     if (!result.ok) {

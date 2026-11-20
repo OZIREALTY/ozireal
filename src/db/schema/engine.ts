@@ -214,6 +214,13 @@ export const approvalItems = pgTable(
     /** Why a send was refused at the gate. Populated by the system, not a person. */
     blockReason: text("block_reason"),
     providerMessageId: text("provider_message_id"),
+    /** After the send (0028): tracking image, routed listing link, replies read from Gmail. */
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    openCount: integer("open_count").notNull().default(0),
+    clickedAt: timestamp("clicked_at", { withTimezone: true }),
+    clickCount: integer("click_count").notNull().default(0),
+    repliedAt: timestamp("replied_at", { withTimezone: true }),
+    replySnippet: text("reply_snippet"),
 
     model: text("model"),
     costAud: numeric("cost_aud", { precision: 10, scale: 4 }),

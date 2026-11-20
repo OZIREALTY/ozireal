@@ -32,7 +32,9 @@ export type JobName =
   /** entityId = a campaign_recipients id: draft that person's matched-property email. */
   | "DraftMatchEmail"
   /** entityId = an audience_runs id: read every client and pick who suits the property. */
-  | "FindAudience";
+  | "FindAudience"
+  /** entityId = "all": read the agency Gmail for replies to emails the CRM sent. */
+  | "CheckReplies";
 
 export type JobPayload = {
   tenantId: string;
