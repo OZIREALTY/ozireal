@@ -103,28 +103,10 @@ export const startComposeEmail = defineAction({
       const g = await checkConsent(ctx.tx, id, "email");
       (g.allowed ? ids : left).push(id);
     }
-    // At most one email per person per week, and never two waiting (owner's rule, 2026-11-13).
-    const recent = ids.length
-      ? await ctx.tx
-          .select({ contactId: approvalItems.contactId })
-          .from(approvalItems)
-          .where(
-            and(
-              inArray(approvalItems.contactId, ids),
-              eq(approvalItems.kind, "email"),
-              sql`((${approvalItems.status} = 'sent' and ${approvalItems.sentAt} > now() - interval '7 days') or ${approvalItems.status} = 'pending')`,
-            ),
-          )
-      : [];
-    const held = new Set(recent.map((r) => r.contactId));
-    const go = ids.filter((id) => !held.has(id));
-    if (!go.length) {
-      throw new ActionError(
-        held.size
-          ? "Everyone chosen was emailed in the last 7 days or already has an email waiting."
-          : "Nobody chosen can be emailed: no email consent, or no address.",
-      );
-    }
+    // No sending limit (owner, 2026-11-20: the once-a-week rule is removed).
+    const held = new Set<string>();
+    const go = ids;
+    if (!go.length) throw new ActionError("Nobody chosen can be emailed: no email consent, or no address.");
 
     const name = input.name || (home ? home.label : input.note.split(/[.\n]/)[0].slice(0, 80)) || "Email";
     const [c] = await ctx.tx

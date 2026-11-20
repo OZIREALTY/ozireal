@@ -21,14 +21,16 @@ const TONES: { v: Tone; label: string }[] = [
 ];
 const STEPS = ["What is it about?", "Who gets it?", "What should it say?", "Check and send for OK"];
 
-export function Composer({ data, startOpen = false }: { data: ComposeData; startOpen?: boolean }) {
+export function Composer({ data, startOpen = false, to }: { data: ComposeData; startOpen?: boolean; to?: string }) {
+  /** From a contact page (2026-11-20): the email starts addressed to that one person. */
+  const toPerson = to ? data.people.find((p) => p.id === to) ?? null : null;
   const router = useRouter();
   const [open, setOpen] = React.useState(startOpen);
   const [step, setStep] = React.useState(0);
   const [kind, setKind] = React.useState<"property" | "general" | null>(null);
   const [listingId, setListingId] = React.useState<string>(data.homes[0]?.listingId ?? "");
-  const [groups, setGroups] = React.useState<Set<string>>(new Set(["matched"]));
-  const [hand, setHand] = React.useState<Set<string>>(new Set());
+  const [groups, setGroups] = React.useState<Set<string>>(new Set(toPerson ? [] : ["matched"]));
+  const [hand, setHand] = React.useState<Set<string>>(new Set(toPerson ? [toPerson.id] : []));
   const [removed, setRemoved] = React.useState<Set<string>>(new Set());
   const [q, setQ] = React.useState("");
   const [tone, setTone] = React.useState<Tone>("warm");
@@ -156,6 +158,12 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
   if (!kind) {
     return (
       <section className="surface-2 border rounded-2xl p-5" aria-label="Start a new email">
+        {toPerson && (
+          <p className="mb-3 rounded-xl bg-[var(--surface)] px-3 py-2 text-[14.5px]">
+            <b>To:</b> {toPerson.name}
+            {!toPerson.canEmail && <span className="text-[#9a6a00] dark:text-[#f0c14b]"> · can&rsquo;t be emailed: {toPerson.why}</span>}
+          </p>
+        )}
         <p className="text-[19px] font-extrabold">What kind of email?</p>
         <p className="text-2 mb-4">Choose first. The next steps change to fit.</p>
         <div className="grid sm:grid-cols-2 gap-3.5">
@@ -413,7 +421,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                     )}
                     <Li>About: <b>{home ? home.label : "a general message"}</b> · tone: {TONES.find((t) => t.v === tone)?.label}</Li>
                     <Li>Unsubscribe link and agency details are added to every email.</Li>
-                    <Li>Consent is checked again at the moment of sending. Anyone emailed this week is held back.</Li>
+                    <Li>Consent is checked again at the moment of sending.</Li>
                   </ul>
                   <label htmlFor="compose-name" className="block font-bold text-[13.5px] mt-4 mb-2">Name for your list (optional)</label>
                   <input

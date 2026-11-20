@@ -237,9 +237,8 @@ export async function getMatchBoard(): Promise<{ properties: BoardProperty[]; co
               ? "weak"
               : !emailable
                 ? "call"
-                : recentAt
-                  ? "recent"
-                  : "ready";
+                : "ready"; // no sending limit (owner, 2026-11-20)
+          void recentAt;
           return {
             contactId: m.contactId,
             name: `${m.firstName} ${m.lastName}`.trim(),

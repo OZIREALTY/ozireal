@@ -46,21 +46,9 @@ export const startMatchEmails = defineAction({
       .where(and(eq(matches.propertyId, p.id), inArray(matches.contactId, input.contactIds)));
     const matchedIds = [...new Set(matched.map((m) => m.contactId))];
     if (!matchedIds.length) throw new ActionError("None of those people are matched with this property.");
-    // At most one of these emails per person per week (owner's rule, 2026-11-13).
-    const recent = await ctx.tx
-      .select({ contactId: approvalItems.contactId })
-      .from(approvalItems)
-      .where(
-        and(
-          inArray(approvalItems.contactId, matchedIds),
-          eq(approvalItems.kind, "email"),
-          sql`(${approvalItems.status} = 'sent' and ${approvalItems.sentAt} > now() - interval '7 days')
-              or ${approvalItems.status} = 'pending'`,
-        ),
-      );
-    const held = new Set(recent.map((r) => r.contactId));
-    const ids = matchedIds.filter((id) => !held.has(id));
-    if (!ids.length) throw new ActionError("Everyone ticked was emailed in the last 7 days or already has an email waiting.");
+    // No sending limit (owner, 2026-11-20: the once-a-week rule is removed).
+    const held = new Set<string>();
+    const ids = matchedIds;
 
     // The campaign it is about: the live listing if there is one, else the newest draft.
     const [l] = await ctx.tx

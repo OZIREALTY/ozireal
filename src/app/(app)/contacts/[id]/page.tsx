@@ -73,6 +73,14 @@ export default async function ContactDetail({
           // records again, which is the thing the merge just undid.
           c.mergedIntoId ? null : (
             <>
+              {c.email && (
+                <Link
+                  href={`/campaigns?new=1&to=${c.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] text-white text-[13px] font-semibold px-3 min-h-9 hover:opacity-90"
+                >
+                  Send email
+                </Link>
+              )}
               <LogInteractionButton contactId={c.id} />
               <RecordOutcomeButton contactId={c.id} />
               <EditContactButton
