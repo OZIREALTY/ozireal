@@ -7,7 +7,7 @@ import { ingestThrough } from "@/server/intake/pipeline";
 /**
  * Replies to sent emails (option A, owner-approved 2026-11-20). Campaign emails go out
  * from the agency's Google mailbox, so replies arrive there. Every few minutes this reads
- * the INBOX headers of the last three days and picks ONLY messages answering an email
+ * the INBOX headers of the last fourteen days and picks ONLY messages answering an email
  * the CRM sent (In-Reply-To / References carrying our Message-ID). Everything else in the
  * mailbox is never fetched. A reply goes through the email channel adapter like any other
  * inbound email (§5), so it lands on the contact's interaction log, and the sent email is
@@ -92,7 +92,7 @@ async function checkTenant(tenantId: string, pass: string) {
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
-      for await (const m of client.fetch({ since: new Date(Date.now() - 3 * 864e5) }, { uid: true, envelope: true, headers: ["references"] })) {
+      for await (const m of client.fetch({ since: new Date(Date.now() - 14 * 864e5) }, { uid: true, envelope: true, headers: ["references"] })) {
         looked++;
         const refs = [m.envelope?.inReplyTo ?? "", ...(m.headers?.toString("utf8").replace(/^references:/i, "").split(/\s+/) ?? [])]
           .filter(Boolean)
@@ -110,13 +110,16 @@ async function checkTenant(tenantId: string, pass: string) {
         const msg = await client.fetchOne(String(h.uid), { source: true }, { uid: true });
         if (!msg || !msg.source) continue;
         const mime = msg.source.toString("utf8");
-        await ingestThrough("email", { mime, rawS3Key: null }, tenantId);
-        const snippet = await replySnippet(mime);
+        // Mark the reply FIRST: logging it on the contact must never stop it counting.
+        const snippet = await replySnippet(mime).catch(() => null);
         await withTenant(tenantId, (tx) =>
           tx
             .update(approvalItems)
             .set({ repliedAt: new Date(), replySnippet: snippet })
             .where(and(eq(approvalItems.id, h.itemId), isNull(approvalItems.repliedAt))),
+        );
+        await ingestThrough("email", { mime, rawS3Key: null }, tenantId).catch((e) =>
+          console.error("[replies] logging the reply on the contact failed:", e instanceof Error ? e.message : e),
         );
       }
     } finally {

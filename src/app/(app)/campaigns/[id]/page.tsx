@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { campaignDetail, TYPE_LABEL } from "@/server/queries/email-insights";
+import { currentTenantId } from "@/db";
+import { checkRepliesFor, lastReplyCheck } from "@/server/outbound/replies";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,12 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
   const { id } = await params;
   const { show = "all" } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  // Read new replies first (at most once a minute) so this page is current.
+  const tenantId = await currentTenantId();
+  const last = await lastReplyCheck(tenantId);
+  if (!last || Date.now() - new Date(last.at).getTime() > 60_000) {
+    await Promise.race([checkRepliesFor(tenantId), new Promise((res) => setTimeout(res, 15_000))]);
+  }
   const d = await campaignDetail(id);
   if (!d) notFound();
   const { campaign: c, totals: t } = d;

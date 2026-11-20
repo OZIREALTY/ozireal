@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { CampaignTabs } from "@/components/campaigns/tabs";
 import { emailInsights, TYPE_LABEL } from "@/server/queries/email-insights";
 import { currentTenantId } from "@/db";
-import { lastReplyCheck } from "@/server/outbound/replies";
+import { checkRepliesFor, lastReplyCheck } from "@/server/outbound/replies";
 import { ReplyCheck } from "@/components/campaigns/reply-check";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,19 @@ const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 export default async function EmailInsightsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range = "30" } = await searchParams;
   const r = RANGES.find((x) => x.k === range) ?? RANGES[1];
-  const [d, last] = await Promise.all([emailInsights(r.days), currentTenantId().then(lastReplyCheck)]);
+  /**
+   * Opening the report reads new replies first (at most once a minute), so the numbers do
+   * not depend on the background worker alone (owner, 2026-11-20).
+   */
+  const tenantId = await currentTenantId();
+  let last = await lastReplyCheck(tenantId);
+  if (!last || Date.now() - new Date(last.at).getTime() > 60_000) {
+    last = await Promise.race([
+      checkRepliesFor(tenantId),
+      new Promise<typeof last>((res) => setTimeout(() => res(last), 15_000)),
+    ]);
+  }
+  const d = await emailInsights(r.days);
   const t = d.totals;
   const diff = r.days ? t.sent - d.before.sent : null;
   const rDiff = r.days && d.before.sent ? (t.replyRate - d.before.replyRate) * 100 : null;
