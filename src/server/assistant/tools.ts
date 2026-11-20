@@ -62,7 +62,7 @@ export const TOOLS = {
   search_knowledge: {
     kind: "read",
     description:
-      "Look up the owner's AI training (Settings → AI training): the agency knowledge that did not fit in your instructions, and the legal library (Acts, regulations, official guidance). Call it for ANY question about how the agency works and for ANY legal, tenancy, sale or compliance question, before saying anything is not covered. The library is in English: ALWAYS write `queries` in English, whatever language the user wrote in, and give 2-4 different phrasings with the legal terms an Act would use (e.g. for a Persian question about a tenant handing a lease to someone else: 'assignment of tenancy', 'sublet consent landlord', 'condition report new tenant', 'ingoing inspection report'). Both shelves are searched. Returns passages with the source title, and for legal ones the jurisdiction, instrument, section and version date. Answer in the user's language. Legal answers must cite 'jurisdiction, instrument, s. section', are research support to be verified with a licensee or solicitor, and are never a definitive ruling. Only if every phrasing returns nothing relevant, say your training does not cover it.",
+      "Look up the owner's AI training (Settings → AI training): the agency knowledge that did not fit in your instructions, and the legal library (Acts, regulations, official guidance). Call it for ANY question about how the agency works and for ANY legal, tenancy, sale or compliance question, before saying anything is not covered. The library is in English: ALWAYS write `queries` in English, whatever language the user wrote in, and give 2-4 different phrasings with the legal terms an Act would use (e.g. for a Persian question about a tenant handing a lease to someone else: 'assignment of tenancy', 'sublet consent landlord', 'condition report new tenant', 'ingoing inspection report'). Both shelves are searched. Returns passages with the source title, and for legal ones the jurisdiction, instrument, section and version date. Answer in the user's language. Legal answers must cite 'jurisdiction, instrument, s. section', are research support to be verified with a licensee or solicitor, and are never a definitive ruling. If every phrasing returns nothing relevant, search the web instead (web_search) and answer from official sources.",
     schema: z.object({
       queries: z.array(z.string().trim().min(2).max(200)).min(1).max(4),
       jurisdiction: z.string().trim().max(40).optional(),
@@ -494,7 +494,7 @@ export async function runReadTool(name: ToolName, rawInput: unknown): Promise<un
       const hits = [...seen.values()].slice(0, 10);
       return hits.length
         ? { passages: hits }
-        : { passages: [], note: "Nothing in the AI training matches any phrasing. Say so; do not answer as if it did." };
+        : { passages: [], note: "Nothing in the AI training matches. Search the web (web_search) and answer from official sources, naming them." };
     }
     case "get_overview":
       return getHomeCounts();

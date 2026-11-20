@@ -68,6 +68,15 @@ export type ToolDefinition = {
   input_schema: Record<string, unknown>;
 };
 
+/**
+ * An Anthropic-hosted tool, e.g. web search (owner, 2026-11-20: "let it free to go
+ * across the web"). It runs inside the API reply; nothing for this app to execute.
+ */
+export type ServerTool = { type: string; name: string; [k: string]: unknown };
+
+/** USD per web search (Anthropic list price, $10 per 1,000). */
+const WEB_SEARCH_USD = Number(process.env.WEB_SEARCH_USD ?? "0.01");
+
 export type ClaudeCall = {
   /** Ledger label, e.g. 'summarise-interaction'. */
   task: string;
@@ -82,7 +91,8 @@ export type ClaudeCall = {
   output: "structured" | "prose";
   system?: SystemBlock[];
   messages: { role: "user" | "assistant"; content: string | ContentBlock[] }[];
-  tools?: ToolDefinition[];
+  /** Client tools, plus Anthropic server tools (web search) that run inside the reply. */
+  tools?: (ToolDefinition | ServerTool)[];
   maxTokens?: number;
   tenantId: string;
   /** What caused the spend. */
@@ -102,6 +112,8 @@ export type ClaudeResult = {
     outputTokens: number;
     cacheReadTokens: number;
     cacheWriteTokens: number;
+    /** Anthropic web searches made inside the reply (billed per search). */
+    webSearches?: number;
   };
 };
 
@@ -227,13 +239,21 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
   }
 
   const data = (await res.json()) as {
-    content: { type: string; text?: string; id?: string; name?: string; input?: unknown }[];
+    content: {
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: unknown;
+      citations?: { url?: string; title?: string }[];
+    }[];
     stop_reason?: string;
     usage: {
       input_tokens: number;
       output_tokens: number;
       cache_read_input_tokens?: number;
       cache_creation_input_tokens?: number;
+      server_tool_use?: { web_search_requests?: number };
     };
   };
 
@@ -247,6 +267,7 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
     outputTokens: data.usage.output_tokens ?? 0,
     cacheReadTokens: data.usage.cache_read_input_tokens ?? 0,
     cacheWriteTokens: data.usage.cache_creation_input_tokens ?? 0,
+    webSearches: data.usage.server_tool_use?.web_search_requests ?? 0,
   };
 
   /**
@@ -293,6 +314,22 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
         : [],
   );
 
+  /**
+   * Web search answers carry citations. The search blocks themselves are not kept
+   * (they are large and only valid inside that one reply), so the sources are added
+   * as plain links at the end, where the agent can open them.
+   */
+  const sources = new Map<string, string>();
+  for (const c of data.content) for (const ci of c.citations ?? []) if (ci.url) sources.set(ci.url, ci.title || ci.url);
+  if (sources.size) {
+    content.push({
+      type: "text",
+      text:
+        "\n\nSources: " +
+        [...sources].slice(0, 8).map(([url, title]) => `[${title.replace(/[[\]]/g, "")}](${url})`).join(" · "),
+    });
+  }
+
   return { text, content, stopReason: data.stop_reason ?? null, generationId, usage };
 }
 
@@ -333,7 +370,8 @@ async function ledger(
       r.usage.outputTokens * p.output +
       r.usage.cacheWriteTokens * p.input * CACHE_WRITE_MULTIPLIER +
       r.usage.cacheReadTokens * p.input * CACHE_READ_MULTIPLIER) /
-    1_000_000;
+      1_000_000 +
+    (r.usage.webSearches ?? 0) * WEB_SEARCH_USD;
 
   const [row] = await withTenant(call.tenantId, (tx) =>
     tx

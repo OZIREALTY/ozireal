@@ -31,8 +31,16 @@ import type { ActionResult } from "./action";
  * could have done themselves.
  */
 
-const PROMPT = "assistant.v9";
-const MAX_ROUNDS = 6;
+const PROMPT = "assistant.v10";
+const MAX_ROUNDS = 14;
+
+/** Free to search the web for any question; results come back cited. Searches favour Australia. */
+const WEB_SEARCH = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 8,
+  user_location: { type: "approximate", city: "Adelaide", region: "South Australia", country: "AU", timezone: "Australia/Adelaide" },
+};
 
 const block = z.union([
   z.object({ type: z.literal("text"), text: z.string().max(20_000) }),
@@ -152,7 +160,8 @@ export async function assistantTurn(raw: unknown): Promise<ActionResult<TurnResu
           { text: `It is now ${now} in Adelaide.${pageContext}` },
         ],
         messages: history as { role: "user" | "assistant"; content: string | ContentBlock[] }[],
-        tools: TOOL_DEFINITIONS,
+        // Web search (2026-11-20): Anthropic runs it inside the reply and cites sources.
+        tools: [...TOOL_DEFINITIONS, WEB_SEARCH],
         maxTokens: 16_000,
         tenantId: s.tenantId,
         promptVersion: prompt.version,
@@ -164,6 +173,11 @@ export async function assistantTurn(raw: unknown): Promise<ActionResult<TurnResu
       const uses = res.content.filter(
         (b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use",
       );
+      // A long web research reply can pause; carry on from where it stopped.
+      if (res.stopReason === "pause_turn") {
+        history.push({ role: "user", content: "Continue." });
+        continue;
+      }
       if (res.stopReason !== "tool_use" || uses.length === 0) {
         return { ok: true, data: { messages: history, pending: [], pendingResults: [] } };
       }
@@ -209,7 +223,7 @@ export async function assistantTurn(raw: unknown): Promise<ActionResult<TurnResu
 
     history.push({
       role: "assistant",
-      content: "That took more steps than I allow in one go. Ask again with a narrower question.",
+      content: "I ran out of steps before finishing. Say \"continue\" and I will pick up where I stopped.",
     });
     return { ok: true, data: { messages: history, pending: [], pendingResults: [] } };
   } catch (e) {
