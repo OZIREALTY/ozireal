@@ -70,7 +70,6 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     {c.approved > 0 && <span>{c.approved} sent</span>}
                     {waiting > 0 && c.status !== "sent" && c.status !== "cancelled" && <span>{waiting} waiting</span>}
                     {c.blocked > 0 && <span className="text-[#b02f2f] dark:text-[#f08a8a]">{c.blocked} skipped</span>}
-                    {c.opened > 0 && <span>{c.opened} opened</span>}
                     {c.replied > 0 && <span>{c.replied} replied</span>}
                     <span>{relative(c.createdAt)}</span>
                   </div>

@@ -8,9 +8,9 @@ export const dynamic = "force-dynamic";
 
 /** One email batch, person by person (owner-approved preview, 2026-11-20). */
 const STATE: Record<string, { label: string; cls: string }> = {
-  replied: { label: "Replied", cls: "bg-[#e3f4ea] text-[#1f7a4d] dark:bg-[#173527] dark:text-[#5fd39a]" },
+  replied: { label: "Got back to you", cls: "bg-[#e3f4ea] text-[#1f7a4d] dark:bg-[#173527] dark:text-[#5fd39a]" },
   clicked: { label: "Clicked", cls: "bg-[var(--accent)]/10 text-[var(--accent)]" },
-  opened: { label: "Opened", cls: "bg-[#e4ecf8] text-[#2f5fa8] dark:bg-[#1b2c4a] dark:text-[#8fb3f0]" },
+  opened: { label: "Sent", cls: "bg-[var(--surface)] text-2" },
   sent: { label: "Sent", cls: "bg-[var(--surface)] text-2" },
   waiting: { label: "Waiting for OK", cls: "bg-[#fff3d1] text-[#9a6a00] dark:bg-[#3a3016] dark:text-[#f0c14b]" },
   writing: { label: "Being written", cls: "bg-[var(--surface)] text-2" },
@@ -18,16 +18,14 @@ const STATE: Record<string, { label: string; cls: string }> = {
 };
 const FILTERS = [
   { k: "all", label: "All" },
-  { k: "replied", label: "Replied" },
+  { k: "replied", label: "Got back to you" },
   { k: "clicked", label: "Clicked" },
-  { k: "opened", label: "Opened" },
-  { k: "notopened", label: "Not opened" },
   { k: "waiting", label: "Waiting" },
   { k: "skipped", label: "Skipped" },
 ] as const;
 
-const when = (d: Date | null) =>
-  d ? d.toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Adelaide" }) : "";
+const when = (d: Date | string | null) =>
+  d ? new Date(d).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Adelaide" }) : "";
 
 export default async function CampaignDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ show?: string }> }) {
   const { id } = await params;
@@ -64,12 +62,11 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
         subtitle={`${TYPE_LABEL[c.type]}${d.firstSent ? ` · first sent ${when(d.firstSent)}` : " · not sent yet"} · from admin@ozirealty.com.au`}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
         <Kpi label="People" value={t.people} note={t.skipped ? `${t.skipped} skipped` : t.waiting ? `${t.waiting} waiting` : undefined} />
         <Kpi label="Sent" value={t.sent} />
-        <Kpi label="Opened" value={t.opened} note={pct(t.opened)} />
         <Kpi label="Clicked" value={t.clicked} note={pct(t.clicked)} />
-        <Kpi label="Replied" value={t.replied} note={pct(t.replied)} star />
+        <Kpi label="Got back to you" value={t.replied} note={pct(t.replied)} star />
       </div>
 
       <h2 className="text-[13px] tracking-wider uppercase text-2 font-bold mt-7 mb-2.5">Person by person</h2>
@@ -90,9 +87,8 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
           const s = STATE[r.state];
           const steps = [
             r.sentAt ? `Sent ${when(r.sentAt)}` : null,
-            r.openedAt ? `opened ${(r.opens ?? 0) > 1 ? `${r.opens} times, first ${when(r.openedAt)}` : when(r.openedAt)}` : r.sentAt ? "not opened yet" : null,
             r.clickedAt ? "clicked the listing" : null,
-            r.repliedAt ? `replied ${when(r.repliedAt)}` : null,
+            r.repliedAt ? `got back to you ${when(r.repliedAt)}` : null,
           ].filter(Boolean);
           return (
             <div key={r.contactId} className="surface-2 border rounded-xl px-4 py-3 flex flex-wrap items-start justify-between gap-2">
@@ -131,7 +127,7 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
         </Link>
       )}
       <p className="text-[12.5px] text-2 mt-6">
-        Opens are a rough signal; clicks and replies are reliable. Replies are found by checking your Gmail for answers to these emails only, every few minutes.
+        Got back to you: a reply to the email, or any message from them within 14 days. Replies are found by checking your Gmail for answers to these emails only, every few minutes.
       </p>
     </>
   );

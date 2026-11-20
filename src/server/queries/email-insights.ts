@@ -39,6 +39,14 @@ type Row = {
   name: string;
 };
 
+/**
+ * "Got back to you" (owner, 2026-11-20: only numbers to trust): a reply to the email, or
+ * any message from that person (email, form, logged call or visit) within 14 days of it.
+ */
+const respondedAt = sql<Date | null>`coalesce(${approvalItems.repliedAt}, (select min(i.occurred_at) from interactions i
+  where i.contact_id = ${approvalItems.contactId} and i.direction = 'in'
+    and i.occurred_at > ${approvalItems.sentAt} and i.occurred_at < ${approvalItems.sentAt} + interval '14 days'))`;
+
 const rate = (n: number, d: number) => (d ? n / d : 0);
 
 export async function emailInsights(days: number | null) {
@@ -55,7 +63,7 @@ export async function emailInsights(days: number | null) {
           opened: sql<boolean>`${approvalItems.openedAt} is not null`,
           opens: approvalItems.openCount,
           clicked: sql<boolean>`${approvalItems.clickedAt} is not null`,
-          replied: sql<boolean>`${approvalItems.repliedAt} is not null`,
+          replied: sql<boolean>`${respondedAt} is not null`,
           type: typeSql,
           tone: sql<string | null>`${campaigns.segment}->>'tone'`,
           campaignId: campaigns.id,
@@ -118,7 +126,7 @@ export async function emailInsights(days: number | null) {
     batches.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
 
     const quiet = cur
-      .filter((r) => !r.replied && (r.clicked || r.opens >= 3))
+      .filter((r) => !r.replied && r.clicked)
       .sort((a, b) => Number(b.clicked) - Number(a.clicked) || b.opens - a.opens)
       .slice(0, 10);
 
@@ -171,8 +179,8 @@ function findings(rs: Row[], byType: ({ label: string } & ReturnType<typeof summ
     const best = [...byDay.entries()].filter(([, v]) => v.s >= 5).sort((a, b) => b[1].r / b[1].s - a[1].r / a[1].s)[0];
     if (best) out.push(`Emails sent on a ${dayNames[best[0]]} get the most replies.`);
   }
-  const keen = rs.filter((r) => !r.replied && (r.clicked || r.opens >= 3)).length;
-  if (keen) out.push(`${keen} ${keen === 1 ? "person" : "people"} opened several times or clicked but did not reply. Worth a call.`);
+  const keen = rs.filter((r) => !r.replied && r.clicked).length;
+  if (keen) out.push(`${keen} ${keen === 1 ? "person" : "people"} clicked through to the listing but have not got back to you. Worth a call.`);
   if (!out.length) out.push(rs.length ? "Too few emails yet to compare. The findings appear as more go out." : "Nothing sent in this period.");
   return out;
 }
@@ -200,7 +208,7 @@ export async function campaignDetail(id: string) {
         opens: approvalItems.openCount,
         clickedAt: approvalItems.clickedAt,
         clicks: approvalItems.clickCount,
-        repliedAt: approvalItems.repliedAt,
+        repliedAt: respondedAt,
         reply: approvalItems.replySnippet,
         body: approvalItems.draftBody,
         reviewNote: approvalItems.reviewNote,
@@ -210,7 +218,7 @@ export async function campaignDetail(id: string) {
       .innerJoin(contacts, eq(contacts.id, campaignRecipients.contactId))
       .leftJoin(approvalItems, eq(approvalItems.id, campaignRecipients.approvalItemId))
       .where(eq(campaignRecipients.campaignId, id))
-      .orderBy(desc(approvalItems.repliedAt), desc(approvalItems.clickedAt), desc(approvalItems.openedAt), contacts.firstName);
+      .orderBy(desc(respondedAt), desc(approvalItems.clickedAt), desc(approvalItems.openedAt), contacts.firstName);
     const rows = people.map((p) => {
       const state: "replied" | "clicked" | "opened" | "sent" | "waiting" | "writing" | "skipped" =
         p.repliedAt ? "replied"

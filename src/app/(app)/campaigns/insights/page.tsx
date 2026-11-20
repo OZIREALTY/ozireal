@@ -42,13 +42,12 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
         ))}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
         <Kpi label="Sent" value={String(t.sent)} note={diff !== null ? `${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff)} on the ${r.days} days before` : undefined} />
-        <Kpi label="Opened" value={pct(t.openRate)} note={`${t.opened} emails · rough signal`} />
         <Kpi label="Clicked the listing" value={pct(t.clickRate)} note={`${t.clicked} emails`} />
         <Kpi
           star
-          label="Replied"
+          label="Got back to you"
           value={pct(t.replyRate)}
           note={`${t.replied} ${t.replied === 1 ? "reply" : "replies"}${rDiff !== null ? ` · ${rDiff >= 0 ? "▲" : "▼"} ${Math.abs(Math.round(rDiff * 10) / 10)} pts` : ""}`}
         />
@@ -57,8 +56,8 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
 
       <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
         <div className="surface-2 border rounded-2xl p-4 min-w-0">
-          <h3 className="font-bold text-[15.5px]">Replies each week</h3>
-          <p className="text-2 text-[13px] mb-3">Bars are emails sent; the line is the reply rate.</p>
+          <h3 className="font-bold text-[15.5px]">Responses each week</h3>
+          <p className="text-2 text-[13px] mb-3">Bars are emails sent; the line is the share who got back to you.</p>
           <WeekChart weeks={d.weekly} />
         </div>
         <div className="surface-2 border rounded-2xl p-4 min-w-0">
@@ -75,12 +74,11 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       {d.byType.length > 0 && (
         <>
           <H2>By type of email</H2>
-          <Tbl head={["Type", "Sent", "Opened", "Clicked", "Replied"]} left={1}>
+          <Tbl head={["Type", "Sent", "Clicked", "Got back to you"]} left={1}>
             {d.byType.map((x) => (
               <tr key={x.type} className="border-t">
                 <td className="px-3 py-2.5 font-semibold">{x.label}</td>
                 <Num>{x.sent}</Num>
-                <Num>{pct(x.openRate)}</Num>
                 <Num>{pct(x.clickRate)}</Num>
                 <Num bold>{pct(x.replyRate)}</Num>
               </tr>
@@ -92,7 +90,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       {d.batches.length > 0 && (
         <>
           <H2>Every batch</H2>
-          <Tbl head={["Email", "Type", "Sent", "People", "Opened", "Clicked", "Replied"]} left={3}>
+          <Tbl head={["Email", "Type", "Sent", "People", "Clicked", "Got back to you"]} left={3}>
             {d.batches.map((b) => (
               <tr key={b.id} className="border-t hover:bg-[var(--surface)]">
                 <td className="px-3 py-2.5">
@@ -101,7 +99,6 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
                 <td className="px-3 py-2.5 text-2 whitespace-nowrap">{TYPE_LABEL[b.type]}</td>
                 <td className="px-3 py-2.5 text-2 whitespace-nowrap">{b.sentAt.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</td>
                 <Num>{b.sent}</Num>
-                <Num>{pct(b.openRate)}</Num>
                 <Num>{pct(b.clickRate)}</Num>
                 <Num bold>{pct(b.replyRate)}</Num>
               </tr>
@@ -123,13 +120,10 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
                     <b>{q.name}</b>
                   )}
                   <small className="block text-2 text-[12.5px]">
-                    {(q.campaignName ?? "Email").replace(/^Matched buyers: /, "")} · opened {q.opens} {q.opens === 1 ? "time" : "times"}
-                    {q.clicked ? " · clicked the listing" : ""} · no reply
+                    {(q.campaignName ?? "Email").replace(/^Matched buyers: /, "")} · clicked the listing · has not got back to you
                   </small>
                 </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${q.clicked ? "bg-[var(--accent)]/10 text-[var(--accent)]" : "bg-[#e4ecf8] text-[#2f5fa8] dark:bg-[#1b2c4a] dark:text-[#8fb3f0]"}`}>
-                  {q.clicked ? "Clicked" : `Opened ×${q.opens}`}
-                </span>
+                <span className="rounded-full px-2.5 py-0.5 text-[12px] font-bold bg-[var(--accent)]/10 text-[var(--accent)]">Clicked</span>
               </div>
             ))}
           </div>
@@ -137,7 +131,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       )}
 
       <p className="text-[12.5px] text-2 mt-6">
-        Opens are a rough signal: Apple Mail and Gmail can load an email before a person reads it, and some people block images. Clicks and replies are the reliable numbers. Opens and clicks are counted for emails sent from 20 November 2026.
+        Got back to you: they replied to the email, or contacted you in any way (email, website form, a logged call or visit) within 14 days of it.
       </p>
     </>
   );
@@ -237,7 +231,7 @@ function WeekChart({ weeks }: { weeks: { week: string; sent: number; replied: nu
         </span>
         <span>
           <i className="inline-block w-2.5 h-2.5 rounded-sm mr-1.5 bg-[var(--accent)]" />
-          Reply rate
+          Got back to you
         </span>
       </div>
     </>
