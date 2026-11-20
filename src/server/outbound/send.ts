@@ -5,7 +5,7 @@ import { getSecret } from "@/server/secrets";
 import { withComplianceFooter } from "./gate";
 import { unsubscribeUrl } from "./unsubscribe";
 import { sendMarketingEmail } from "./notices";
-import { addTracking } from "./tracking";
+import { addTracking, replyAddress, replyInboxOn } from "./tracking";
 import { emailPropertyFor, propertyEmailHtml, propertyEmailText } from "./property-email";
 
 /**
@@ -83,6 +83,7 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
     text,
     html,
     unsubscribeUrl: unsub,
+    ...(req.trackId && replyInboxOn() ? { replyTo: replyAddress(req.trackId) } : {}),
   });
   return r.ok ? { ok: true, providerMessageId: r.id, sentBody: text } : { ok: false, error: r.error };
 }

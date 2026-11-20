@@ -105,6 +105,8 @@ export async function sendMarketingEmail(m: {
   unsubscribeUrl: string;
   /** When given, and a Gmail app password is stored for the tenant, Google sends it. */
   tenantId?: string;
+  /** Where a reply goes (the CRM reply inbox when switched on); else the agency inbox. */
+  replyTo?: string;
 }): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
   if (m.tenantId) {
     const { getSecret } = await import("@/server/secrets");
@@ -117,7 +119,7 @@ export async function sendMarketingEmail(m: {
       new SendEmailCommand({
         FromEmailAddress: `${FROM_NAME} <${FROM_ADDRESS}>`,
         Destination: { ToAddresses: [m.to] },
-        ReplyToAddresses: [ALERT_TO],
+        ReplyToAddresses: [m.replyTo ?? ALERT_TO],
         Content: {
           Simple: {
             Subject: { Data: m.subject, Charset: "UTF-8" },
@@ -145,7 +147,7 @@ export async function sendMarketingEmail(m: {
  */
 const GMAIL_USER = process.env.GMAIL_USER ?? "admin@ozirealty.com.au";
 async function sendViaGmail(
-  m: { to: string; subject: string; text: string; html: string; unsubscribeUrl: string },
+  m: { to: string; subject: string; text: string; html: string; unsubscribeUrl: string; replyTo?: string },
   pass: string,
 ): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
   try {
@@ -155,6 +157,7 @@ async function sendViaGmail(
     const info = await t.sendMail({
       from: { name: FROM_NAME, address: GMAIL_USER },
       to: m.to,
+      ...(m.replyTo ? { replyTo: { name: FROM_NAME, address: m.replyTo } } : {}),
       subject: m.subject,
       text: m.text,
       html: m.html,
@@ -319,4 +322,32 @@ export async function notifyEnquiry(tenantId: string, interactionId: string) {
   );
 
   return { alerted: true, acknowledged: true };
+}
+
+/**
+ * A client's reply that came in through the CRM reply inbox, passed on to the agency
+ * Gmail so it reads like any other email: Reply-To is the client, so answering it from
+ * Gmail goes straight back to them. Sent by Google when the app password is stored
+ * (works to any address); otherwise by SES to the agency inbox (allowed in the sandbox).
+ */
+export async function forwardReply(tenantId: string, o: { fromName: string; fromAddress: string; subject: string; text: string; html?: string | null }) {
+  const subject = /^re:/i.test(o.subject) ? o.subject : `Re: ${o.subject}`;
+  const { getSecret } = await import("@/server/secrets");
+  const pass = await getSecret(tenantId, "GMAIL_APP_PASSWORD").catch(() => null);
+  if (pass) {
+    const { createTransport } = await import("nodemailer");
+    const t = createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user: GMAIL_USER, pass: pass.replace(/s+/g, "") } });
+    await t.sendMail({
+      from: { name: `${o.fromName || o.fromAddress} via Ozi Realty CRM`, address: GMAIL_USER },
+      to: ALERT_TO,
+      replyTo: { name: o.fromName, address: o.fromAddress },
+      subject,
+      text: o.text,
+      ...(o.html ? { html: o.html } : {}),
+    });
+    return;
+  }
+  await sendPlain(ALERT_TO, subject, `From: ${o.fromName} <${o.fromAddress}>
+
+${o.text}`, o.fromAddress, o.html ?? undefined);
 }

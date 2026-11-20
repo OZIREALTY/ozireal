@@ -178,6 +178,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await ingestThrough("email", { mime, rawS3Key }, tenantId);
+    // A client's reply to a CRM email (reply+<item>@…): counted and passed on to Gmail.
+    // Only on first delivery: SNS redelivers, and a reply must reach Gmail exactly once.
+    if (!result.duplicate) {
+      const { handleReplyInbox } = await import("@/server/outbound/replies");
+      await handleReplyInbox(tenantId, notification.mail.destination ?? [], mime).catch((e) =>
+        console.error("[inbound/ses] reply handling failed:", e instanceof Error ? e.message : e),
+      );
+    }
     return NextResponse.json({
       ok: true,
       duplicate: result.duplicate,

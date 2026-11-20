@@ -143,3 +143,38 @@ async function replySnippet(mime: string) {
   return lines.join(" ").slice(0, 280) || null;
 }
 
+
+/**
+ * A reply that came to reply+<item>@in.ozirealty.com.au through Amazon SES (option 2,
+ * 2026-11-20): count it against that exact email, then pass it on to the agency Gmail.
+ * Returns true when the mail was one of these replies.
+ */
+export async function handleReplyInbox(tenantId: string, destinations: string[], mime: string): Promise<boolean> {
+  const { readReplyAddress } = await import("./tracking");
+  const itemId = destinations.map(readReplyAddress).find(Boolean);
+  if (!itemId) return false;
+  const snippet = await replySnippet(mime).catch(() => null);
+  await withTenant(tenantId, (tx) =>
+    tx
+      .update(approvalItems)
+      .set({ repliedAt: new Date(), replySnippet: snippet })
+      .where(and(eq(approvalItems.id, itemId), isNull(approvalItems.repliedAt))),
+  );
+  try {
+    const { simpleParser } = await import("mailparser");
+    const mail = await simpleParser(mime);
+    const from = Array.isArray(mail.from) ? mail.from[0] : mail.from;
+    const who = from?.value?.[0];
+    const { forwardReply } = await import("./notices");
+    await forwardReply(tenantId, {
+      fromName: who?.name ?? "",
+      fromAddress: who?.address ?? "",
+      subject: mail.subject ?? "Reply",
+      text: mail.text ?? "",
+      html: typeof mail.html === "string" ? mail.html : null,
+    });
+  } catch (e) {
+    console.error("[replies] forwarding to Gmail failed:", e instanceof Error ? e.message : e);
+  }
+  return true;
+}

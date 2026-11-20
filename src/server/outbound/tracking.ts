@@ -58,3 +58,27 @@ export function addTracking(html: string, tenantId: string, itemId: string) {
   const pixel = `<img src="${CRM}/api/t/o/${t}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`;
   return routed.includes("</body>") ? routed.replace("</body>", `${pixel}</body>`) : routed + pixel;
 }
+
+/**
+ * The reply address on a sent email (option 2, owner-approved 2026-11-20):
+ * reply+<item><sig>@in.ozirealty.com.au. Amazon SES receives it, the CRM counts the
+ * reply against that exact email, and forwards it to the agency Gmail. Only switched on
+ * (REPLY_INBOX=on) once the in.ozirealty.com.au mail record exists, so no reply bounces.
+ */
+export const REPLY_DOMAIN = process.env.REPLY_DOMAIN ?? "in.ozirealty.com.au";
+export function replyInboxOn() {
+  return process.env.REPLY_INBOX === "on";
+}
+export function replyAddress(itemId: string) {
+  const id = itemId.replace(/-/g, "").toLowerCase();
+  const sig = createHmac("sha256", key()).update(`reply.${id}`).digest("hex").slice(0, 10);
+  return `reply+${id}${sig}@${REPLY_DOMAIN}`;
+}
+export function readReplyAddress(addr: string): string | null {
+  const m = /^reply\+([0-9a-f]{32})([0-9a-f]{10})@/i.exec(addr.trim());
+  if (!m) return null;
+  const id = m[1].toLowerCase();
+  const want = createHmac("sha256", key()).update(`reply.${id}`).digest("hex").slice(0, 10);
+  if (want !== m[2].toLowerCase()) return null;
+  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+}
