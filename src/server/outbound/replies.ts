@@ -1,6 +1,6 @@
-import { and, eq, gt, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { db, withTenant } from "@/db";
-import { approvalItems, tenants } from "@/db/schema";
+import { approvalItems, contacts, tenants } from "@/db/schema";
 import { getSecret } from "@/server/secrets";
 import { ingestThrough } from "@/server/intake/pipeline";
 
@@ -64,12 +64,25 @@ async function checkTenant(tenantId: string, pass: string) {
   const since = new Date(Date.now() - 60 * 864e5);
   const sent = await withTenant(tenantId, (tx) =>
     tx
-      .select({ id: approvalItems.id, msgId: approvalItems.providerMessageId })
+      .select({ id: approvalItems.id, msgId: approvalItems.providerMessageId, sentAt: approvalItems.sentAt, email: contacts.emailRaw })
       .from(approvalItems)
-      .where(and(eq(approvalItems.status, "sent"), isNotNull(approvalItems.providerMessageId), isNull(approvalItems.repliedAt), gt(approvalItems.sentAt, since))),
+      .innerJoin(contacts, eq(contacts.id, approvalItems.contactId))
+      .where(and(eq(approvalItems.kind, "email"), eq(approvalItems.status, "sent"), isNull(approvalItems.repliedAt), gt(approvalItems.sentAt, since))),
   );
   if (!sent.length) return { found: 0, looked: 0 };
-  const byMsg = new Map(sent.map((s) => [norm(s.msgId!), s.id]));
+  const byMsg = new Map(sent.filter((s) => s.msgId).map((s) => [norm(s.msgId!), s.id]));
+  /**
+   * Second way to recognise a reply (2026-11-20): mail clients do not always keep the
+   * thread headers, and a provider can rewrite the Message-ID. A message FROM a person we
+   * emailed, arriving after that email, is their answer. Still only people we emailed.
+   */
+  const bySender = new Map<string, { id: string; sentAt: Date }>();
+  for (const s of sent) {
+    const k = s.email?.trim().toLowerCase();
+    if (!k || !s.sentAt) continue;
+    const cur = bySender.get(k);
+    if (!cur || s.sentAt > cur.sentAt) bySender.set(k, { id: s.id, sentAt: s.sentAt });
+  }
 
   const { ImapFlow } = await import("imapflow");
   const client = new ImapFlow({ host: "imap.gmail.com", port: 993, secure: true, auth: { user: GMAIL_USER, pass }, logger: false });
@@ -84,7 +97,13 @@ async function checkTenant(tenantId: string, pass: string) {
         const refs = [m.envelope?.inReplyTo ?? "", ...(m.headers?.toString("utf8").replace(/^references:/i, "").split(/\s+/) ?? [])]
           .filter(Boolean)
           .map(norm);
-        const itemId = refs.map((r) => byMsg.get(r)).find(Boolean);
+        let itemId = refs.map((r) => byMsg.get(r)).find(Boolean);
+        if (!itemId) {
+          const from = m.envelope?.from?.[0]?.address?.toLowerCase();
+          const hit = from ? bySender.get(from) : undefined;
+          const at = m.envelope?.date ? new Date(m.envelope.date) : null;
+          if (hit && at && at > hit.sentAt) itemId = hit.id;
+        }
         if (itemId) hits.push({ uid: m.uid, itemId });
       }
       for (const h of hits) {
