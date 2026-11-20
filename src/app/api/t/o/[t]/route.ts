@@ -13,7 +13,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ t: stri
       tx
         .update(approvalItems)
         .set({ openCount: sql`${approvalItems.openCount} + 1`, openedAt: sql`coalesce(${approvalItems.openedAt}, now())` })
-        .where(and(eq(approvalItems.id, tok.itemId), eq(approvalItems.status, "sent"))),
+        .where(
+          and(
+            eq(approvalItems.id, tok.itemId),
+            eq(approvalItems.status, "sent"),
+            // Machine fetches (mail scanners, the sender's own Sent copy) land within seconds
+            // of sending. A person rarely opens that fast, so those do not count (2026-11-20).
+            sql`${approvalItems.sentAt} < now() - interval '90 seconds'`,
+          ),
+        ),
     ).catch(() => null);
   }
   return new Response(GIF, {

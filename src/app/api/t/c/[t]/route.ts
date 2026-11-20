@@ -18,7 +18,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ t: strin
           openedAt: sql`coalesce(${approvalItems.openedAt}, now())`,
           openCount: sql`greatest(${approvalItems.openCount}, 1)`,
         })
-        .where(and(eq(approvalItems.id, tok.itemId), eq(approvalItems.status, "sent"))),
+        .where(
+          and(
+            eq(approvalItems.id, tok.itemId),
+            eq(approvalItems.status, "sent"),
+            // Machine fetches (mail scanners, the sender's own Sent copy) land within seconds
+            // of sending. A person rarely opens that fast, so those do not count (2026-11-20).
+            sql`${approvalItems.sentAt} < now() - interval '90 seconds'`,
+          ),
+        ),
     ).catch(() => null);
   }
   return Response.redirect(dest, 302);
