@@ -81,7 +81,7 @@ function buildGroups(
       label: "",
       items: [
         { href: "/dashboard", label: "Today", icon: LayoutDashboard },
-        { href: "/contacts", label: "Clients", icon: Users },
+        { href: "/contacts", label: "Contacts", icon: Users },
         { href: "/properties", label: "Properties", icon: Home },
         { href: "/tasks", label: "Tasks", icon: ListTodo, badge: counts.tasksOpen, badgeTone: "plain" },
         { href: "/calendar", label: "Calendar", icon: CalendarDays },
