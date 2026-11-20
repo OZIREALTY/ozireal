@@ -150,7 +150,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
     `rounded-full border-[1.5px] px-3 min-h-9 text-[13.5px] font-semibold ${sel ? "border-[var(--accent)] bg-[var(--accent)]/10" : "hover:surface-2"}`;
 
   return (
-    <section ref={rootRef} className="surface border rounded-2xl overflow-hidden" aria-label="New email">
+    <section ref={rootRef} className="surface-2 border rounded-2xl overflow-hidden" aria-label="New email">
       <div className="flex border-b overflow-x-auto" role="tablist">
         {STEPS.map((s, i) => (
           <button
@@ -159,7 +159,8 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
             role="tab"
             aria-selected={i === step}
             onClick={() => (i <= step || canNext ? go(i) : null)}
-            className={`flex-1 min-w-[150px] text-left px-4 py-3 border-b-[3px] ${i === step ? "border-[var(--accent)]" : "border-transparent"}`}
+            style={{ boxShadow: i === step ? "inset 0 -3px 0 var(--accent)" : undefined }}
+            className={`flex-1 min-w-[150px] text-left px-4 py-3 ${i === step ? "bg-[var(--accent)]/[0.06]" : "hover:bg-[var(--surface)]"}`}
           >
             <span className="block text-[11.5px] font-bold uppercase tracking-wider text-2">Step {i + 1}</span>
             <strong className={`text-[15px] ${i === step ? "" : "text-2"}`}>
@@ -253,7 +254,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                       value={q}
                       onChange={(e) => setQ(e.target.value)}
                       placeholder="Type a name or suburb"
-                      className="w-full surface border-[1.5px] rounded-xl pl-9 pr-3 min-h-11"
+                      className="w-full surface-2 border-[1.5px] rounded-xl pl-9 pr-3 min-h-11"
                     />
                   </div>
                   {found.length > 0 && (
@@ -300,7 +301,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                           type="button"
                           title={p.canEmail ? "Remove" : p.why ?? ""}
                           onClick={() => setRemoved((s) => new Set(s).add(p.id))}
-                          className={`rounded-full surface-2 px-2.5 py-1 text-[13px] ${p.canEmail ? "" : "line-through text-2"}`}
+                          className={`rounded-full bg-[var(--surface)] px-2.5 py-1 text-[13px] ${p.canEmail ? "" : "line-through text-2"}`}
                         >
                           {p.name} ×
                         </button>
@@ -341,7 +342,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                         ? "e.g. Open home this Saturday 11 to 11:30. Only 3 left in the release."
                         : "e.g. Adelaide's spring market update: more listings, buyers still active. Offer a free appraisal."
                     }
-                    className="w-full surface border-[1.5px] rounded-xl px-3 py-2.5 leading-relaxed"
+                    className="w-full surface-2 border-[1.5px] rounded-xl px-3 py-2.5 leading-relaxed"
                   />
                   <button
                     type="button"
@@ -372,7 +373,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={home ? home.label : "e.g. Spring market update"}
-                    className="w-full surface border-[1.5px] rounded-xl px-3 min-h-11"
+                    className="w-full surface-2 border-[1.5px] rounded-xl px-3 min-h-11"
                   />
                 </div>
               )}
@@ -415,11 +416,11 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
           )}
         </div>
 
-        <aside className="p-5 surface-2 min-w-0" aria-label="Email preview">
+        <aside className="p-5 bg-[var(--surface)] min-w-0 border-t lg:border-t-0" aria-label="Email preview">
           <p className="text-[12.5px] font-bold uppercase tracking-wider text-2 mb-2">What they will see</p>
           {sample ? (
             <>
-              <div className="surface border rounded-xl px-3 py-2 mb-2 text-[13.5px]">
+              <div className="surface-2 border rounded-xl px-3 py-2 mb-2 text-[13.5px]">
                 <b>Esi Dor · Ozi Realty</b> → {sample.who}
                 <br />
                 {sample.subject}
@@ -461,7 +462,7 @@ function GroupRow({ checked, onChange, title, hint, n }: { checked: boolean; onC
 
 function Tally({ n, label, warn }: { n: number; label: string; warn?: boolean }) {
   return (
-    <div className="surface-2 rounded-xl px-3 py-2">
+    <div className="bg-[var(--surface)] rounded-xl px-3 py-2">
       <b className={`block text-[24px] font-extrabold tabular-nums ${warn && n ? "text-[#9a6a00] dark:text-[#f0c14b]" : ""}`}>{n}</b>
       <small className="text-2 text-[12.5px] leading-tight block">{label}</small>
     </div>
@@ -470,7 +471,7 @@ function Tally({ n, label, warn }: { n: number; label: string; warn?: boolean })
 
 function Li({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex gap-2.5 surface-2 rounded-xl px-3 py-2.5">
+    <li className="flex gap-2.5 bg-[var(--surface)] rounded-xl px-3 py-2.5">
       <Check size={16} className="text-[#1f7a4d] mt-0.5 shrink-0" />
       <span>{children}</span>
     </li>
