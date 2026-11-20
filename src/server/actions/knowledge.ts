@@ -125,3 +125,26 @@ export const removeKnowledge = defineAction({
     revalidatePath("/settings/knowledge");
   },
 });
+
+/**
+ * The search tester on Settings → AI training (2026-11-20): shows exactly what the AI
+ * would be handed for a question, so a miss can be seen rather than guessed at.
+ */
+export const testKnowledgeSearch = defineAction({
+  input: z.object({ query: z.string().trim().min(2, "Type a question.").max(300) }),
+  async handler(input, ctx) {
+    const { searchKnowledge, trainingText } = await import("@/server/knowledge");
+    const { sql } = await import("drizzle-orm");
+    const counts = await ctx.tx.execute<{ shelf: string; docs: number; chunks: number; embedded: number }>(sql`
+      select d.shelf, count(distinct d.id)::int as docs, count(c.id)::int as chunks,
+             count(distinct d.id) filter (where d.embedded)::int as embedded
+      from knowledge_docs d left join knowledge_chunks c on c.doc_id = d.id group by d.shelf`);
+    let error: string | null = null;
+    const hits = await searchKnowledge(ctx.tenantId, input.query, { limit: 6 }).catch((e) => {
+      error = e instanceof Error ? e.message : String(e);
+      return [];
+    });
+    const training = await trainingText(ctx.tenantId).catch(() => "");
+    return { hits, error, shelves: [...counts], trainingChars: training.length };
+  },
+});

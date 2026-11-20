@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, GraduationCap, Scale, Upload, ClipboardPaste, Link2, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
-import { addKnowledge, removeKnowledge } from "@/server/actions/knowledge";
+import { addKnowledge, removeKnowledge, testKnowledgeSearch } from "@/server/actions/knowledge";
 import { openAssistant } from "@/components/assistant/ask-button";
 
 type From =
@@ -251,6 +251,8 @@ export function KnowledgeShelves({
         </div>
       </section>
 
+      <SearchTester />
+
       <div className="flex items-center gap-3 mb-3">
         <h2 className="text-[13px] font-bold tracking-[0.08em] uppercase text-2 flex-1">
           {meta.label} · {list.length} {list.length === 1 ? "document" : "documents"}
@@ -298,5 +300,86 @@ export function KnowledgeShelves({
         </ul>
       )}
     </div>
+  );
+}
+
+type TestResult = {
+  hits: { document: string; shelf: string; section: string | null; heading: string | null; text: string }[];
+  error: string | null;
+  shelves: { shelf: string; docs: number; chunks: number; embedded: number }[];
+  trainingChars: number;
+};
+
+const SHELF_NAME: Record<string, string> = { rules: "Instructions", office: "What the AI should know", legal: "Legal library" };
+
+/** Shows exactly what the AI is handed for a question (2026-11-20). */
+function SearchTester() {
+  const [q, setQ] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [res, setRes] = React.useState<TestResult | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setErr(null);
+    const r = await testKnowledgeSearch({ query: q }).catch(() => null);
+    setBusy(false);
+    if (!r?.ok) return setErr(r && !r.ok ? r.error : "Could not reach the server.");
+    setRes(r.data as TestResult);
+  }
+
+  return (
+    <section className="surface-2 border rounded-xl p-4 sm:p-5 mb-6">
+      <h2 className="text-[16px] font-bold">Check what the AI finds</h2>
+      <p className="text-2 text-[14px] mb-3">Type a question. This shows exactly what the AI would read to answer it.</p>
+      <form
+        className="flex flex-col sm:flex-row gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (q.trim().length >= 2) void run();
+        }}
+      >
+        <input
+          className="flex-1 rounded-md border surface-2 px-3 min-h-11 text-[15px] outline-none focus:border-[var(--accent)]"
+          placeholder="e.g. condition report when a lease is transferred"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button type="submit" disabled={busy || q.trim().length < 2} className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--accent)] text-white px-4 min-h-11 text-[15px] font-semibold disabled:opacity-60">
+          {busy && <Loader2 size={18} className="animate-spin" />} Check
+        </button>
+      </form>
+      {err && <p className="mt-3 text-[14.5px] font-semibold text-[#A12A12] dark:text-[#FF8F78]">{err}</p>}
+      {res && (
+        <div className="mt-4 grid gap-3 text-[14.5px]">
+          <p className="text-2">
+            Stored:{" "}
+            {res.shelves.length
+              ? res.shelves
+                  .map((s) => `${SHELF_NAME[s.shelf] ?? s.shelf}: ${s.docs} doc${s.docs === 1 ? "" : "s"}, ${s.chunks} sections, ${s.embedded} with meaning search`)
+                  .join(" · ")
+              : "nothing yet"}
+            . Sent with every AI reply: {res.trainingChars.toLocaleString()} characters.
+          </p>
+          {res.error && <p className="font-semibold text-[#A12A12] dark:text-[#FF8F78]">Search error: {res.error}</p>}
+          {res.hits.length === 0 ? (
+            <p className="font-semibold">Nothing found for this question.</p>
+          ) : (
+            <ol className="grid gap-2">
+              {res.hits.map((h, i) => (
+                <li key={i} className="surface-3 border rounded-lg p-3">
+                  <p className="font-semibold">
+                    {h.document}
+                    {h.section ? ` · s ${h.section}` : ""}
+                    {h.heading ? ` · ${h.heading}` : ""} <span className="text-3 font-normal">({SHELF_NAME[h.shelf] ?? h.shelf})</span>
+                  </p>
+                  <p className="text-2 mt-1 line-clamp-4 whitespace-pre-line">{h.text}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
