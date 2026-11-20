@@ -617,7 +617,7 @@ async function applyWriteInner(name: ToolName, rawInput: unknown): Promise<Write
 
     case "draft_message": {
       const r = await createMessageDraft(input);
-      return outcome(r, "Draft is waiting in Approvals. Review and send it there.", "/approvals");
+      return outcome(r, "Draft is waiting for your OK on their contact page. Review and send it there.", `/contacts/${input.contactId}#waiting`);
     }
 
     case "website_create_page": {

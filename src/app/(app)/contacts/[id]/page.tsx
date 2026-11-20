@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { waitingFor } from "@/server/queries/waiting";
+import { WaitingForContact } from "@/components/contacts/waiting";
 import { notFound } from "next/navigation";
 import {
   Mail,
@@ -51,11 +53,12 @@ export default async function ContactDetail({
   const onListings = c ? await getContactListings(c.id) : [];
   if (!c) notFound();
 
-  const [log, contactMatches, listings, tasks] = await Promise.all([
+  const [log, contactMatches, listings, tasks, waiting] = await Promise.all([
     getInteractionsFor(c.id),
     getMatchesForContact(c.id),
     getListings(),
     getTasks(),
+    waitingFor(c.id),
   ]);
 
   /** One pass over the listings already loaded beats a lookup per interaction. */
@@ -176,6 +179,8 @@ export default async function ContactDetail({
               </ProtoNote>
             </Card>
           )}
+
+          <WaitingForContact items={waiting} name={`${c.firstName} ${c.lastName}`.trim()} />
 
           <Section title="Interaction log" hint="append-only, every channel">
             <div className="space-y-2">

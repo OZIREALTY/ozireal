@@ -9,7 +9,7 @@ import { approvalItems, calendarEvents, campaigns, contacts, interactions, tasks
  */
 
 export type TodayEnquiry = { kind: "enquiry"; id: string; contactId: string; name: string; phone: string | null; subject: string; at: Date };
-export type TodayBatch = { kind: "emails"; campaignId: string; propertyId: string | null; name: string; count: number };
+export type TodayBatch = { kind: "emails"; campaignId: string; propertyId: string | null; name: string; count: number; href: string };
 export type TodayTask = { kind: "task"; id: string; title: string; dueAt: Date | null; overdue: boolean; contactId: string | null; name: string | null; phone: string | null };
 
 export async function getToday() {
@@ -73,16 +73,19 @@ export async function getToday() {
       .select({
         campaignId: approvalItems.campaignId,
         propertyId: campaigns.propertyId,
-        name: campaigns.name,
+        // A message outside a batch is approved on that person's page (2026-11-20).
+        contactId: sql<string | null>`case when ${approvalItems.campaignId} is null then ${approvalItems.contactId} end`,
+        name: sql<string | null>`coalesce(${campaigns.name}, (select 'Message to ' || c.first_name || ' ' || c.last_name from contacts c where c.id = ${approvalItems.contactId}))`,
         count: sql<number>`count(*)::int`,
       })
       .from(approvalItems)
       .leftJoin(campaigns, eq(campaigns.id, approvalItems.campaignId))
       .where(eq(approvalItems.status, "pending"))
-      .groupBy(approvalItems.campaignId, campaigns.propertyId, campaigns.name);
+      .groupBy(approvalItems.campaignId, campaigns.propertyId, campaigns.name, sql`3`, sql`4`);
     const batches: TodayBatch[] = batchesRaw.map((b) => ({
       kind: "emails",
-      campaignId: b.campaignId ?? "single",
+      campaignId: b.campaignId ?? `single-${b.contactId}`,
+      href: b.campaignId ? `/campaigns/${b.campaignId}/review` : b.contactId ? `/contacts/${b.contactId}#waiting` : "/campaigns",
       propertyId: b.propertyId,
       name: (b.name ?? "Messages to approve").replace(/^Matched buyers:\s*/, ""),
       count: b.count,

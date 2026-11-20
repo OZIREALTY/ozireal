@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { firstWaitingHref } from "@/server/queries/waiting";
 import {
   Users,
   Home,
@@ -141,7 +142,7 @@ function Tile({
 }
 
 export default async function DashboardPage() {
-  const [agency, c, todayData] = await Promise.all([getAgency(), getHomeCounts(), getToday()]);
+  const [agency, c, todayData, waitingHref] = await Promise.all([getAgency(), getHomeCounts(), getToday(), firstWaitingHref()]);
   const firstName = agency.user.name.split(" ")[0];
   const waiting = c.approvals + c.confirms;
 
@@ -177,7 +178,7 @@ export default async function DashboardPage() {
 
       {waiting > 0 && (
         <Link
-          href={c.approvals > 0 ? "/approvals" : "/confirm"}
+          href={c.approvals > 0 ? (waitingHref ?? "/campaigns") : "/confirm"}
           className="flex items-center gap-3 rounded-xl border border-[#eda100]/50 bg-[#eda100]/8 px-3.5 py-2.5 mb-3 hover:bg-[#eda100]/14 transition-colors"
         >
           <ShieldCheck size={18} className="text-[#8a5f00] dark:text-[#e8b64a] shrink-0" />

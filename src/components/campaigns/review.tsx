@@ -317,7 +317,7 @@ export function Review({ campaignName, rows }: { campaignName: string; rows: Rev
  * The site refuses to be framed (X-Frame-Options DENY in Caddy), so the email is fetched
  * and drawn with srcDoc, as the Matching board does. sandbox: no scripts, no navigation.
  */
-function EmailFrame({ itemId, title }: { itemId: string; title: string }) {
+export function EmailFrame({ itemId, title }: { itemId: string; title: string }) {
   const [html, setHtml] = React.useState<string | null>(null);
   const [err, setErr] = React.useState(false);
   React.useEffect(() => {

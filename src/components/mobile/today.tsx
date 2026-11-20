@@ -180,7 +180,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
                   <p className="text-[19px] font-bold mt-2 leading-snug">{i.name}</p>
                   <p className="text-[16px]">Personal emails ready for your OK.</p>
                   <div className="flex flex-wrap gap-2.5 mt-3.5">
-                    <Link href={i.propertyId ? `/matching?focus=${i.propertyId}` : "/approvals"} className={primary}>
+                    <Link href={i.href} className={primary}>
                       <Mail size={20} /> Review &amp; send <ChevronRight size={18} />
                     </Link>
                   </div>

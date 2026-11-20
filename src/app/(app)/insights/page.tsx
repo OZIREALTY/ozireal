@@ -246,7 +246,7 @@ export default async function InsightsPage() {
           label="Awaiting approval"
           value={counts.approvals}
           sub={`${counts.blocked} blocked at send time`}
-          href="/approvals"
+          href="/campaigns"
         />
         <Kpi
           label="AI spend today"
@@ -263,7 +263,7 @@ export default async function InsightsPage() {
         <div className="mb-6">
           <Callout tone="blocked" title="A message was blocked at send time">
             {blocked[0].blockReason ?? "The consent check failed at send time."}{" "}
-            <Link href="/approvals" className="underline underline-offset-2">
+            <Link href="/campaigns" className="underline underline-offset-2">
               Review it
             </Link>
             .
