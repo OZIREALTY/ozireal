@@ -37,7 +37,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
   const [sample, setSample] = React.useState<{ subject: string; html: string; reviewNote: string | null; who: string } | null>(null);
   const [busy, setBusy] = React.useState<"preview" | "send" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [done, setDone] = React.useState<{ count: number; noConsent: number; held: number } | null>(null);
+  const [done, setDone] = React.useState<{ campaignId: string; count: number; noConsent: number; held: number } | null>(null);
   const rootRef = React.useRef<HTMLElement>(null);
 
   const home = kind === "property" ? data.homes.find((h) => h.listingId === listingId) ?? null : null;
@@ -230,13 +230,13 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
             <div className="space-y-3">
               <p className="text-[19px] font-extrabold">Done. {done.count} personal {done.count === 1 ? "email is" : "emails are"} being written.</p>
               <p className="text-2">
-                Each one lands in <b>Waiting for my OK</b> within a minute or two. Nothing is sent until you approve it there.
+                They appear on the review screen within a minute or two. Nothing is sent until you approve it there.
                 {done.noConsent ? ` ${done.noConsent} left out for no email consent.` : ""}
                 {done.held ? ` ${done.held} held back: emailed this week or already waiting.` : ""}
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link href="/approvals" className="inline-flex items-center rounded-xl bg-[var(--accent)] text-white font-bold px-4 min-h-11">
-                  Open Waiting for my OK
+                <Link href={`/campaigns/${done.campaignId}/review`} className="inline-flex items-center rounded-xl bg-[var(--accent)] text-white font-bold px-4 min-h-11">
+                  Review and send
                 </Link>
                 <button type="button" onClick={reset} className="rounded-xl border font-bold px-4 min-h-11 hover:surface-2">
                   Write another email

@@ -76,7 +76,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-auto pt-1">
                     {c.status === "in_approval" && (
-                      <Link href={`/approvals?campaign=${c.id}`} className="rounded-lg bg-[var(--accent)] text-white text-[13px] font-bold px-3 min-h-8 inline-flex items-center">
+                      <Link href={`/campaigns/${c.id}/review`} className="rounded-lg bg-[var(--accent)] text-white text-[13px] font-bold px-3 min-h-8 inline-flex items-center">
                         Review and approve
                       </Link>
                     )}

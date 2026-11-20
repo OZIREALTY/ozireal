@@ -202,6 +202,8 @@ export async function campaignDetail(id: string) {
         clicks: approvalItems.clickCount,
         repliedAt: approvalItems.repliedAt,
         reply: approvalItems.replySnippet,
+        body: approvalItems.draftBody,
+        reviewNote: approvalItems.reviewNote,
         subject: approvalItems.draftSubject,
       })
       .from(campaignRecipients)
