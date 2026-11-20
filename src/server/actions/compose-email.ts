@@ -142,3 +142,14 @@ export const startComposeEmail = defineAction({
     return { campaignId: c.id, count: go.length, noConsent: left.length, held: held.size };
   },
 });
+
+/** Run the Gmail reply check now and say what happened (2026-11-20). */
+export const checkRepliesNow = defineAction({
+  input: z.object({}),
+  async handler(_input, ctx) {
+    const { checkRepliesFor } = await import("@/server/outbound/replies");
+    const r = await checkRepliesFor(ctx.tenantId);
+    revalidatePath("/campaigns/insights");
+    return r;
+  },
+});

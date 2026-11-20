@@ -2,6 +2,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { CampaignTabs } from "@/components/campaigns/tabs";
 import { emailInsights, TYPE_LABEL } from "@/server/queries/email-insights";
+import { currentTenantId } from "@/db";
+import { lastReplyCheck } from "@/server/outbound/replies";
+import { ReplyCheck } from "@/components/campaigns/reply-check";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +23,7 @@ const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 export default async function EmailInsightsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range = "30" } = await searchParams;
   const r = RANGES.find((x) => x.k === range) ?? RANGES[1];
-  const d = await emailInsights(r.days);
+  const [d, last] = await Promise.all([emailInsights(r.days), currentTenantId().then(lastReplyCheck)]);
   const t = d.totals;
   const diff = r.days ? t.sent - d.before.sent : null;
   const rDiff = r.days && d.before.sent ? (t.replyRate - d.before.replyRate) * 100 : null;
@@ -29,6 +32,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
     <>
       <PageHeader title="Email insights" subtitle="Every email the CRM sent: emails you wrote here, matched-buyer emails and single emails to a contact." />
       <CampaignTabs active="insights" />
+      <ReplyCheck last={last} />
 
       <div className="flex gap-1 surface-2 border rounded-xl p-1 w-max max-w-full overflow-x-auto mb-4">
         {RANGES.map((x) => (
