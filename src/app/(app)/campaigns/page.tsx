@@ -1,303 +1,103 @@
 import Link from "next/link";
-import { ShieldCheck, Ban, Users } from "lucide-react";
-import {
-  PageHeader,
-  Section,
-  Card,
-  CardTitle,
-  Badge,
-  Table,
-  THead,
-  TH,
-  TD,
-  TR,
-  Callout,
-  Empty,
-  ProtoNote,
-} from "@/components/ui";
+import { PageHeader, Section, Card, Empty } from "@/components/ui";
 import { Bars } from "@/components/charts";
-import {
-  getCampaignPerformance,
-  getCampaigns,
-  getContacts,
-  getMatchesForListing,
-} from "@/server/queries";
+import { getCampaignPerformance, getCampaigns } from "@/server/queries";
+import { composeData } from "@/server/queries/compose";
 import { relative } from "@/lib/utils";
-import {
-  NewCampaignButton,
-  EditCampaignButton,
-  CampaignActions,
-} from "@/components/forms/content-forms";
-import { listingOptions } from "@/server/queries/pickers";
+import { CampaignActions } from "@/components/forms/content-forms";
+import { Composer } from "@/components/campaigns/composer";
 
-const statusTone: Record<string, "neutral" | "queue" | "brand" | "sent"> = {
-  draft: "neutral",
-  in_approval: "queue",
-  sending: "brand",
-  sent: "sent",
-  cancelled: "neutral",
+export const dynamic = "force-dynamic";
+
+/**
+ * Campaigns (redesigned 2026-11-20, owner-approved preview): the job here is writing one
+ * email and choosing who gets it. The composer does that in four steps; below it, every
+ * email batch as a card with where it is. Every draft goes to "Waiting for my OK".
+ */
+
+const status: Record<string, { label: string; cls: string; stage: number }> = {
+  draft: { label: "Being written", cls: "surface-2 text-2", stage: 1 },
+  in_approval: { label: "Waiting for my OK", cls: "bg-[#fff3d1] text-[#9a6a00] dark:bg-[#3a3016] dark:text-[#f0c14b]", stage: 2 },
+  sending: { label: "Sending", cls: "bg-[var(--accent)]/10 text-[var(--accent)]", stage: 2 },
+  sent: { label: "Sent", cls: "bg-[#e3f4ea] text-[#1f7a4d] dark:bg-[#173527] dark:text-[#5fd39a]", stage: 3 },
+  cancelled: { label: "Cancelled", cls: "surface-2 text-2", stage: 0 },
 };
 
-const statusLabel: Record<string, string> = {
-  draft: "Draft",
-  in_approval: "In approval",
-  sending: "Sending",
-  sent: "Sent",
-  cancelled: "Cancelled",
-};
-
-export default async function CampaignsPage() {
-  const [campaigns, performance, contactRows, listingOpts] = await Promise.all([
+export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const [{ new: startNew }, campaigns, performance, data] = await Promise.all([
+    searchParams,
     getCampaigns(),
     getCampaignPerformance(),
-    getContacts(),
-    listingOptions(),
+    composeData(),
   ]);
-
-  /**
-   * The builder shows the campaign that is still being assembled - the draft. Falling
-   * back to whichever campaign has a listing keeps the panel populated rather than
-   * pointing at a listing id that no longer exists.
-   */
-  const builder =
-    campaigns.find((c) => c.status === "draft" && c.listingId) ??
-    campaigns.find((c) => c.listingId) ??
-    null;
-  const builderMatches = builder?.listingId
-    ? await getMatchesForListing(builder.listingId)
-    : [];
-
-  // Consent is per contact and per channel; the list read already carries the current state.
-  const consentsFor = new Map(contactRows.map((c) => [c.id, c.consents]));
 
   return (
     <>
       <PageHeader
         title="Campaigns"
-        subtitle="A new listing, its matched contacts, and a personalised draft for each. Every draft goes to the approval queue — there is no path from here to a send."
-        actions={
-          <>
-            {/* The segment builder is the way in now; "New campaign" stays for the
-                case where the audience is already known. */}
-            <Link
-              href="/campaigns/new"
-              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] text-white text-[13px] font-medium px-3 min-h-9 hover:opacity-90"
-            >
-              <Users size={13} />
-              Build an audience
-            </Link>
-            <NewCampaignButton listings={listingOpts} />
-          </>
-        }
+        subtitle="Write one email, choose who gets it, and approve it. AI writes a personal draft for each person. Nothing goes out until you press send in Waiting for my OK."
       />
 
-      <div className="mb-6">
-        <Callout tone="queue" title="How a campaign reaches someone">
-          Match → personalised draft → approval queue → consent re-checked at the instant
-          of sending. A contact who unsubscribes between the draft and the send is blocked
-          and logged, not skipped silently.
-        </Callout>
+      <div className="mb-8">
+        <Composer data={data} startOpen={startNew === "1" || campaigns.length === 0} />
       </div>
 
-      <Section title="Campaigns">
-        <Table minWidth={940}>
-          <THead>
-            <TR>
-              <TH>Campaign</TH>
-              <TH>Listing</TH>
-              <TH>Channel</TH>
-              <TH>Status</TH>
-              <TH className="text-right">Recipients</TH>
-              <TH className="text-right">Approved</TH>
-              <TH className="text-right">Blocked</TH>
-              <TH className="text-right">Replied</TH>
-              <TH>Created</TH>
-              <TH className="text-right">Actions</TH>
-            </TR>
-          </THead>
-          <tbody>
-            {campaigns.map((c) => (
-              <TR key={c.id}>
-                <TD nowrap className="font-medium">{c.name}</TD>
-                <TD nowrap>
-                  {c.listingId && (
-                    <Link
-                      href={`/listings/${c.listingId}`}
-                      className="text-2 hover:underline underline-offset-2"
-                    >
+      <Section title="Your emails">
+        {campaigns.length === 0 ? (
+          <Empty>No emails yet. Press New email to write the first one.</Empty>
+        ) : (
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {campaigns.map((c) => {
+              const s = status[c.status] ?? status.draft;
+              const waiting = c.recipients - c.approved - c.blocked;
+              return (
+                <div key={c.id} className="surface border rounded-2xl p-4 flex flex-col gap-2.5 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[12.5px] font-bold ${s.cls}`}>{s.label}</span>
+                    <span className="text-[12.5px] text-2 uppercase font-semibold">{c.channel}</span>
+                  </div>
+                  <b className="text-[15.5px] leading-snug">{c.name.replace(/^Matched buyers: /, "")}</b>
+                  {c.listingId && c.address && (
+                    <Link href={`/listings/${c.listingId}`} className="text-[13px] text-2 hover:underline underline-offset-2 -mt-1.5">
                       {c.address}
                     </Link>
                   )}
-                </TD>
-                <TD>
-                  <Badge tone={c.channel === "sms" ? "channel" : "brand"}>
-                    {c.channel.toUpperCase()}
-                  </Badge>
-                </TD>
-                <TD>
-                  <Badge tone={statusTone[c.status] ?? "neutral"}>
-                    {statusLabel[c.status] ?? c.status}
-                  </Badge>
-                </TD>
-                <TD className="text-right tabular text-2">{c.recipients}</TD>
-                <TD className="text-right tabular text-2">{c.approved || "—"}</TD>
-                <TD className="text-right tabular">
-                  {c.blocked > 0 ? (
-                    <span className="text-[#b02f2f] dark:text-[#f08a8a] font-medium">
-                      {c.blocked}
-                    </span>
-                  ) : (
-                    <span className="text-2">0</span>
-                  )}
-                </TD>
-                <TD className="text-right tabular text-2">{c.replied || "—"}</TD>
-                <TD className="text-2 whitespace-nowrap">{relative(c.createdAt)}</TD>
-                <TD>
-                  <div className="flex flex-wrap items-start justify-end gap-1.5">
-                    {c.status === "draft" && (
-                      <EditCampaignButton
-                        campaign={{
-                          id: c.id,
-                          name: c.name,
-                          channel: c.channel,
-                          status: c.status,
-                          listingId: c.listingId,
-                        }}
-                        listings={listingOpts}
-                      />
-                    )}
-                    <CampaignActions
-                      campaign={{
-                        id: c.id,
-                        name: c.name,
-                        channel: c.channel,
-                        status: c.status,
-                        listingId: c.listingId,
-                      }}
-                    />
+                  <div className="flex gap-1" aria-hidden>
+                    {[1, 2, 3].map((i) => (
+                      <i key={i} className={`flex-1 h-[5px] rounded ${s.stage >= i ? "bg-[var(--accent)]" : "bg-[var(--line)]"}`} />
+                    ))}
                   </div>
-                </TD>
-              </TR>
-            ))}
-          </tbody>
-        </Table>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-2">
+                    <span>{c.recipients} {c.recipients === 1 ? "person" : "people"}</span>
+                    {c.approved > 0 && <span>{c.approved} sent</span>}
+                    {waiting > 0 && c.status !== "sent" && c.status !== "cancelled" && <span>{waiting} waiting</span>}
+                    {c.blocked > 0 && <span className="text-[#b02f2f] dark:text-[#f08a8a]">{c.blocked} skipped</span>}
+                    {c.replied > 0 && <span>{c.replied} replied</span>}
+                    <span>{relative(c.createdAt)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-auto pt-1">
+                    {c.status === "in_approval" && (
+                      <Link href="/approvals" className="rounded-lg bg-[var(--accent)] text-white text-[13px] font-bold px-3 min-h-8 inline-flex items-center">
+                        Review and approve
+                      </Link>
+                    )}
+                    <CampaignActions campaign={{ id: c.id, name: c.name, channel: c.channel, status: c.status, listingId: c.listingId }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Section>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Section title="Performance" hint="sent, opened, replied">
+      {performance.length > 0 && (
+        <Section title="How they did" hint="sent, opened, replied">
           <Card>
-            {performance.length === 0 ? (
-              <Empty>Nothing sent yet.</Empty>
-            ) : (
-              <Bars
-                data={performance}
-                keys={["Sent", "Opened", "Replied"]}
-                xKey="name"
-                height={230}
-              />
-            )}
-            <ProtoNote>
-              Reply rate is the number that matters. Opens are a weak signal and get
-              weaker every year as mail clients pre-fetch images.
-            </ProtoNote>
+            <Bars data={performance} keys={["Sent", "Opened", "Replied"]} xKey="name" height={230} />
+            <p className="text-[13px] text-2 mt-2">Replies are the number that matters. Opens are a weak signal.</p>
           </Card>
         </Section>
-
-        <Section
-          title="Builder"
-          hint={builder ? `draft campaign for ${builder.address}` : "no draft campaign"}
-        >
-          <Card>
-            <CardTitle>{builder ? builder.address : "No listing selected"}</CardTitle>
-            <p className="text-3 text-[11.5px] -mt-1 mb-3">
-              Matched contacts, and what would be drafted for each.
-            </p>
-
-            <div className="space-y-2">
-              {builderMatches.map((m) => {
-                const emailOk =
-                  consentsFor
-                    .get(m.contactId)
-                    ?.find((x) => x.channel === "email")?.status === "granted";
-                return (
-                  <div
-                    key={m.contactId}
-                    className="border rounded-md p-2.5 flex items-start gap-3"
-                  >
-                    <input
-                      type="checkbox"
-                      defaultChecked={emailOk}
-                      disabled
-                      className="mt-1 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          href={`/contacts/${m.contactId}`}
-                          className="text-[12.5px] font-medium hover:underline underline-offset-2"
-                        >
-                          {m.contactFirstName} {m.contactLastName}
-                        </Link>
-                        {emailOk ? (
-                          <Badge tone="sent">
-                            <ShieldCheck size={10} />
-                            email ok
-                          </Badge>
-                        ) : (
-                          <Badge tone="blocked">
-                            <Ban size={10} />
-                            no consent
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-2 text-[12px] mt-1 leading-relaxed">
-                        {m.reason}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-              {builderMatches.length === 0 && (
-                <div className="text-3 text-[13px]">No matches for this listing yet.</div>
-              )}
-            </div>
-
-            <div className="mt-3 pt-3 border-t">
-              {/* The two buttons that used to sit here did nothing. Drafting a
-                  message per recipient is the DraftCampaign job in §8 and it is not
-                  built, so the honest control is the one that IS: create the
-                  campaign with these contacts already on it, from the listing
-                  screen, and write the copy in the approval queue. */}
-              <div className="text-[12.5px] text-2 leading-relaxed">
-                Per-recipient drafting is not built yet. What works today is{" "}
-                <strong>Draft a campaign to these contacts</strong> on the{" "}
-                {builder?.listingId ? (
-                  <Link
-                    href={`/listings/${builder.listingId}`}
-                    className="underline underline-offset-2"
-                  >
-                    listing screen
-                  </Link>
-                ) : (
-                  "listing screen"
-                )}
-                , which creates the campaign with this recipient list attached.
-                Everything outbound still goes through{" "}
-                <Link href="/approvals" className="underline underline-offset-2">
-                  the approval queue
-                </Link>
-                .
-              </div>
-            </div>
-            <ProtoNote>
-              Contacts without consent are pre-unticked rather than hidden, so it is
-              obvious why they are not receiving anything. They stay on the list on
-              purpose: consent is checked again at the instant of sending, and a
-              contact who is not on the list cannot be blocked and logged.
-            </ProtoNote>
-          </Card>
-        </Section>
-      </div>
+      )}
     </>
   );
 }

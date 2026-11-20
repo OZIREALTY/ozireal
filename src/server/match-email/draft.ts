@@ -45,12 +45,16 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
         propertyId: campaigns.propertyId,
         listingId: campaigns.listingId,
         campaignStatus: campaigns.status,
+        segment: campaigns.segment,
       })
       .from(campaignRecipients)
       .innerJoin(campaigns, eq(campaigns.id, campaignRecipients.campaignId))
       .where(eq(campaignRecipients.id, recipientId))
       .limit(1);
-    if (!r || r.approvalItemId || !r.propertyId || r.campaignStatus === "cancelled") return null;
+    if (!r || r.approvalItemId || r.campaignStatus === "cancelled") return null;
+    const brief = composeBrief(r.segment);
+    // A matched-buyer email is always about a property; a composed one may be general.
+    if (!r.propertyId && !brief) return null;
 
     const gate = await checkConsent(tx, r.contactId, "email");
     if (!gate.allowed) {
@@ -68,34 +72,17 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
       return null;
     }
 
-    const [match] = await tx
-      .select({ score: matches.score, reason: matches.reason })
-      .from(matches)
-      .where(and(eq(matches.propertyId, r.propertyId), eq(matches.contactId, r.contactId)))
-      .limit(1);
-    const [profile] = await clientProfiles(tx, [r.contactId], { enquiries: 6, enquiryChars: 700 });
-    const property = await propertyProfile(tx, r.propertyId);
-    return { r, gate, person, match, profile, property };
+    const facts = await draftFacts(tx, r.contactId, r.propertyId);
+    return { r, gate, person, brief, ...facts };
   });
-  if (!ctx || !ctx.property || !ctx.profile) return { skipped: true };
-  const { r, gate, person, match, profile, property } = ctx;
+  if (!ctx || !ctx.profile || (ctx.r.propertyId && !ctx.property)) return { skipped: true };
+  const { r, gate, person, brief } = ctx;
 
-  const request = [
-    "THE CLIENT",
-    `First name: ${person.firstName || "there"}`,
-    profile.text,
-    match ? `\nWhy they were picked (fit ${match.score.toFixed(2)}): ${match.reason}` : null,
-    "",
-    "THE PROPERTY",
-    property.text,
-  ]
-    .filter((x) => x !== null)
-    .join("\n");
-
-  const prompt = loadPrompt("match-email.v4");
+  const request = draftRequest({ firstName: person.firstName, ...ctx, profile: ctx.profile, brief });
+  const prompt = loadPrompt(brief ? COMPOSE_PROMPT : "match-email.v4");
   try {
     const { data, generationId } = await runTask(draftSchema, {
-      task: "match-email",
+      task: brief ? "campaign-email" : "match-email",
       model: "sonnet",
       output: "structured",
       system: [{ text: prompt.text, cache: true }],
@@ -150,3 +137,53 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
     return { failed: true };
   }
 }
+
+/** The composer's brief (Campaigns, 2026-11-20): what the email is about, and its tone. */
+export const COMPOSE_PROMPT = "campaign-email.v1";
+export const TONES = ["warm", "short", "investor"] as const;
+export type ComposeBrief = { tone: (typeof TONES)[number]; note: string };
+export function composeBrief(segment: unknown): ComposeBrief | null {
+  if (!segment || typeof segment !== "object" || (segment as { kind?: unknown }).kind !== "compose") return null;
+  const s = segment as { tone?: unknown; note?: unknown };
+  const tone = TONES.includes(s.tone as ComposeBrief["tone"]) ? (s.tone as ComposeBrief["tone"]) : "warm";
+  return { tone, note: typeof s.note === "string" ? s.note.slice(0, 1500) : "" };
+}
+
+type Tx = Parameters<Parameters<typeof withTenant>[1]>[0];
+
+/** What the model reads about the person and (when there is one) the property. */
+export async function draftFacts(tx: Tx, contactId: string, propertyId: string | null) {
+  const [match] = propertyId
+    ? await tx
+        .select({ score: matches.score, reason: matches.reason })
+        .from(matches)
+        .where(and(eq(matches.propertyId, propertyId), eq(matches.contactId, contactId)))
+        .limit(1)
+    : [];
+  const [profile] = await clientProfiles(tx, [contactId], { enquiries: 6, enquiryChars: 700 });
+  const property = propertyId ? await propertyProfile(tx, propertyId) : null;
+  return { match, profile, property };
+}
+
+export function draftRequest(o: {
+  firstName: string | null;
+  profile: { text: string };
+  match?: { score: number; reason: string } | null;
+  property: { text: string } | null;
+  brief: ComposeBrief | null;
+}) {
+  return [
+    o.brief ? `ESI'S BRIEF (tone: ${o.brief.tone})\n${o.brief.note || "(no brief: write about the property)"}\n` : null,
+    "THE CLIENT",
+    `First name: ${o.firstName || "there"}`,
+    o.profile.text,
+    o.match ? `\nWhy they were picked (fit ${o.match.score.toFixed(2)}): ${o.match.reason}` : null,
+    "",
+    o.property ? "THE PROPERTY" : "THERE IS NO PROPERTY: this is a general message, so card must be null.",
+    o.property ? o.property.text : null,
+  ]
+    .filter((x) => x !== null)
+    .join("\n");
+}
+
+export { draftSchema };
