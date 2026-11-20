@@ -25,7 +25,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
   const router = useRouter();
   const [open, setOpen] = React.useState(startOpen);
   const [step, setStep] = React.useState(0);
-  const [kind, setKind] = React.useState<"property" | "general">(data.homes.length ? "property" : "general");
+  const [kind, setKind] = React.useState<"property" | "general" | null>(null);
   const [listingId, setListingId] = React.useState<string>(data.homes[0]?.listingId ?? "");
   const [groups, setGroups] = React.useState<Set<string>>(new Set(["matched"]));
   const [hand, setHand] = React.useState<Set<string>>(new Set());
@@ -129,6 +129,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
     setName("");
     setHand(new Set());
     setRemoved(new Set());
+    setKind(null);
     setStep(0);
   }
 
@@ -146,13 +147,65 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
 
   const opt = (sel: boolean) =>
     `text-left rounded-2xl border-[1.5px] p-3.5 transition ${sel ? "border-[var(--accent)] ring-[3px] ring-[var(--accent)]/15" : "hover:surface-2"}`;
+  const selStyle = (sel: boolean) => (sel ? { borderColor: "var(--accent)" } : undefined);
   const pill = (sel: boolean) =>
     `rounded-full border-[1.5px] px-3 min-h-9 text-[13.5px] font-semibold ${sel ? "border-[var(--accent)] bg-[var(--accent)]/10" : "hover:surface-2"}`;
 
+  const first = kind === "general" ? 1 : 0;
+
+  if (!kind) {
+    return (
+      <section className="surface-2 border rounded-2xl p-5" aria-label="Start a new email">
+        <p className="text-[19px] font-extrabold">What kind of email?</p>
+        <p className="text-2 mb-4">Choose first. The next steps change to fit.</p>
+        <div className="grid sm:grid-cols-2 gap-3.5">
+          {(
+            [
+              { k: "property", icon: Home, t: "About a property", d: "New listing, price change, open home. Comes with the visual property card.", n: "4 steps" },
+              { k: "general", icon: MessageSquareText, t: "A general message", d: "Market update, seasonal note, news. A personal note with your signature.", n: "3 steps" },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.k}
+              type="button"
+              disabled={o.k === "property" && !data.homes.length}
+              onClick={() => {
+                setKind(o.k);
+                setStep(o.k === "general" ? 1 : 0);
+              }}
+              className="text-left rounded-2xl border-2 p-5 flex flex-col gap-1.5 hover:ring-4 hover:ring-[var(--accent)]/15 disabled:opacity-50"
+            >
+              <span className="w-11 h-11 rounded-xl bg-[var(--accent)]/10 text-[var(--accent)] grid place-items-center">
+                <o.icon size={22} />
+              </span>
+              <b className="text-[18px] mt-1">{o.t}</b>
+              <small className="text-2 text-[14px]">{o.d}</small>
+              <span className="font-bold text-[var(--accent)] mt-1">{o.n} · Start →</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => setOpen(false)} className="mt-4 rounded-xl font-semibold text-2 px-3 min-h-10 hover:bg-[var(--surface)]">
+          Close
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section ref={rootRef} className="surface-2 border rounded-2xl overflow-hidden" aria-label="New email">
+      <div className="flex items-center gap-3 px-5 py-3 border-b font-bold">
+        <span>
+          <Check size={15} className="inline mr-1 text-[var(--accent)]" />
+          {kind === "property" ? "About a property" : "A general message"}
+        </span>
+        {!done && (
+          <button type="button" onClick={() => setKind(null)} className="text-[13.5px] text-[var(--accent)] underline underline-offset-2">
+            Change
+          </button>
+        )}
+      </div>
       <div className="flex border-b overflow-x-auto" role="tablist">
-        {STEPS.map((s, i) => (
+        {STEPS.map((s, i) => i < first ? null : (
           <button
             key={s}
             type="button"
@@ -162,7 +215,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
             style={{ boxShadow: i === step ? "inset 0 -3px 0 var(--accent)" : undefined }}
             className={`flex-1 min-w-[150px] text-left px-4 py-3 ${i === step ? "bg-[var(--accent)]/[0.06]" : "hover:bg-[var(--surface)]"}`}
           >
-            <span className="block text-[11.5px] font-bold uppercase tracking-wider text-2">Step {i + 1}</span>
+            <span className="block text-[11.5px] font-bold uppercase tracking-wider text-2">Step {i + 1 - first}</span>
             <strong className={`text-[15px] ${i === step ? "" : "text-2"}`}>
               {s}
               {i < step && <Check size={14} className="inline ml-1 text-[#1f7a4d]" />}
@@ -194,24 +247,12 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
             <>
               {step === 0 && (
                 <div>
-                  <p className="text-[19px] font-extrabold">What is this email about?</p>
-                  <p className="text-2 mb-4">Pick a property to get the visual property card, or write a general message.</p>
-                  <div className="grid sm:grid-cols-2 gap-2.5">
-                    <button type="button" className={opt(kind === "property")} onClick={() => setKind("property")}>
-                      <Home size={18} className="text-[var(--accent)]" />
-                      <b className="block mt-1">A property</b>
-                      <small className="text-2">New listing, price change, open home</small>
-                    </button>
-                    <button type="button" className={opt(kind === "general")} onClick={() => setKind("general")}>
-                      <MessageSquareText size={18} className="text-[var(--accent)]" />
-                      <b className="block mt-1">A general message</b>
-                      <small className="text-2">Market update, seasonal note, news</small>
-                    </button>
-                  </div>
+                  <p className="text-[19px] font-extrabold">Which property?</p>
+                  <p className="text-2 mb-4">Live and coming-soon listings. Its card goes under every email.</p>
                   {kind === "property" && (
                     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2.5 mt-4 max-h-[420px] overflow-y-auto pr-1">
                       {data.homes.map((h) => (
-                        <button key={h.listingId} type="button" className={opt(h.listingId === listingId)} onClick={() => setListingId(h.listingId)}>
+                        <button key={h.listingId} type="button" style={selStyle(h.listingId === listingId)} className={opt(h.listingId === listingId)} onClick={() => setListingId(h.listingId)}>
                           <b className="block leading-snug">{h.label}</b>
                           <small className="text-2 block mt-1">
                             {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
@@ -239,7 +280,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
                       <p className="font-bold text-[13.5px] mt-4 mb-2">By tag</p>
                       <div className="flex flex-wrap gap-1.5">
                         {data.tags.map((t) => (
-                          <button key={t.tag} type="button" className={pill(groups.has(`tag:${t.tag}`))} onClick={() => toggleGroup(`tag:${t.tag}`)}>
+                          <button key={t.tag} type="button" style={selStyle(groups.has(`tag:${t.tag}`))} className={pill(groups.has(`tag:${t.tag}`))} onClick={() => toggleGroup(`tag:${t.tag}`)}>
                             {t.tag} <span className="text-2 font-normal">{t.n}</span>
                           </button>
                         ))}
@@ -382,8 +423,12 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
 
               <div className="flex flex-wrap justify-between gap-2 mt-6">
                 <div className="flex gap-2">
-                  {step > 0 && (
+                  {step > first ? (
                     <button type="button" onClick={() => go(step - 1)} className="rounded-xl border font-bold px-4 min-h-11 hover:surface-2">
+                      Back
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setKind(null)} className="rounded-xl border font-bold px-4 min-h-11 hover:surface-2">
                       Back
                     </button>
                   )}
@@ -449,7 +494,7 @@ export function Composer({ data, startOpen = false }: { data: ComposeData; start
 
 function GroupRow({ checked, onChange, title, hint, n }: { checked: boolean; onChange: () => void; title: string; hint: string; n: number }) {
   return (
-    <label className={`flex items-center gap-3 rounded-xl border-[1.5px] px-3.5 py-2.5 cursor-pointer ${checked ? "border-[var(--accent)]" : ""}`}>
+    <label style={checked ? { borderColor: "var(--accent)" } : undefined} className={`flex items-center gap-3 rounded-xl border-[1.5px] px-3.5 py-2.5 cursor-pointer ${checked ? "border-[var(--accent)]" : ""}`}>
       <input type="checkbox" checked={checked} onChange={onChange} className="w-[18px] h-[18px] accent-[var(--accent)]" />
       <span className="min-w-0">
         <b className="block">{title}</b>
