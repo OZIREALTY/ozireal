@@ -1,15 +1,15 @@
 # Infrastructure
 
-Account **606196119385**, region **ap-southeast-2**. Everything below was created
+Account **310792823958** (moved from 606196119385 on 2026-11-22), region **ap-southeast-2**. Everything below was created
 by the commands in this directory, not by hand in the console.
 
 | Resource | Identifier |
 |---|---|
-| App instance | `i-0f9f0d36dcf57fbaa` — `t4g.small`, Ubuntu 24.04 arm64, 30GB encrypted |
-| Elastic IP | `13.210.78.88` — static, so DNS survives a stop/start |
+| App instance | `i-08bc2c623c0ce56cb` — `t4g.small`, Ubuntu 24.04 arm64, 30GB encrypted |
+| Elastic IP | `15.135.128.208` — static, so DNS survives a stop/start |
 | Database | `ozirealty-db` — RDS PostgreSQL **18.6**, `db.t4g.micro`, 20GB gp3, encrypted, private |
 | pgvector | **0.8.2**, installed — the vector columns and HNSW indexes are real |
-| Backups | `s3://ozirealty-backups-606196119385/pg/` — private, encrypted, versioned, 30 days |
+| Backups | `s3://ozirealty-backups-310792823958/pg/` — private, encrypted, versioned, 30 days |
 | Instance role | `ozirealty-instance` — that S3 prefix and Titan embeddings, nothing else |
 | Budget | `ozirealty-monthly` — USD 100, alerts at 80% actual / 100% forecast |
 
@@ -41,7 +41,7 @@ cover what snapshots cannot: logical damage — a bad migration, a mistaken
 DELETE. Restore into a **scratch database**, never over production:
 
 ```bash
-aws s3 cp s3://ozirealty-backups-606196119385/pg/<key>.dump /tmp/r.dump --region ap-southeast-2
+aws s3 cp s3://ozirealty-backups-310792823958/pg/<key>.dump /tmp/r.dump --region ap-southeast-2
 psql -h <host> -U ozirealty -d postgres -c 'create database restore_test;'
 pg_restore -h <host> -U ozirealty -d restore_test --no-owner --no-privileges /tmp/r.dump
 ```
@@ -50,12 +50,8 @@ This has been performed, not merely written down: the 2026-08-26 dump restored
 to 40 tables with the tenant, 24 suburbs, consent templates and both vector
 columns intact. An untested backup is not a backup.
 
-## Still required before anyone can use it
+## Deploying
 
-1. **DNS** — `crm.ozirealty.com.au` must become an **A record to 13.210.78.88**.
-   It currently CNAMEs to the old CloudFront distribution serving the static
-   prototype. Caddy obtains the certificate automatically once DNS resolves here.
-2. **Google OAuth** — `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` in
-   `/etc/ozirealty/env`. Without them the login page says "no sign-in method
-   configured" and refuses everyone, which is the correct fail-closed behaviour
-   and also means nobody can get in.
+`bash infra/deploy.sh` targets `infra/.public-ip` (15.135.128.208) with
+`infra/ozirealty-310.pem`. Both are gitignored. The old account's server details are
+kept in `infra/.old-606196119385/` until that account is closed.

@@ -16,7 +16,7 @@ ROOT="$(cd "$HERE/.." && pwd)"
 # DEPLOY_IP / DEPLOY_KEY target another box (used to stand up the new account's
 # server during the 2026-10 move to 310792823958 without touching the live one).
 IP="${DEPLOY_IP:-$(cat "$HERE/.public-ip")}"
-KEY="${DEPLOY_KEY:-$HERE/ozirealty.pem}"
+KEY="${DEPLOY_KEY:-$HERE/ozirealty-310.pem}"
 APP_DIR=/srv/ozirealty
 SSH="ssh -i $KEY -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o TCPKeepAlive=yes ubuntu@$IP"
 

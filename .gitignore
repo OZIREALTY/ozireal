@@ -33,3 +33,4 @@ infra/.migration/
 
 # Hand-over bundle for the second PC: keys and server details. Never committed.
 esi/
+infra/.old-*/

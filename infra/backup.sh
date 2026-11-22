@@ -14,7 +14,7 @@
 #   sudo systemctl start ozirealty-backup.service && tail /var/log/ozirealty/backup.log
 set -euo pipefail
 
-BUCKET="${BACKUP_BUCKET:-ozirealty-backups-606196119385}"
+BUCKET="${BACKUP_BUCKET:-ozirealty-backups-310792823958}"
 REGION="${AWS_REGION:-ap-southeast-2}"
 STAMP="$(date -u +%Y/%m/%d/%H%M%SZ)"
 TMP="$(mktemp -d)"
