@@ -25,13 +25,7 @@ import { contacts, consents } from "@/db/schema";
  * reads. Nothing here can edit or delete history.
  */
 
-const METHODS = {
-  phone_call: "phone call",
-  email: "email",
-  sms: "SMS",
-  in_person: "in person",
-  in_writing: "in writing",
-} as const;
+import { CONSENT_METHODS as METHODS, insertManualConsent } from "@/server/consent/manual";
 
 export const recordConsent = defineAction({
   input: z.object({
@@ -74,21 +68,17 @@ export const recordConsent = defineAction({
     if (c.tombstonedAt) throw new ActionError("That contact asked to be removed. Consent cannot be recorded.");
 
     const channelLabel = input.channel === "sms" ? "SMS" : input.channel;
-    const [row] = await ctx.tx
-      .insert(consents)
-      .values({
-        tenantId: ctx.tenantId,
-        contactId: input.contactId,
-        channel: input.channel,
-        status: input.status,
-        sourceForm: `Manual: ${METHODS[input.method]}, recorded by ${ctx.userName}`,
-        wordingShown:
-          input.wording?.trim() ||
+    const row = await insertManualConsent(ctx.tx, {
+      tenantId: ctx.tenantId,
+      contactId: input.contactId,
+      channel: input.channel,
+      status: input.status,
+      method: input.method,
+      recordedBy: ctx.userName,
+      wording: input.wording?.trim() ||
           `Asked not to be contacted by ${channelLabel} (${METHODS[input.method]}).`,
-        ipAddress: null,
-        occurredAt,
-      })
-      .returning({ id: consents.id });
+      occurredAt,
+    });
 
     await ctx.audit({
       kind: "commit",
