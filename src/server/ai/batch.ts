@@ -1,4 +1,4 @@
-import { type ModelTier, type SystemBlock } from "./claude";
+import { refusesTemperature, type ModelTier, type SystemBlock } from "./claude";
 import { getLlmConfig } from "./config";
 
 /**
@@ -51,10 +51,15 @@ export async function createBatch(
         params: {
           model: r.model === "haiku" ? config.fastModel : config.writingModel,
           max_tokens: r.maxTokens ?? 1200,
-          temperature:
-            (r.output ?? "structured") === "structured"
-              ? config.structuredTemperature
-              : config.proseTemperature,
+          // Omitted for a model that has refused it on a live call (see callClaude).
+          ...(refusesTemperature(r.model === "haiku" ? config.fastModel : config.writingModel)
+            ? {}
+            : {
+                temperature:
+                  (r.output ?? "structured") === "structured"
+                    ? config.structuredTemperature
+                    : config.proseTemperature,
+              }),
           ...(r.system?.length || training
             ? {
                 system: [

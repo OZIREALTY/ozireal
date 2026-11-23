@@ -29,6 +29,10 @@ export type ModelTier = "haiku" | "sonnet";
  */
 /** Models that have refused `temperature` in this process. See `send` in callClaude. */
 const NO_TEMPERATURE = new Set<string>();
+/** For the Batch API, which cannot retry one request: has this model refused `temperature`? */
+export function refusesTemperature(model: string) {
+  return NO_TEMPERATURE.has(model);
+}
 
 /** The most output one call may ask for. Kept under the size that needs streaming. */
 const MAX_OUTPUT_CEILING = 32_000;
@@ -210,8 +214,13 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
   let res: Response;
   let detail = "";
   try {
-    res = await send(!NO_TEMPERATURE.has(model));
-    if (res.status === 400 && !NO_TEMPERATURE.has(model)) {
+    // Decide per CALL, not from the shared set after the fact: with several drafts in
+    // flight, another call can add the model to NO_TEMPERATURE while this one is still
+    // waiting on its own refusal, which then skipped its retry and failed the draft
+    // (4 of 46 in one campaign, 2026-11-23).
+    const sentTemperature = !NO_TEMPERATURE.has(model);
+    res = await send(sentTemperature);
+    if (res.status === 400 && sentTemperature) {
       detail = await res.text().catch(() => "");
       if (/temperature/i.test(detail) && /deprecated|not supported|unsupported/i.test(detail)) {
         NO_TEMPERATURE.add(model);
