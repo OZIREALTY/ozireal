@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { query } from "@/db";
-import { approvalItems, calendarEvents, campaigns, contacts, interactions, tasks } from "@/db/schema";
+import { approvalItems, calendarEvents, campaigns, contacts, interactions, notCorrected, tasks } from "@/db/schema";
 
 /**
  * The mobile Today screen (owner's request, 2026-11-19): what needs the agent now, from
@@ -55,6 +55,7 @@ export async function getToday() {
           inArray(interactions.channel, ["web_form", "email", "sms", "portal", "social"]),
           gte(interactions.occurredAt, sql`now() - interval '3 days'`),
           isNull(interactions.tombstonedAt),
+          notCorrected,
           isNull(contacts.tombstonedAt),
         ),
       )

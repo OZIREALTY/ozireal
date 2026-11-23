@@ -446,6 +446,80 @@ export const logInteraction = defineAction({
 });
 
 /**
+ * Edit a log entry (owner, 2026-11-23), done the only way the log allows (§4):
+ * a NEW row with corrects_id pointing at the version it replaces. Readers skip the
+ * replaced row; it stays as evidence and the contact page can show it. The brief is
+ * rebuilt so the correction reaches the AI.
+ */
+export const correctInteraction = defineAction({
+  input: z.object({
+    interactionId: z.string().uuid(),
+    channel: z.enum(["phone", "email", "sms", "social", "manual", "web_form", "portal", "voice_note"]),
+    direction: z.enum(["in", "out"]),
+    subject: z.string().trim().max(200).optional(),
+    body: z.string().trim().min(1, "Say what was said").max(4000),
+    occurredAt: z.coerce.date(),
+  }),
+  async handler(input, ctx) {
+    const [orig] = await ctx.tx
+      .select({
+        id: interactions.id,
+        contactId: interactions.contactId,
+        tombstonedAt: interactions.tombstonedAt,
+        threadRef: interactions.threadRef,
+        listingId: interactions.listingId,
+      })
+      .from(interactions)
+      .where(eq(interactions.id, input.interactionId))
+      .limit(1);
+    if (!orig || orig.tombstonedAt) throw new ActionError("That entry no longer exists.");
+
+    // Only the current version can be edited; otherwise the history would fork.
+    const [newer] = await ctx.tx
+      .select({ id: interactions.id })
+      .from(interactions)
+      .where(eq(interactions.correctsId, orig.id))
+      .limit(1);
+    if (newer) throw new ActionError("This entry was already edited. Reload the page and edit the newest version.");
+
+    await assertWritable(ctx.tx, orig.contactId);
+
+    const [row] = await ctx.tx
+      .insert(interactions)
+      .values({
+        tenantId: ctx.tenantId,
+        contactId: orig.contactId,
+        channel: input.channel,
+        direction: input.direction,
+        occurredAt: input.occurredAt,
+        subject: input.subject || null,
+        body: input.body,
+        threadRef: orig.threadRef,
+        listingId: orig.listingId,
+        createdByUserId: ctx.userId,
+        correctsId: orig.id,
+      })
+      .returning({ id: interactions.id });
+
+    // §8 chain: summarising the new row enqueues RebuildContactIntent itself.
+    ctx.afterCommit(() => enqueue("SummariseInteraction", { tenantId: ctx.tenantId, entityId: row.id }));
+
+    await ctx.audit({
+      kind: "edit",
+      action: "Edited a log entry",
+      target: input.subject || input.body.slice(0, 60),
+      entityType: "interaction",
+      entityId: row.id,
+      metadata: { corrects: orig.id },
+    });
+
+    revalidatePath(`/contacts/${orig.contactId}`);
+    revalidatePath("/dashboard");
+    return { id: row.id };
+  },
+});
+
+/**
  * A privacy request (§4, §10).
  *
  * Tombstones rather than deletes. The interaction log is the evidence behind every send

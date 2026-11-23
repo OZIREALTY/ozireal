@@ -10,6 +10,7 @@ import {
   listings,
   properties,
   suburbs,
+  notCorrected,
 } from "@/db/schema";
 import { newHomesCard } from "@/server/outbound/new-homes-card";
 
@@ -81,7 +82,7 @@ export async function clientProfiles(tx: Tx, contactIds: string[], opts: { enqui
       at: interactions.occurredAt,
     })
     .from(interactions)
-    .where(and(inArray(interactions.contactId, contactIds), isNull(interactions.tombstonedAt)))
+    .where(and(inArray(interactions.contactId, contactIds), isNull(interactions.tombstonedAt), notCorrected))
     .orderBy(desc(interactions.occurredAt));
 
   return people.map((p) => {

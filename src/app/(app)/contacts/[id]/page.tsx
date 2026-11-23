@@ -35,6 +35,7 @@ import { channelLabel, propertyTypeLabel, statusLabel } from "@/lib/labels";
 import { relative, dateTime, money, shortDate } from "@/lib/utils";
 import {
   LogInteractionButton,
+  EditInteractionButton,
   RecordOutcomeButton,
   EditContactButton,
   RemoveContactButton,
@@ -212,7 +213,7 @@ export default async function ContactDetail({
           <WaitingForContact items={waiting} name={`${c.firstName} ${c.lastName}`.trim()} />
 
           <div id="log" className="scroll-mt-20" />
-          <Section title="Interaction log" hint="append-only, every channel">
+          <Section title="Interaction log" hint="every channel · edits keep the earlier version">
             <div className="space-y-2">
               {log.map((i) => {
                 const address = i.listingId
@@ -235,6 +236,25 @@ export default async function ContactDetail({
                     <p className="text-2 text-[12.5px] leading-relaxed whitespace-pre-wrap">
                       {i.body}
                     </p>
+                    {i.earlier.length > 0 && (
+                      <details className="mt-2 text-[11.5px]">
+                        <summary className="cursor-pointer text-3 w-max">
+                          Edited{i.earlier.length > 1 ? ` ${i.earlier.length} times` : ""} · show earlier{" "}
+                          {i.earlier.length > 1 ? "versions" : "version"}
+                        </summary>
+                        <div className="mt-1.5 space-y-1.5">
+                          {i.earlier.map((v, n) => (
+                            <div key={n} className="rounded-md bg-[var(--surface)] px-2.5 py-2 text-2">
+                              <div className="text-3 mb-0.5">
+                                Before edit · {dateTime(v.at)}
+                                {v.subject ? ` · ${v.subject}` : ""}
+                              </div>
+                              <p className="whitespace-pre-wrap leading-relaxed">{v.body}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                     <div className="flex items-center gap-3 mt-2">
                       {i.hasRaw && (
                         <span className="text-3 text-[11.5px] inline-flex items-center gap-1">
@@ -254,6 +274,13 @@ export default async function ContactDetail({
                         <span className="text-3 text-[11.5px]">
                           from merged record {i.viaMergedRecord.firstName}{" "}
                           {i.viaMergedRecord.lastName}
+                        </span>
+                      )}
+                      {!c.mergedIntoId && (
+                        <span className="ml-auto">
+                          <EditInteractionButton
+                            entry={{ id: i.id, channel: i.channel, direction: i.direction, at: i.at, subject: i.subject, body: i.body }}
+                          />
                         </span>
                       )}
                     </div>

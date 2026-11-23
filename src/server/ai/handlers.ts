@@ -10,6 +10,7 @@ import {
   interactions,
   confirmItems,
   suburbs,
+  notCorrected,
 } from "@/db/schema";
 import { hasApiKey } from "./claude";
 import { getLlmConfig } from "./config";
@@ -292,6 +293,7 @@ export async function rebuildContactIntent(tenantId: string, contactId: string) 
         and(
           sql`${interactions.contactId} in ${ids}`,
           isNull(interactions.tombstonedAt),
+          notCorrected,
         ),
       )
       .orderBy(desc(interactions.occurredAt))

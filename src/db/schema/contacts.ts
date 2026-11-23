@@ -311,6 +311,13 @@ export const interactions = pgTable(
      */
     aiSummary: text("ai_summary"),
 
+    /**
+     * 0030: this row is a correction of the version it points at. Readers skip any
+     * row a later row corrects (notCorrected below); the old version stays as evidence.
+     * Self-reference is declared in the migration, not here, to avoid a circular type.
+     */
+    correctsId: uuid("corrects_id"),
+
     tombstonedAt: timestamp("tombstoned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -329,6 +336,14 @@ export const interactions = pgTable(
       .where(sql`${t.messageId} is not null`),
   ],
 );
+
+/**
+ * 0030: true for the current version of an interaction, false for one a later row
+ * corrects. Every reader that lists or counts interactions applies it. For raw SQL
+ * over `interactions i`, use NOT_CORRECTED_I.
+ */
+export const notCorrected = sql`not exists (select 1 from interactions sup where sup.corrects_id = ${interactions.id})`;
+export const NOT_CORRECTED_I = sql.raw(`not exists (select 1 from interactions sup where sup.corrects_id = i.id)`);
 
 /**
  * One row per contact per channel per grant. Provenance can only be captured at the

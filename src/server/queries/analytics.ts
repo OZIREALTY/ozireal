@@ -1,4 +1,4 @@
-import { desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { query } from "@/db";
 import {
   contacts,
@@ -15,6 +15,7 @@ import {
   inspectionRegistrations,
   aiGenerations,
   blogPosts,
+  notCorrected,
 } from "@/db/schema";
 
 /**
@@ -81,7 +82,7 @@ export async function getEnquiriesBySuburb() {
       .innerJoin(listings, eq(listings.id, interactions.listingId))
       .innerJoin(properties, eq(properties.id, listings.propertyId))
       .leftJoin(suburbs, eq(suburbs.id, properties.suburbId))
-      .where(eq(interactions.direction, "in"))
+      .where(and(eq(interactions.direction, "in"), notCorrected))
       .groupBy(suburbs.name)
       .orderBy(desc(sql`count(*)`));
     return rows.filter((r) => r.suburb).map((r) => ({ suburb: r.suburb!, enquiries: r.enquiries }));
@@ -276,7 +277,7 @@ export async function getEnquiryTrend() {
         Phone: sql<number>`count(*) filter (where ${interactions.channel} = 'phone')::int`,
       })
       .from(interactions)
-      .where(eq(interactions.direction, "in"))
+      .where(and(eq(interactions.direction, "in"), notCorrected))
       .groupBy(sql`date_trunc('week', ${interactions.occurredAt})`)
       .orderBy(sql`date_trunc('week', ${interactions.occurredAt})`),
   );

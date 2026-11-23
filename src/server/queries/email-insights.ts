@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { query } from "@/db";
-import { approvalItems, campaignRecipients, campaigns, consents, contacts } from "@/db/schema";
+import { approvalItems, campaignRecipients, campaigns, consents, contacts, NOT_CORRECTED_I } from "@/db/schema";
 
 /**
  * Email insights (owner-approved preview, 2026-11-20): every email the CRM sent, whatever
@@ -47,7 +47,7 @@ type Row = {
  * any message from that person (email, form, logged call or visit) within 14 days of it.
  */
 const respondedAt = sql<Date | null>`coalesce(${approvalItems.repliedAt}, (select min(i.occurred_at) from interactions i
-  where i.contact_id = ${approvalItems.contactId} and i.direction = 'in'
+  where i.contact_id = ${approvalItems.contactId} and i.direction = 'in' and ${NOT_CORRECTED_I}
     and i.occurred_at > ${approvalItems.sentAt} and i.occurred_at < ${approvalItems.sentAt} + interval '14 days'))`;
 
 const rate = (n: number, d: number) => (d ? n / d : 0);

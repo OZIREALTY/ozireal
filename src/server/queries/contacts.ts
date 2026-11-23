@@ -12,6 +12,7 @@ import {
   confirmItems,
   suburbs,
   users,
+  notCorrected,
 } from "@/db/schema";
 
 /**
@@ -267,6 +268,8 @@ export async function getInteractionsFor(contactId: string) {
         body: interactions.body,
         hasRaw: sql<boolean>`${interactions.rawS3Key} is not null`,
         listingId: interactions.listingId,
+        correctsId: interactions.correctsId,
+        recordedAt: interactions.createdAt,
       })
       .from(interactions)
       .where(
@@ -277,13 +280,29 @@ export async function getInteractionsFor(contactId: string) {
       )
       .orderBy(desc(interactions.occurredAt));
 
-    return rows.map((r) => ({
-      ...r,
-      viaMergedRecord:
-        r.contactId === contactId
-          ? null
-          : (merged.find((m) => m.id === r.contactId) ?? null),
-    }));
+    /**
+     * 0030: show only the current version of each entry. Earlier versions are loaded
+     * too (all versions of an entry share this contact), newest first, so "Edited"
+     * can show what changed.
+     */
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const replaced = new Set(rows.map((r) => r.correctsId).filter((x): x is string => !!x));
+    return rows
+      .filter((r) => !replaced.has(r.id))
+      .map((r) => {
+        const earlier: { subject: string | null; body: string | null; at: Date; recordedAt: Date }[] = [];
+        for (let p = r.correctsId ? byId.get(r.correctsId) : undefined; p; p = p.correctsId ? byId.get(p.correctsId) : undefined) {
+          earlier.push({ subject: p.subject, body: p.body, at: p.at, recordedAt: p.recordedAt });
+        }
+        return {
+          ...r,
+          earlier,
+          viaMergedRecord:
+            r.contactId === contactId
+              ? null
+              : (merged.find((m) => m.id === r.contactId) ?? null),
+        };
+      });
   });
 }
 
@@ -366,7 +385,7 @@ export async function getRecentEnquiries(limit = 6) {
       .from(interactions)
       .innerJoin(contacts, eq(contacts.id, interactions.contactId))
       .where(
-        and(eq(interactions.direction, "in"), isNull(interactions.tombstonedAt)),
+        and(eq(interactions.direction, "in"), isNull(interactions.tombstonedAt), notCorrected),
       )
       .orderBy(desc(interactions.occurredAt))
       .limit(limit),

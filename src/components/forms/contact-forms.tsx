@@ -16,6 +16,7 @@ import {
   createContact,
   recordFollowupOutcome,
   logInteraction,
+  correctInteraction,
   commitConfirmItem,
   discardConfirmItem,
   resolveMergeReview,
@@ -397,14 +398,129 @@ export function LogInteractionButton({ contactId }: { contactId: string }) {
 
           <p className="text-3 text-[11.5px] leading-relaxed">
             The manual adapter (§5). A typed-up call goes through the same pipeline as an
-            email or a web form, and the row cannot be edited afterwards — a correction
-            is a new entry.
+            email or a web form. You can edit it later; the earlier version is kept.
           </p>
 
           <FormError message={a.error} />
 
           <div className="flex gap-2 pt-1">
             <SubmitButton pending={a.pending}>Log it</SubmitButton>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-[13px] px-3 min-h-9 rounded-md surface-2 border hover:surface-3"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+}
+
+/* ------------------------------------------------------ edit a log entry */
+
+/** Local date-time for <input type="datetime-local">, in the browser's timezone. */
+function toLocalInput(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/**
+ * Edit = a correction (§4). The log never changes a row; saving writes a new version
+ * and the old one is kept and shown under "Edited".
+ */
+export function EditInteractionButton({
+  entry,
+}: {
+  entry: { id: string; channel: string; direction: string; at: Date; subject: string | null; body: string | null };
+}) {
+  const [open, setOpen] = React.useState(false);
+  const a = useAction(correctInteraction, { onSuccess: () => setOpen(false) });
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const when = String(f.get("occurredAt") ?? "");
+    a.run({
+      interactionId: entry.id,
+      channel: f.get("channel"),
+      direction: f.get("direction"),
+      subject: f.get("subject") ?? "",
+      body: f.get("body"),
+      occurredAt: when ? new Date(when).toISOString() : new Date(entry.at).toISOString(),
+    });
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          a.reset();
+          setOpen(true);
+        }}
+        className="inline-flex items-center gap-1 text-[11.5px] font-medium text-2 hover:text-[var(--text)] underline-offset-2 hover:underline"
+      >
+        <Pencil size={11} />
+        Edit
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Edit this entry">
+        <form onSubmit={submit} className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Select
+              label="Channel"
+              name="channel"
+              defaultValue={entry.channel}
+              options={[
+                { value: "phone", label: "Phone" },
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" },
+                { value: "social", label: "Social" },
+                { value: "manual", label: "In person / manual" },
+                { value: "web_form", label: "Website form" },
+                { value: "portal", label: "Portal" },
+                { value: "voice_note", label: "Voice note" },
+              ]}
+            />
+            <Select
+              label="Direction"
+              name="direction"
+              defaultValue={entry.direction}
+              options={[
+                { value: "in", label: "They contacted us" },
+                { value: "out", label: "We contacted them" },
+              ]}
+            />
+          </div>
+          <Input
+            label="When"
+            name="occurredAt"
+            type="datetime-local"
+            defaultValue={toLocalInput(new Date(entry.at))}
+            errors={a.fieldErrors.occurredAt}
+          />
+          <Input label="Subject" name="subject" defaultValue={entry.subject ?? ""} errors={a.fieldErrors.subject} />
+          <Textarea
+            label="What was said"
+            name="body"
+            rows={5}
+            required
+            defaultValue={entry.body ?? ""}
+            errors={a.fieldErrors.body}
+          />
+
+          <p className="text-3 text-[11.5px] leading-relaxed">
+            Saving keeps the earlier version: the log shows this one with an &quot;Edited&quot; tag,
+            and the contact&apos;s AI brief is rebuilt from it.
+          </p>
+
+          <FormError message={a.error} />
+
+          <div className="flex gap-2 pt-1">
+            <SubmitButton pending={a.pending}>Save changes</SubmitButton>
             <button
               type="button"
               onClick={() => setOpen(false)}
