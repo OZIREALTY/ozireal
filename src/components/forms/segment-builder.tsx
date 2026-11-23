@@ -369,7 +369,7 @@ function AudiencePanel({
 }) {
   const x = preview?.excluded;
   return (
-    <div className="lg:sticky lg:top-[76px] space-y-3">
+    <div className="lg:sticky lg:top-[76px] space-y-3 order-first lg:order-none">
       <div className="surface-2 border rounded-lg p-4">
         <div className="flex items-center gap-2">
           <Users size={14} className="text-3" />
@@ -393,6 +393,12 @@ function AudiencePanel({
             : preview
               ? `of ${preview.matchedCriteria} matching, who can be messaged`
               : "working it out…"}
+        </div>
+
+        {/* Right under the number (owner, 2026-11-23: "there is no save"): it used to be a
+            small grey button below the breakdowns, at the very bottom on a phone. */}
+        <div className="mt-3 space-y-1.5">
+          <SaveSegmentButton filter={filter} loadedFrom={loadedFrom} returnToEmail={returnToEmail} />
         </div>
 
         {error && (
@@ -436,8 +442,6 @@ function AudiencePanel({
           <p className="text-[12.5px] leading-relaxed">{preview.description}</p>
         </div>
       )}
-
-      <SaveSegmentButton filter={filter} loadedFrom={loadedFrom} returnToEmail={returnToEmail} />
 
       {!stale && preview && preview.sample.length > 0 && (
         <div className="surface-2 border rounded-lg p-3">
@@ -515,9 +519,10 @@ function SaveSegmentButton({
           a.reset();
           setOpen(true);
         }}
-        className="w-full justify-center"
+        tone="primary"
+        className="w-full justify-center min-h-10 text-[13.5px] font-semibold"
       >
-        <Save size={11} />
+        <Save size={14} />
         {returnToEmail ? "Save and use in my email" : "Save this segment"}
       </RowButton>
       {returnToEmail && loadedFrom && (
