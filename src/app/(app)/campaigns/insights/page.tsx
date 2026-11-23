@@ -58,8 +58,13 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
         ))}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         <Kpi label="Sent" value={String(t.sent)} note={diff !== null ? `${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff)} on the ${r.days} days before` : undefined} />
+        <Kpi
+          label="Opened (confirmed)"
+          value={pct(t.openRate)}
+          note={`${t.opened} ${t.opened === 1 ? "email" : "emails"}${d.autoOnly ? ` · +${d.autoOnly} Apple, unconfirmed` : ""}`}
+        />
         <Kpi label="Clicked the listing" value={pct(t.clickRate)} note={`${t.clicked} emails`} />
         <Kpi
           star
@@ -90,11 +95,12 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       {d.byType.length > 0 && (
         <>
           <H2>By type of email</H2>
-          <Tbl head={["Type", "Sent", "Clicked", "Got back to you"]} left={1}>
+          <Tbl head={["Type", "Sent", "Opened", "Clicked", "Got back to you"]} left={1}>
             {d.byType.map((x) => (
               <tr key={x.type} className="border-t">
                 <td className="px-3 py-2.5 font-semibold">{x.label}</td>
                 <Num>{x.sent}</Num>
+                <Num>{pct(x.openRate)}</Num>
                 <Num>{pct(x.clickRate)}</Num>
                 <Num bold>{pct(x.replyRate)}</Num>
               </tr>
@@ -106,7 +112,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       {d.batches.length > 0 && (
         <>
           <H2>Every batch</H2>
-          <Tbl head={["Email", "Type", "Sent", "People", "Clicked", "Got back to you"]} left={3}>
+          <Tbl head={["Email", "Type", "Sent", "People", "Opened", "Clicked", "Got back to you"]} left={3}>
             {d.batches.map((b) => (
               <tr key={b.id} className="border-t hover:bg-[var(--surface)]">
                 <td className="px-3 py-2.5">
@@ -115,6 +121,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
                 <td className="px-3 py-2.5 text-2 whitespace-nowrap">{TYPE_LABEL[b.type]}</td>
                 <td className="px-3 py-2.5 text-2 whitespace-nowrap">{b.sentAt.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</td>
                 <Num>{b.sent}</Num>
+                <Num>{pct(b.openRate)}</Num>
                 <Num>{pct(b.clickRate)}</Num>
                 <Num bold>{pct(b.replyRate)}</Num>
               </tr>
@@ -146,7 +153,37 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
         </>
       )}
 
+      {d.openers.length > 0 && (
+        <>
+          <H2>Who opened (confirmed)</H2>
+          <div className="space-y-1.5">
+            {d.openers.map((o) => (
+              <div key={o.id} className="surface-2 border rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  {o.contactId ? (
+                    <Link href={`/contacts/${o.contactId}`} className="font-bold hover:underline underline-offset-2">{o.name || "Unnamed"}</Link>
+                  ) : (
+                    <b>{o.name || "Unnamed"}</b>
+                  )}
+                  <small className="block text-2 text-[12.5px]">
+                    {(o.campaignName ?? "Email").replace(/^Matched buyers: /, "")} · first opened{" "}
+                    {(o.openedAt as Date).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Adelaide" })}
+                    {" · "}
+                    {o.opens} {o.opens === 1 ? "open" : "opens"}
+                  </small>
+                </div>
+                <span className="flex gap-1.5">
+                  {o.clicked && <Tag>Clicked</Tag>}
+                  {o.replied && <Tag>Got back to you</Tag>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <p className="text-[12.5px] text-2 mt-6">
+        Opened (confirmed): a person&apos;s mail app or Gmail, Yahoo or Outlook loaded the email when it was opened. Apple Mail loads every email automatically on arrival, so those are shown apart as unconfirmed; security scanners are ignored. People who block images are not seen at all, so the true figure is at least this. Counted from 23 Nov 2026.{" "}
         Got back to you: they replied to the email, or contacted you in any way (email, website form, a logged call or visit) within 14 days of it.
       </p>
     </>
@@ -161,6 +198,10 @@ function Kpi({ label, value, note, star }: { label: string; value: string; note?
       {note && <span className="text-[12.5px] text-2">{note}</span>}
     </div>
   );
+}
+
+function Tag({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full px-2.5 py-0.5 text-[12px] font-bold bg-[var(--accent)]/10 text-[var(--accent)]">{children}</span>;
 }
 
 function H2({ children }: { children: React.ReactNode }) {

@@ -28,7 +28,10 @@ type Row = {
   id: string;
   sentAt: Date;
   opened: boolean;
+  openedAt: Date | null;
   opens: number;
+  /** Only Apple's automatic fetch: delivered to an Apple Mail inbox, read or not. */
+  autoOnly: boolean;
   clicked: boolean;
   replied: boolean;
   type: EmailType;
@@ -60,8 +63,11 @@ export async function emailInsights(days: number | null) {
         .select({
           id: approvalItems.id,
           sentAt: approvalItems.sentAt,
-          opened: sql<boolean>`${approvalItems.openedAt} is not null`,
-          opens: approvalItems.openCount,
+          // Confirmed opens only (0029); Apple's automatic fetches are counted apart.
+          opened: sql<boolean>`${approvalItems.confirmedOpenedAt} is not null`,
+          openedAt: approvalItems.confirmedOpenedAt,
+          opens: approvalItems.confirmedOpenCount,
+          autoOnly: sql<boolean>`${approvalItems.confirmedOpenedAt} is null and ${approvalItems.autoOpenCount} > 0`,
           clicked: sql<boolean>`${approvalItems.clickedAt} is not null`,
           replied: sql<boolean>`${respondedAt} is not null`,
           type: typeSql,
@@ -130,14 +136,22 @@ export async function emailInsights(days: number | null) {
       .sort((a, b) => Number(b.clicked) - Number(a.clicked) || b.opens - a.opens)
       .slice(0, 10);
 
+    // Who opened (owner, 2026-11-23): most recent first opens, for the insight report.
+    const openers = cur
+      .filter((r) => r.openedAt)
+      .sort((a, b) => (b.openedAt as Date).getTime() - (a.openedAt as Date).getTime())
+      .slice(0, 50);
+
     return {
       totals,
+      autoOnly: cur.filter((r) => r.autoOnly).length,
       before,
       unsubscribed: unsub[0]?.n ?? 0,
       weekly,
       byType,
       batches,
       quiet,
+      openers,
       notes: findings(cur, byType),
     };
   });
@@ -204,8 +218,8 @@ export async function campaignDetail(id: string) {
         itemStatus: approvalItems.status,
         blockReason: approvalItems.blockReason,
         sentAt: approvalItems.sentAt,
-        openedAt: approvalItems.openedAt,
-        opens: approvalItems.openCount,
+        openedAt: approvalItems.confirmedOpenedAt,
+        opens: approvalItems.confirmedOpenCount,
         clickedAt: approvalItems.clickedAt,
         clicks: approvalItems.clickCount,
         repliedAt: respondedAt,
@@ -218,7 +232,7 @@ export async function campaignDetail(id: string) {
       .innerJoin(contacts, eq(contacts.id, campaignRecipients.contactId))
       .leftJoin(approvalItems, eq(approvalItems.id, campaignRecipients.approvalItemId))
       .where(eq(campaignRecipients.campaignId, id))
-      .orderBy(desc(respondedAt), desc(approvalItems.clickedAt), desc(approvalItems.openedAt), contacts.firstName);
+      .orderBy(desc(respondedAt), desc(approvalItems.clickedAt), desc(approvalItems.confirmedOpenedAt), contacts.firstName);
     const rows = people.map((p) => {
       const state: "replied" | "clicked" | "opened" | "sent" | "waiting" | "writing" | "skipped" =
         p.repliedAt ? "replied"

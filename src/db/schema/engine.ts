@@ -217,6 +217,11 @@ export const approvalItems = pgTable(
     /** After the send (0028): tracking image, routed listing link, replies read from Gmail. */
     openedAt: timestamp("opened_at", { withTimezone: true }),
     openCount: integer("open_count").notNull().default(0),
+    /** 0029: opens a person made (mail app, Gmail's on-open proxy); see open-source.ts. */
+    confirmedOpenedAt: timestamp("confirmed_opened_at", { withTimezone: true }),
+    confirmedOpenCount: integer("confirmed_open_count").notNull().default(0),
+    /** 0029: fetches Apple's privacy proxy made on delivery, read or not. */
+    autoOpenCount: integer("auto_open_count").notNull().default(0),
     clickedAt: timestamp("clicked_at", { withTimezone: true }),
     clickCount: integer("click_count").notNull().default(0),
     repliedAt: timestamp("replied_at", { withTimezone: true }),
