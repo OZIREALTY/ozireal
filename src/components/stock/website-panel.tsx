@@ -30,6 +30,8 @@ export async function WebsitePanel({ listingId }: { listingId: string }) {
   if (!l) return null;
 
   const newHomes = where?.websiteSection === "new_homes";
+  // 0031: never on the website, so no publish controls and no "View on website".
+  const emailOnly = where?.websiteSection === "email_only";
   const live = l.status === "live" || l.status === "under_offer";
   const publicPath = newHomes ? "/new-homes-adelaide" : `/${l.type === "rent" ? "for-rent" : "for-sale"}/${l.slug}`;
   const searchRange =
@@ -45,11 +47,11 @@ export async function WebsitePanel({ listingId }: { listingId: string }) {
     <section id="website" className="space-y-4 scroll-mt-20">
       <Card>
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <CardTitle>{live ? "On the website" : l.status === "draft" ? "Preparing for the website" : "Advertising"}</CardTitle>
+          <CardTitle>{emailOnly ? "Shared by email only" : live ? "On the website" : l.status === "draft" ? "Preparing for the website" : "Advertising"}</CardTitle>
           <Badge tone={live ? "stock" : l.status === "draft" ? "queue" : "neutral"}>
             {statusLabel[l.status] ?? l.status}
           </Badge>
-          <Badge tone={newHomes ? "brand" : "neutral"}>{newHomes ? "New Homes" : "Currently advertised"}</Badge>
+          <Badge tone={newHomes || emailOnly ? "brand" : "neutral"}>{newHomes ? "New Homes" : emailOnly ? "Email only" : "Currently advertised"}</Badge>
           <span className="ml-auto flex flex-wrap gap-1.5">
             {live && (
               <a
@@ -76,10 +78,27 @@ export async function WebsitePanel({ listingId }: { listingId: string }) {
                 resultDisplay: l.resultDisplay,
               }}
             />
-            <ListingStatusButtons listing={{ id: l.id, status: l.status, type: l.type }} />
+            {!emailOnly && <ListingStatusButtons listing={{ id: l.id, status: l.status, type: l.type }} />}
             {l.status === "draft" && <DeleteListingButton id={l.id} />}
           </span>
         </div>
+
+        {emailOnly && (
+          <p className="text-[13px] text-2 mb-4">
+            Never on the website. Send it from Matching, Campaigns or a contact&apos;s Send email.{" "}
+            {where?.sourceUrl ? (
+              <>
+                The email&apos;s button opens{" "}
+                <a href={where.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 break-all">
+                  {where.sourceUrl}
+                </a>
+                .
+              </>
+            ) : (
+              <>No source link, so the email asks them to reply.</>
+            )}
+          </p>
+        )}
 
         <div className="grid md:grid-cols-2 gap-5">
           <div className="space-y-3 min-w-0">

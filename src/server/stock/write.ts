@@ -310,6 +310,7 @@ export async function changeListingStatus(input: z.infer<typeof listingStatusInp
         publishedAt: listings.publishedAt,
         resultDisplay: listings.resultDisplay,
         slug: listings.slug,
+        section: listings.websiteSection,
       })
       .from(listings)
       .where(eq(listings.id, input.id))
@@ -335,6 +336,10 @@ export async function changeListingStatus(input: z.infer<typeof listingStatusInp
     }
 
     const goingLive = input.status === "live" || input.status === "under_offer";
+
+    if (goingLive && l.section === "email_only") {
+      throw new ActionError("This is an email-only property, so it never goes on the website. Add it again as Currently advertised if you are now advertising it.");
+    }
 
     if (goingLive) {
       if (!l.priceDisplay) {
@@ -456,8 +461,10 @@ const contactLink = z.object({
 export const fullListingInput = z
     .object({
       listingType: z.enum(["sale", "rent"]),
-      section: z.enum(["advertised", "new_homes"]),
+      section: z.enum(["advertised", "new_homes", "email_only"]),
       goLive: z.boolean(),
+      /** 0031: email-only properties: where it is advertised elsewhere. */
+      sourceUrl: z.union([z.literal(""), z.string().trim().url("Paste a full link starting with https://").max(2000)]).optional(),
 
       propertyId: z.string().uuid().optional(),
       streetNumber: z.string().trim().max(20).optional(),
@@ -489,8 +496,10 @@ export const fullListingInput = z
       if (!v.propertyId && !v.suburbId) c.addIssue({ code: "custom", path: ["suburbId"], message: "Choose a suburb from the list" });
       if (v.section === "new_homes" && !v.projectName)
         c.addIssue({ code: "custom", path: ["projectName"], message: "Give the project a name" });
-      if (v.section === "advertised" && !v.propertyId && !v.street)
+      if (v.section !== "new_homes" && !v.propertyId && !v.street)
         c.addIssue({ code: "custom", path: ["street"], message: "Street is required" });
+      if (v.section === "email_only" && v.goLive)
+        c.addIssue({ code: "custom", path: ["goLive"], message: "An email-only property is never on the website." });
       for (const [i, k] of v.contacts.entries())
         if (!k.contactId && !k.newContact)
           c.addIssue({ code: "custom", path: ["contacts", i], message: "Pick a contact or add a new one" });

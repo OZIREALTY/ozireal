@@ -273,6 +273,7 @@ export default async function PropertiesPage({
                   <div className="flex flex-wrap gap-1">
                     <Badge tone={BADGE[stage].tone}>{BADGE[stage].label}</Badge>
                     {stage === "website" && p.current?.websiteSection === "new_homes" && <Badge tone="brand">New Homes</Badge>}
+                    {p.current?.websiteSection === "email_only" && <Badge tone="brand">Email only</Badge>}
                   </div>
                 </TD>
                 <TD className="text-2 max-w-[220px] truncate">

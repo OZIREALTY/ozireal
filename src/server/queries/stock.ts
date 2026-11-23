@@ -330,7 +330,7 @@ export const LISTING_ROLE_LABELS: Record<string, string> = {
 export async function getListingSection(listingId: string) {
   const [row] = await query((tx) =>
     tx
-      .select({ websiteSection: listings.websiteSection, projectName: listings.projectName })
+      .select({ websiteSection: listings.websiteSection, projectName: listings.projectName, sourceUrl: listings.sourceUrl })
       .from(listings)
       .where(eq(listings.id, listingId))
       .limit(1),

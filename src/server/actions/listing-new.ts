@@ -74,6 +74,7 @@ export const createFullListing = defineAction({
         projectArea: input.section === "new_homes" ? input.projectArea || null : null,
         projectReady: input.section === "new_homes" ? input.projectReady : false,
         highlights: input.section === "new_homes" && input.highlights.length ? input.highlights : null,
+        sourceUrl: input.section === "email_only" && input.sourceUrl ? input.sourceUrl : null,
       })
       .where(eq(listings.id, listing.id));
 
@@ -138,11 +139,11 @@ export const createFullListing = defineAction({
     }
 
     // 4. Go live, through the same checks as the Publish button.
-    if (input.goLive) await changeListingStatus({ id: listing.id, status: "live" }, ctx);
+    if (input.goLive && input.section !== "email_only") await changeListingStatus({ id: listing.id, status: "live" }, ctx);
 
     await ctx.audit({
       kind: input.goLive ? "publish" : "edit",
-      action: `New listing (${input.section === "new_homes" ? "New Homes" : "advertised"})${input.goLive ? ", live" : ", draft"}`,
+      action: `New listing (${input.section === "new_homes" ? "New Homes" : input.section === "email_only" ? "email only" : "advertised"})${input.goLive ? ", live" : ", draft"}`,
       target: input.projectName || listing.slug,
       entityType: "listing",
       entityId: listing.id,

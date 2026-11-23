@@ -48,6 +48,7 @@ export async function emailPropertyFor(tenantId: string, listingId: string): Pro
         slug: listings.slug,
         status: listings.status,
         section: listings.websiteSection,
+        sourceUrl: listings.sourceUrl,
         type: listings.listingType,
         priceDisplay: listings.priceDisplay,
         priceMin: listings.searchPriceMin,
@@ -70,12 +71,20 @@ export async function emailPropertyFor(tenantId: string, listingId: string): Pro
     if (!l) return null;
 
     const newHomes = l.section === "new_homes";
-    const onSite = !newHomes && ["live", "under_offer"].includes(l.status);
+    // 0031: email-only stock is never on the site; its own photo is shown (media keys are
+    // unguessable) and the button goes to where it is advertised, or asks for a reply.
+    const emailOnly = l.section === "email_only";
+    const onSite = !newHomes && !emailOnly && ["live", "under_offer"].includes(l.status);
+    const ownPhoto = !!l.photo && (onSite || emailOnly);
     const nh = newHomes ? await newHomesCard(tx, { projectName: l.projectName, suburb: l.suburb, priceMin: l.priceMin, priceDisplay: l.priceDisplay }) : null;
 
     const url = onSite ? `${SITE}/property/${l.slug}` : null;
     const link = url
       ? { url, label: "See every photo & detail" }
+      : emailOnly
+        ? l.sourceUrl
+          ? { url: l.sourceUrl, label: "View the listing" }
+          : { url: `mailto:admin@ozirealty.com.au?subject=${encodeURIComponent(`About ${l.street}`)}`, label: "Reply to find out more" }
       : newHomes
         ? { url: `${SITE}/new-homes-adelaide`, label: "Explore the homes & inclusions" }
         : l.type === "rent"
@@ -105,8 +114,8 @@ export async function emailPropertyFor(tenantId: string, listingId: string): Pro
       suburb: l.suburb,
       priceDisplay: l.priceDisplay,
       specs,
-      imageUrl: l.photo && onSite ? `${SITE}/media/${l.photo}` : art,
-      imageAlt: l.photo && onSite ? l.street : `Illustration: a new ${(kind ?? "home").toLowerCase()}${where ? ` in ${where}` : ""}`,
+      imageUrl: ownPhoto ? `${SITE}/media/${l.photo}` : art,
+      imageAlt: ownPhoto ? l.street : `Illustration: a new ${(kind ?? "home").toLowerCase()}${where ? ` in ${where}` : ""}`,
       newHomes,
       url,
       link,
@@ -154,7 +163,7 @@ export function propertyEmailHtml(o: {
     ? ""
     : `<tr><td style="padding:12px 20px 4px">
 <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #E3E7EF;border-radius:14px;overflow:hidden">
-<tr><td style="line-height:0"><a href="${esc(p.link.url)}"><img src="${esc(p.imageUrl)}" alt="${esc(p.imageAlt)}" width="558" style="display:block;width:100%;height:auto;border:0"></a></td></tr>
+<tr><td style="line-height:0"><a href="${esc(p.link.url)}" data-ozi-track="listing"><img src="${esc(p.imageUrl)}" alt="${esc(p.imageAlt)}" width="558" style="display:block;width:100%;height:auto;border:0"></a></td></tr>
 <tr><td style="background:${NAVY};padding:16px 20px">
 <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#FFB59E;font-weight:bold">${esc(p.kicker)}</div>
 <div style="font-size:22px;font-weight:bold;color:#ffffff;margin-top:4px;line-height:1.25">${esc(c?.title || p.title)}</div>
@@ -164,7 +173,7 @@ ${p.specs.length ? `<tr><td><table cellpadding="0" cellspacing="0" width="100%" 
 ${advRows.length ? `<tr><td style="padding:14px 14px 4px"><div style="padding:0 6px 4px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:${MUTED};font-weight:bold">Why this one stands out</div><table cellpadding="0" cellspacing="0" width="100%">${advRows.join("")}</table></td></tr>` : ""}
 <tr><td align="center" style="padding:16px 20px 22px">
 <div style="font-size:15px;font-weight:bold;color:${NAVY};margin-bottom:12px">${esc(c?.urgency || "See every detail before you decide.")}</div>
-<a href="${esc(p.link.url)}" style="display:inline-block;background:${ORANGE};color:#ffffff;text-decoration:none;font-weight:bold;font-size:17px;padding:16px 30px;border-radius:12px;box-shadow:0 4px 0 #A8320F">${esc(p.link.label)} &nbsp;&rarr;</a>
+<a href="${esc(p.link.url)}" data-ozi-track="listing" style="display:inline-block;background:${ORANGE};color:#ffffff;text-decoration:none;font-weight:bold;font-size:17px;padding:16px 30px;border-radius:12px;box-shadow:0 4px 0 #A8320F">${esc(p.link.label)} &nbsp;&rarr;</a>
 <table cellpadding="0" cellspacing="0" width="100%" style="margin-top:18px;border:2px solid ${NAVY};border-radius:12px"><tr><td style="padding:16px 18px;text-align:left">
 <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${ORANGE};font-weight:bold">Private viewing</div>
 <div style="font-size:18px;font-weight:bold;color:${NAVY};margin:4px 0 6px;line-height:1.3">${p.newHomes ? "Walk the display home with me, one-on-one" : "Walk through the home with me, one-on-one"}</div>

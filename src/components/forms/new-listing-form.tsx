@@ -78,7 +78,7 @@ export function FullListingButton({
   const [existing, setExisting] = React.useState(false);
   const [goLive, setGoLive] = React.useState(false);
   // Nothing pre-chosen (owner, 2026-11-11): where it shows is a deliberate choice.
-  const [section, setSection] = React.useState<"advertised" | "new_homes" | null>(null);
+  const [section, setSection] = React.useState<"advertised" | "new_homes" | "email_only" | null>(null);
   const [sectionError, setSectionError] = React.useState<string | null>(null);
   const [linked, setLinked] = React.useState<Linked[]>([]);
   const a = useAction(createFullListing, {
@@ -89,6 +89,7 @@ export function FullListingButton({
   });
   const fe = a.fieldErrors;
   const newHomes = section === "new_homes";
+  const emailOnly = section === "email_only";
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -103,6 +104,7 @@ export function FullListingButton({
       // Not going live and not chosen: kept as an ordinary listing, changeable later.
       section: section ?? "advertised",
       goLive,
+      sourceUrl: emailOnly ? str(f.get("sourceUrl")) ?? "" : undefined,
       propertyId: existing ? str(f.get("propertyId")) : undefined,
       streetNumber: str(f.get("streetNumber")),
       street: str(f.get("street")),
@@ -170,16 +172,29 @@ export function FullListingButton({
 
           {/* ---- where it will show; decides address vs project */}
           <fieldset className="rounded-lg border p-3 space-y-2 bg-[var(--accent)]/[0.04]">
-            <label className="flex items-center gap-2 text-[14.5px] font-semibold">
-              <input type="checkbox" className="size-4" checked={goLive} onChange={(e) => setGoLive(e.target.checked)} />
+            <label className={`flex items-center gap-2 text-[14.5px] font-semibold ${emailOnly ? "opacity-50" : ""}`}>
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={goLive}
+                disabled={emailOnly}
+                onChange={(e) => setGoLive(e.target.checked)}
+              />
               Go live on the website
             </label>
-            <p className="text-[12px] text-2 pl-6">{goLive ? "Show it in (choose one):" : "Saved as a draft. Where it will show once live (optional for now):"}</p>
-            <div className="grid sm:grid-cols-2 gap-2 pl-6">
+            <p className="text-[12px] text-2 pl-6">
+              {emailOnly
+                ? "Email only: never on the website. Use it in Matching, campaigns and Send email."
+                : goLive
+                  ? "Show it in (choose one):"
+                  : "Saved as a draft. Where it will show once live (optional for now):"}
+            </p>
+            <div className="grid sm:grid-cols-3 gap-2 pl-6">
               {(
                 [
                   ["advertised", "Currently advertised", "For Sale / For Rent, All Listings, home page and its suburb page. Moves to Sold when it sells."],
                   ["new_homes", "New Homes", "A project card on the New Homes page: suburb only, highlights, bed / bath / car / m², \"Talk to Esi\"."],
+                  ["email_only", "Email only", "Not on the website. Shared with your contacts by email: other agents' listings, investment deals, businesses."],
                 ] as const
               ).map(([v, title, note]) => (
                 <label
@@ -194,6 +209,7 @@ export function FullListingButton({
                     onChange={() => {
                       setSection(v);
                       setSectionError(null);
+                      if (v === "email_only") setGoLive(false);
                     }}
                   />
                   <span>
@@ -203,6 +219,22 @@ export function FullListingButton({
                 </label>
               ))}
             </div>
+            {emailOnly && (
+              <div className="pl-6 space-y-1.5">
+                <Input
+                  label="Source link (optional)"
+                  name="sourceUrl"
+                  type="url"
+                  placeholder="https://www.realestate.com.au/…"
+                  errors={fe.sourceUrl}
+                />
+                <p className="text-[12px] text-2">
+                  The email&apos;s button opens this link. Without one, it asks them to reply. Another
+                  agency&apos;s photos and text belong to them: write your own short description, and
+                  only add photos you have permission to use.
+                </p>
+              </div>
+            )}
           </fieldset>
 
           {/* ---- 1. the property */}
@@ -297,7 +329,7 @@ export function FullListingButton({
           <FormError message={sectionError ?? a.error} />
           <div className="flex justify-end gap-2">
             <CancelButton onClick={() => setOpen(false)} />
-            <SubmitButton pending={a.pending}>{goLive ? "Save and go live" : "Save draft"}</SubmitButton>
+            <SubmitButton pending={a.pending}>{emailOnly ? "Save (email only)" : goLive ? "Save and go live" : "Save draft"}</SubmitButton>
           </div>
         </form>
       </Modal>

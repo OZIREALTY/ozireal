@@ -298,7 +298,11 @@ function Focus({ p, pinned, onPin }: { p: BoardProperty; pinned: boolean; onPin:
           {!p.listing?.priceDisplay && (
             <p className="text-[12.5px] text-[#8A4B00] mt-1">No price wording on this property yet; the emails will not mention price.</p>
           )}
-          {p.listing && p.listing.status !== "live" && p.listing.status !== "under_offer" && (
+          {p.section === "email_only" ? (
+            <p className="text-[12.5px] text-2 mt-1">
+              Email only: never on the website. The emails show its own photo and the button goes to its source link, or asks them to reply.
+            </p>
+          ) : p.listing && p.listing.status !== "live" && p.listing.status !== "under_offer" && (
             <p className="text-[12.5px] text-[#8A4B00] mt-1">
               Not on the website yet, so the emails show no photo and link to {p.section === "new_homes" ? "your New Homes page" : p.listing?.type === "rent" ? "your rentals page" : "your buyer\u2019s agent page"} instead.
             </p>

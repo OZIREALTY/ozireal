@@ -146,8 +146,12 @@ export const listings = pgTable(
      * Where a live listing shows on the website (0022): "advertised" (For Sale / For
      * Rent, All Listings, home, suburb pages) or "new_homes" (a project card on
      * /new-homes-adelaide, shown by suburb only, titled by projectName).
+     * 0031: "email_only" is never on the website: shared with contacts by email only
+     * (other agents' listings, investment deals, businesses). It can never be live.
      */
     websiteSection: text("website_section").notNull().default("advertised"),
+    /** 0031: where an email-only property is advertised elsewhere; the email's button. */
+    sourceUrl: text("source_url"),
     projectName: text("project_name"),
     /** The New Homes finder area, e.g. "Northern suburbs". */
     projectArea: text("project_area"),

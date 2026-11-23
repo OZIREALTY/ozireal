@@ -33,12 +33,28 @@ export function readTrackToken(token: string): { tenantId: string; itemId: strin
   return uuid.test(tenantId ?? "") && uuid.test(itemId ?? "") ? { tenantId, itemId } : null;
 }
 
-/** Only our own site is a valid click destination: the route is never an open redirect. */
-export function safeDestination(u: string | null): string | null {
+/**
+ * 0031: a link elsewhere (an email-only property's source, e.g. realestate.com.au) is
+ * signed for one email and one exact URL. The click route follows it only with a valid
+ * signature, so it is still never an open redirect.
+ */
+function linkSig(token: string, url: string) {
+  return createHmac("sha256", key()).update(`link.${token}.${url}`).digest().subarray(0, 12).toString("base64url");
+}
+
+/**
+ * Our own site is always a valid click destination. Anywhere else only with the
+ * signature addTracking made for that link: the route is never an open redirect.
+ */
+export function safeDestination(u: string | null, token?: string, sig?: string | null): string | null {
   if (!u) return null;
   try {
     const url = new URL(u);
-    return url.protocol === "https:" && /(^|\.)ozirealty\.com\.au$/i.test(url.hostname) ? url.toString() : null;
+    if (url.protocol === "https:" && /(^|\.)ozirealty\.com\.au$/i.test(url.hostname)) return url.toString();
+    if (!token || !sig || !/^https?:$/.test(url.protocol)) return null;
+    const want = Buffer.from(linkSig(token, u));
+    const got = Buffer.from(sig);
+    return got.length === want.length && timingSafeEqual(got, want) ? u : null;
   } catch {
     return null;
   }
@@ -50,11 +66,19 @@ export function safeDestination(u: string | null): string | null {
  */
 export function addTracking(html: string, tenantId: string, itemId: string) {
   const t = trackToken(tenantId, itemId);
-  const routed = html.replace(/href="(https:\/\/(?:www\.)?ozirealty\.com\.au[^"]*)"/gi, (all, href: string) => {
-    const real = href.replace(/&amp;/g, "&");
-    if (/unsubscribe/i.test(real)) return all;
-    return `href="${CRM}/api/t/c/${t}?u=${encodeURIComponent(real)}"`;
-  });
+  const routed = html
+    .replace(/href="(https:\/\/(?:www\.)?ozirealty\.com\.au[^"]*)"/gi, (all, href: string) => {
+      const real = href.replace(/&amp;/g, "&");
+      if (/unsubscribe/i.test(real)) return all;
+      return `href="${CRM}/api/t/c/${t}?u=${encodeURIComponent(real)}"`;
+    })
+    // 0031: the property's own button pointing elsewhere (an email-only source link).
+    // Only links marked data-ozi-track, so a signature or social link is not a "click".
+    .replace(/href="(https?:\/\/[^"]+)" data-ozi-track="listing"/gi, (all, href: string) => {
+      const real = href.replace(/&amp;/g, "&");
+      if (/^https:\/\/crm\.ozirealty\.com\.au\//i.test(real)) return all;
+      return `href="${CRM}/api/t/c/${t}?u=${encodeURIComponent(real)}&amp;s=${linkSig(t, real)}" data-ozi-track="listing"`;
+    });
   const pixel = `<img src="${CRM}/api/t/o/${t}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0">`;
   return routed.includes("</body>") ? routed.replace("</body>", `${pixel}</body>`) : routed + pixel;
 }

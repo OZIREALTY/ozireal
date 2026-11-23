@@ -20,6 +20,7 @@ export async function composeData() {
         priceDisplay: listings.priceDisplay,
         beds: properties.beds,
         status: listings.status,
+        section: listings.websiteSection,
       })
       .from(listings)
       .innerJoin(properties, eq(properties.id, listings.propertyId))

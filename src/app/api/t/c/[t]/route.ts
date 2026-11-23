@@ -5,8 +5,11 @@ import { readTrackToken, safeDestination } from "@/server/outbound/tracking";
 
 /** A link in a sent email: records the click, then goes to the page (our own site only). */
 export async function GET(req: Request, { params }: { params: Promise<{ t: string }> }) {
-  const dest = safeDestination(new URL(req.url).searchParams.get("u")) ?? "https://www.ozirealty.com.au/";
-  const tok = readTrackToken((await params).t);
+  const raw = (await params).t;
+  const q = new URL(req.url).searchParams;
+  // Elsewhere only with the signature made for this email and this exact link (0031).
+  const dest = safeDestination(q.get("u"), raw, q.get("s")) ?? "https://www.ozirealty.com.au/";
+  const tok = readTrackToken(raw);
   if (tok) {
     await withTenant(tok.tenantId, (tx) =>
       tx

@@ -267,7 +267,7 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
                         <button key={h.listingId} type="button" style={selStyle(h.listingId === listingId)} className={opt(h.listingId === listingId)} onClick={() => setListingId(h.listingId)}>
                           <b className="block leading-snug">{h.label}</b>
                           <small className="text-2 block mt-1">
-                            {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
+                            {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.section === "email_only" ? "email only" : h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
                           </small>
                         </button>
                       ))}
