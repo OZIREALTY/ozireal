@@ -72,7 +72,17 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
    */
   const unsub = unsubscribeUrl(req.tenantId, req.contactId);
   const agencyLine = req.agency.licence ? `${req.agency.name} · ${req.agency.licence}` : req.agency.name;
-  const property = req.listingId ? await emailPropertyFor(req.tenantId, req.listingId) : null;
+  const loaded = req.listingId ? await emailPropertyFor(req.tenantId, req.listingId) : null;
+  /**
+   * An email-only property with no source link asks for a reply ("Reply to find out
+   * more", a mailto). Point it at THIS email's tracked reply address (owner, 2026-11-23)
+   * so the message is counted as "Got back to you" and logged, then forwarded to Gmail
+   * like any reply. Without the reply inbox it stays the agency address.
+   */
+  const property =
+    loaded && req.trackId && replyInboxOn() && loaded.link.url.startsWith("mailto:")
+      ? { ...loaded, link: { ...loaded.link, url: loaded.link.url.replace(/^mailto:[^?]*/, `mailto:${replyAddress(req.trackId)}`) } }
+      : loaded;
   const text = propertyEmailText({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
   const base = propertyEmailHtml({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
   const html = req.trackId ? addTracking(base, req.tenantId, req.trackId) : base;

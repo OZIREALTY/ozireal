@@ -24,6 +24,33 @@ SSH="ssh -i $KEY -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o Server
 
 log() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
+# Run a remote step DETACHED (setsid nohup) and poll for its exit code with short SSH
+# calls. A long step used to ride one SSH session, and "Connection reset by peer"
+# (2026-11-23) killed the deploy halfway: once in the build, once in the install,
+# which left the site stopped (502) until it was started by hand.
+#   run_detached <name> <timeout-seconds>   (the script comes on stdin)
+run_detached() {
+  local name=$1 limit=$2 code="" started
+  $SSH "cat > /tmp/ozi-$name.sh"
+  $SSH "rm -f /tmp/ozi-$name.exit /tmp/ozi-$name.log; setsid nohup bash -c 'bash /tmp/ozi-$name.sh > /tmp/ozi-$name.log 2>&1; echo \$? > /tmp/ozi-$name.exit' > /dev/null 2>&1 < /dev/null &"
+  started=$(date +%s)
+  while :; do
+    sleep 10
+    code=$($SSH "cat /tmp/ozi-$name.exit 2>/dev/null" 2>/dev/null || true)
+    [ -n "$code" ] && break
+    if [ $(( $(date +%s) - started )) -gt "$limit" ]; then
+      echo "  $name still running after ${limit}s; check /tmp/ozi-$name.log on the instance" >&2
+      exit 1
+    fi
+  done
+  $SSH "tail -15 /tmp/ozi-$name.log" | sed 's/^/  /' || true
+  if [ "$code" != "0" ]; then
+    echo "  $name FAILED (exit $code). Full log: /tmp/ozi-$name.log on the instance" >&2
+    exit 1
+  fi
+  echo "  $name done in $(( $(date +%s) - started ))s"
+}
+
 log "Packaging source"
 # .env* is excluded deliberately. It used to ship, so the developer's .env.local
 # -- a DATABASE_URL pointing at 127.0.0.1:5433, plus AUTH_SECRET and SECRETS_KEY --
@@ -80,7 +107,11 @@ sudo bash -c '
 REMOTE
 
 log "Building on the instance"
-$SSH bash -s <<'REMOTE'
+# The build takes several minutes and the SSH session used to carry it; a dropped
+# connection ("Connection reset by peer", 2026-11-23, twice) killed the deploy halfway.
+# So the build now runs DETACHED on the instance (setsid nohup) and this side only
+# polls a status file with short SSH calls, which survive a blip.
+run_detached build 1800 <<'REMOTE'
 set -euo pipefail
 sudo rm -rf /tmp/build && mkdir -p /tmp/build
 tar -xzf /tmp/ozirealty-src.tgz -C /tmp/build
@@ -110,8 +141,11 @@ shred -u /tmp/build/.env.production 2>/dev/null || rm -f /tmp/build/.env.product
 REMOTE
 
 log "Installing the build"
-$SSH bash -s <<'REMOTE'
+run_detached install 900 <<'REMOTE'
 set -euo pipefail
+# Whatever happens below, the services come back up: this step stops them first, and
+# a failure or a dropped connection halfway must never leave the site down (502).
+trap 'sudo systemctl daemon-reload; sudo systemctl enable --now ozirealty-web ozirealty-worker' EXIT
 APP_DIR=/srv/ozirealty
 sudo systemctl stop ozirealty-web ozirealty-worker 2>/dev/null || true
 # `rm -rf "$APP_DIR"/*` does NOT match .next — a glob skips dotfiles — so every
