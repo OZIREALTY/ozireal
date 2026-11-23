@@ -517,14 +517,19 @@ function SaveSegmentButton({
       <RowButton
         onClick={() => {
           a.reset();
-          setOpen(true);
+          // From the email (owner, 2026-11-23): no name box. It is named from its
+          // criteria and saved in one press; only the standalone builder asks.
+          if (returnToEmail) a.run({ name: "", description: "", filter, id: "" });
+          else setOpen(true);
         }}
+        disabled={returnToEmail && a.pending}
         tone="primary"
         className="w-full justify-center min-h-10 text-[13.5px] font-semibold"
       >
-        <Save size={14} />
+        {returnToEmail && a.pending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
         {returnToEmail ? "Save and use in my email" : "Save this segment"}
       </RowButton>
+      {returnToEmail && !open && <FormError message={a.error} />}
       {returnToEmail && loadedFrom && (
         <RowButton onClick={() => router.push(`/campaigns?audience=${loadedFrom.id}`)} className="w-full justify-center">
           Use &ldquo;{loadedFrom.name}&rdquo; in my email as saved

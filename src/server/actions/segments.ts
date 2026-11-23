@@ -37,7 +37,8 @@ export const previewAudience = defineAction({
  */
 export const saveSegment = defineAction({
   input: z.object({
-    name: z.string().trim().min(2, "Give the segment a name").max(80),
+    /** Blank from the email composer (owner, 2026-11-23): named from its criteria. */
+    name: z.union([z.literal(""), z.string().trim().min(2, "Give the segment a name").max(80)]).default(""),
     description: z.string().trim().max(300).optional(),
     filter: segmentFilter,
     /** Set when overwriting an existing view rather than creating one. */
@@ -57,19 +58,23 @@ export const saveSegment = defineAction({
 
     const id = input.id || null;
     const description = input.description || describeSegment(input.filter);
+    const auto = describeSegment(input.filter);
+    const name = input.name || (auto.length > 80 ? `${auto.slice(0, 77).trimEnd()}…` : auto);
 
     const [clash] = await ctx.tx
       .select({ id: savedViews.id })
       .from(savedViews)
       .where(
         id
-          ? and(eq(savedViews.name, input.name), ne(savedViews.id, id))
-          : eq(savedViews.name, input.name),
+          ? and(eq(savedViews.name, name), ne(savedViews.id, id))
+          : eq(savedViews.name, name),
       )
       .limit(1);
+    // Auto-named: the same criteria were saved before, so use that audience.
+    if (clash && !input.name && !id) return { id: clash.id };
     if (clash) {
       throw new ActionError(
-        `There is already a segment called "${input.name}". Rename this one, or open that one and save over it.`,
+        `There is already a segment called "${name}". Rename this one, or open that one and save over it.`,
       );
     }
 
@@ -83,13 +88,13 @@ export const saveSegment = defineAction({
 
       await ctx.tx
         .update(savedViews)
-        .set({ name: input.name, description, filter: input.filter })
+        .set({ name: name, description, filter: input.filter })
         .where(eq(savedViews.id, id));
 
       await ctx.audit({
         kind: "edit",
         action: "Updated a saved segment",
-        target: input.name,
+        target: name,
         entityType: "saved_view",
         entityId: id,
         metadata: { filter: input.filter },
@@ -104,7 +109,7 @@ export const saveSegment = defineAction({
       .insert(savedViews)
       .values({
         tenantId: ctx.tenantId,
-        name: input.name,
+        name: name,
         description,
         filter: input.filter,
         createdByUserId: ctx.userId,
@@ -114,7 +119,7 @@ export const saveSegment = defineAction({
     await ctx.audit({
       kind: "edit",
       action: "Saved a segment",
-      target: input.name,
+      target: name,
       entityType: "saved_view",
       entityId: created.id,
       // The filter itself, so the audit trail can answer "what did this view ask
