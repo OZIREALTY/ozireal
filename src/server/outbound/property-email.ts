@@ -148,8 +148,10 @@ export function propertyEmailHtml(o: {
     advRows.push(`<tr>${advCell(a.title, a.detail)}${b ? advCell(b.title, b.detail) : `<td width="50%"></td>`}</tr>`);
   }
 
+  // No property: no block. The "Visit ozirealty.com.au" button used to be added to
+  // every general message; the owner wants it only when asked for (2026-11-23).
   const block = !p
-    ? `<tr><td align="center" style="padding:8px 20px 22px"><a href="${SITE}" style="display:inline-block;background:${ORANGE};color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;padding:14px 28px;border-radius:10px">Visit ozirealty.com.au</a></td></tr>`
+    ? ""
     : `<tr><td style="padding:12px 20px 4px">
 <table cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #E3E7EF;border-radius:14px;overflow:hidden">
 <tr><td style="line-height:0"><a href="${esc(p.link.url)}"><img src="${esc(p.imageUrl)}" alt="${esc(p.imageAlt)}" width="558" style="display:block;width:100%;height:auto;border:0"></a></td></tr>

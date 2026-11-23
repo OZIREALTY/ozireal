@@ -234,7 +234,9 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
 
       {!done && step >= 1 && <ToBar people={chosen} onRemove={(id) => setRemoved((s) => new Set(s).add(id))} />}
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+      {/* The email is 600px wide; the preview column must fit it plus padding, or the
+          right side is cut off (owner, 2026-11-23). */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,660px)]">
         <div className="p-5 min-w-0 lg:border-r">
           {done ? (
             <div className="space-y-3">
@@ -487,6 +489,17 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
               </div>
               {sample.reviewNote && <p className="text-[13px] text-[#9a6a00] mb-2">Check: {sample.reviewNote}</p>}
               <iframe title="Sample email" srcDoc={sample.html} sandbox="" className="w-full h-[640px] rounded-xl border bg-white" />
+              <button
+                type="button"
+                onClick={() => {
+                  const url = URL.createObjectURL(new Blob([sample.html], { type: "text/html" }));
+                  window.open(url, "_blank", "noopener");
+                  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                }}
+                className="mt-2 text-[13px] font-semibold text-[var(--accent)] hover:underline"
+              >
+                Open full size
+              </button>
             </>
           ) : (
             <div className="rounded-xl border border-dashed p-5 text-2 text-[14px] leading-relaxed">
