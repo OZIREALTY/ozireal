@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Users, ShieldAlert, PhoneOff, Ban, UserX, Save, Loader2, X } from "lucide-react";
 import {
   useAction,
@@ -52,8 +53,11 @@ export function SegmentBuilder({
   options,
   initialSegmentId,
   onAudience,
+  returnToEmail = false,
 }: {
   options: BuilderOptions;
+  /** Opened from the email composer (2026-11-23): saving goes back to that email. */
+  returnToEmail?: boolean;
   /** Opens with a saved segment already applied, so a chip elsewhere can link here. */
   initialSegmentId?: string;
   /** Called whenever the audience settles, so the parent can enable "draft messages". */
@@ -338,6 +342,7 @@ export function SegmentBuilder({
         stale={stale}
         filter={filter}
         loadedFrom={loadedFrom}
+        returnToEmail={returnToEmail}
       />
     </div>
   );
@@ -352,6 +357,7 @@ function AudiencePanel({
   stale,
   filter,
   loadedFrom,
+  returnToEmail,
 }: {
   preview: (SegmentPreview & { description: string }) | null;
   pending: boolean;
@@ -359,6 +365,7 @@ function AudiencePanel({
   stale: boolean;
   filter: SegmentFilter;
   loadedFrom: SavedSegment | null;
+  returnToEmail: boolean;
 }) {
   const x = preview?.excluded;
   return (
@@ -430,7 +437,7 @@ function AudiencePanel({
         </div>
       )}
 
-      <SaveSegmentButton filter={filter} loadedFrom={loadedFrom} />
+      <SaveSegmentButton filter={filter} loadedFrom={loadedFrom} returnToEmail={returnToEmail} />
 
       {!stale && preview && preview.sample.length > 0 && (
         <div className="surface-2 border rounded-lg p-3">
@@ -485,12 +492,21 @@ function Reason({
 function SaveSegmentButton({
   filter,
   loadedFrom,
+  returnToEmail,
 }: {
   filter: SegmentFilter;
   loadedFrom: SavedSegment | null;
+  returnToEmail: boolean;
 }) {
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const a = useAction(saveSegment, { onSuccess: () => setOpen(false) });
+  const a = useAction(saveSegment, {
+    onSuccess: (d) => {
+      setOpen(false);
+      // From the email composer: back to that email with this audience ticked.
+      if (returnToEmail && d?.id) router.push(`/campaigns?audience=${d.id}`);
+    },
+  });
 
   return (
     <>
@@ -502,10 +518,15 @@ function SaveSegmentButton({
         className="w-full justify-center"
       >
         <Save size={11} />
-        Save this segment
+        {returnToEmail ? "Save and use in my email" : "Save this segment"}
       </RowButton>
+      {returnToEmail && loadedFrom && (
+        <RowButton onClick={() => router.push(`/campaigns?audience=${loadedFrom.id}`)} className="w-full justify-center">
+          Use &ldquo;{loadedFrom.name}&rdquo; in my email as saved
+        </RowButton>
+      )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Save segment">
+      <Modal open={open} onClose={() => setOpen(false)} title={returnToEmail ? "Save and use in my email" : "Save segment"}>
         <form
           className="space-y-3"
           onSubmit={(e) => {

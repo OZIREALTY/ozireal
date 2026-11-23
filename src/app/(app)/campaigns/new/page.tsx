@@ -31,9 +31,10 @@ export const dynamic = "force-dynamic";
 export default async function NewCampaignPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string }>;
+  searchParams: Promise<{ segment?: string; return?: string }>;
 }) {
-  const { segment } = await searchParams;
+  const { segment, return: back } = await searchParams;
+  const returnToEmail = back === "compose";
   const [
     listings,
     suburbs,
@@ -59,7 +60,7 @@ export default async function NewCampaignPage({
         subtitle="Build the audience from what each contact has actually told you. Nobody unreachable can end up in it."
         actions={
           <Link
-            href="/campaigns"
+            href={returnToEmail ? "/campaigns?resume=1" : "/campaigns"}
             className="inline-flex items-center gap-1.5 rounded-md surface-2 border text-[13px] font-medium px-3 min-h-9 hover:surface-3"
           >
             <ArrowLeft size={13} />
@@ -70,6 +71,7 @@ export default async function NewCampaignPage({
 
       <SegmentBuilder
         initialSegmentId={segment}
+        returnToEmail={returnToEmail}
         options={{
           listings,
           suburbs,

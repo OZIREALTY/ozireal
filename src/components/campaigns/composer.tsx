@@ -21,7 +21,21 @@ const TONES: { v: Tone; label: string }[] = [
 ];
 const STEPS = ["What is it about?", "Who gets it?", "What should it say?", "Check and send for OK"];
 
-export function Composer({ data, startOpen = false, to }: { data: ComposeData; startOpen?: boolean; to?: string }) {
+export function Composer({
+  data,
+  startOpen = false,
+  to,
+  audience,
+  resume = false,
+}: {
+  data: ComposeData;
+  startOpen?: boolean;
+  to?: string;
+  /** Back from the audience builder (2026-11-23): tick this saved audience. */
+  audience?: string;
+  /** Back from the audience builder without saving: restore the draft as it was. */
+  resume?: boolean;
+}) {
   /** From a contact page (2026-11-20): the email starts addressed to that one person. */
   const toPerson = to ? data.people.find((p) => p.id === to) ?? null : null;
   const router = useRouter();
@@ -43,6 +57,10 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
   const rootRef = React.useRef<HTMLElement>(null);
 
   const home = kind === "property" ? data.homes.find((h) => h.listingId === listingId) ?? null : null;
+  const audienceMembers = React.useMemo(
+    () => new Map(data.audiences.map((a) => [a.id, new Set(a.members)])),
+    [data.audiences],
+  );
 
   const chosen = React.useMemo(() => {
     const ids = new Set<string>();
@@ -50,13 +68,14 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
       const inGroup =
         (groups.has("matched") && home && p.matches[home.propertyId] !== undefined) ||
         (groups.has("all") && p.canEmail) ||
-        [...groups].some((g) => g.startsWith("tag:") && p.tags.includes(g.slice(4)));
+        [...groups].some((g) => g.startsWith("tag:") && p.tags.includes(g.slice(4))) ||
+        [...groups].some((g) => g.startsWith("seg:") && !!audienceMembers.get(g.slice(4))?.has(p.id));
       if ((inGroup || hand.has(p.id)) && !removed.has(p.id)) ids.add(p.id);
     }
     return data.people
       .filter((p) => ids.has(p.id))
       .sort((a, b) => (home ? (b.matches[home.propertyId] ?? 0) - (a.matches[home.propertyId] ?? 0) : 0));
-  }, [data.people, groups, hand, removed, home]);
+  }, [data.people, groups, hand, removed, home, audienceMembers]);
   const reachable = chosen.filter((p) => p.canEmail);
   const matchedCount = home ? data.people.filter((p) => p.matches[home.propertyId] !== undefined).length : 0;
   const emailable = data.people.filter((p) => p.canEmail).length;
@@ -68,6 +87,59 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
       else n.add(g);
       return n;
     });
+
+  /**
+   * Audience builder round trip (owner, 2026-11-23). Going to the builder used to lose
+   * the email being written, and the audience built there never came back. The draft is
+   * kept in sessionStorage (this tab only) and restored on return, with the new saved
+   * audience ticked.
+   */
+  const DRAFT_KEY = "ozi.compose.draft";
+  function goToBuilder() {
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ kind, listingId, groups: [...groups], hand: [...hand], removed: [...removed], tone, note, name }),
+      );
+    } catch {
+      /* private mode: the builder still works, the draft is just not kept */
+    }
+    router.push("/campaigns/new?return=compose");
+  }
+  React.useEffect(() => {
+    const useAudience = !!audience && data.audiences.some((a) => a.id === audience);
+    if (!useAudience && !resume) return;
+    let d: {
+      kind?: "property" | "general" | null;
+      listingId?: string;
+      groups?: string[];
+      hand?: string[];
+      removed?: string[];
+      tone?: Tone;
+      note?: string;
+      name?: string;
+    } | null = null;
+    try {
+      d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? "null");
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      d = null;
+    }
+    if (d?.kind) setKind(d.kind);
+    if (d?.listingId) setListingId(d.listingId);
+    setGroups(new Set([...(d?.groups ?? []), ...(useAudience ? [`seg:${audience}`] : [])]));
+    if (d?.hand) setHand(new Set(d.hand));
+    if (d?.removed) setRemoved(new Set(d.removed));
+    if (d?.tone) setTone(d.tone);
+    if (d?.note) setNote(d.note);
+    if (d?.name) setName(d.name);
+    setOpen(true);
+    // Without a saved draft the email type is still unchosen, so start there.
+    setStep(d?.kind ? 1 : 0);
+    if (!d?.kind) setKind(null);
+    // Runs once, on arrival from the builder.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const found = q.trim().length > 1
     ? data.people.filter((p) => `${p.name} ${p.suburb ?? ""}`.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8)
@@ -299,6 +371,18 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
                       </div>
                     </>
                   )}
+                  {data.audiences.length > 0 && (
+                    <>
+                      <p className="font-bold text-[13.5px] mt-4 mb-2">Saved audiences</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {data.audiences.map((a) => (
+                          <button key={a.id} type="button" style={selStyle(groups.has(`seg:${a.id}`))} className={pill(groups.has(`seg:${a.id}`))} onClick={() => toggleGroup(`seg:${a.id}`)}>
+                            {a.name} <span className="text-2 font-normal">{a.members.length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <p className="font-bold text-[13.5px] mt-4 mb-2">Add someone by name</p>
                   <div className="relative">
                     <Search size={15} className="absolute left-3 top-3 text-2" />
@@ -362,8 +446,11 @@ export function Composer({ data, startOpen = false, to }: { data: ComposeData; s
                     </div>
                   )}
                   <p className="text-[13px] text-2 mt-3">
-                    Need finer filters (budget, timeline, intent)? Use the{" "}
-                    <Link href="/campaigns/new" className="underline underline-offset-2">audience builder</Link>.
+                    Need finer filters (budget, timeline, intent)?{" "}
+                    <button type="button" onClick={goToBuilder} className="underline underline-offset-2 font-semibold">
+                      Build an audience
+                    </button>
+                    . Save it there and it comes back here, ticked, with this email as you left it.
                   </p>
                 </div>
               )}

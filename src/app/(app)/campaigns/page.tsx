@@ -23,8 +23,8 @@ const status: Record<string, { label: string; cls: string; stage: number }> = {
   cancelled: { label: "Cancelled", cls: "surface-2 text-2", stage: 0 },
 };
 
-export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ new?: string; to?: string }> }) {
-  const [{ new: startNew, to }, campaigns, data] = await Promise.all([searchParams, getCampaigns(), composeData()]);
+export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ new?: string; to?: string; audience?: string; resume?: string }> }) {
+  const [{ new: startNew, to, audience, resume }, campaigns, data] = await Promise.all([searchParams, getCampaigns(), composeData()]);
 
   return (
     <>
@@ -35,7 +35,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
       <CampaignTabs active="write" />
 
       <div className="mb-8">
-        <Composer key={to ?? "none"} data={data} startOpen={startNew === "1" || campaigns.length === 0} to={to && data.people.some((p) => p.id === to) ? to : undefined} />
+        <Composer key={to ?? audience ?? "none"} data={data} audience={audience} resume={resume === "1"} startOpen={startNew === "1" || !!audience || resume === "1" || campaigns.length === 0} to={to && data.people.some((p) => p.id === to) ? to : undefined} />
       </div>
 
       <Section title="Your emails">

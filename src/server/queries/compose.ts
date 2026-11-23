@@ -1,6 +1,8 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { query } from "@/db";
-import { consents, contactIntent, contacts, listings, matches, properties, suburbs } from "@/db/schema";
+import { consents, contactIntent, contacts, listings, matches, properties, savedViews, suburbs } from "@/db/schema";
+import { segmentAudience } from "@/server/segments/preview";
+import { isEmptySegment, parseStoredFilter } from "@/server/segments/schema";
 
 /**
  * Everything the email composer on /campaigns needs (2026-11-20): the listings an email
@@ -81,7 +83,20 @@ export async function composeData() {
       };
     });
     const tags = [...tagCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30).map(([t, n]) => ({ tag: t, n }));
-    return { homes, people: out, tags };
+    /**
+     * Saved audiences from the audience builder (owner, 2026-11-23): each one resolved
+     * to its members now, so it can be ticked as a group in "Who gets it?". Who can
+     * actually be emailed is still decided per person above and again at send.
+     */
+    const saved = await tx.select({ id: savedViews.id, name: savedViews.name, filter: savedViews.filter }).from(savedViews).orderBy(savedViews.name);
+    const audiences: { id: string; name: string; members: string[] }[] = [];
+    for (const s of saved) {
+      const filter = parseStoredFilter(s.filter);
+      if (isEmptySegment(filter)) continue;
+      const members = await segmentAudience(tx, filter);
+      audiences.push({ id: s.id, name: s.name, members: members.map((m) => m.id) });
+    }
+    return { homes, people: out, tags, audiences };
   });
 }
 export type ComposeData = Awaited<ReturnType<typeof composeData>>;
