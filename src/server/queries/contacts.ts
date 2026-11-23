@@ -287,8 +287,15 @@ export async function getInteractionsFor(contactId: string) {
      */
     const byId = new Map(rows.map((r) => [r.id, r]));
     const replaced = new Set(rows.map((r) => r.correctsId).filter((x): x is string => !!x));
+    /**
+     * Order by latest activity (owner, 2026-11-23): an edited entry sorts by when it
+     * was edited, so the last edit comes first; everything else by when it happened.
+     */
+    const activity = (r: (typeof rows)[number]) =>
+      Math.max(r.at.getTime(), r.correctsId ? r.recordedAt.getTime() : 0);
     return rows
       .filter((r) => !replaced.has(r.id))
+      .sort((a, b) => activity(b) - activity(a))
       .map((r) => {
         const earlier: { subject: string | null; body: string | null; at: Date; recordedAt: Date }[] = [];
         for (let p = r.correctsId ? byId.get(r.correctsId) : undefined; p; p = p.correctsId ? byId.get(p.correctsId) : undefined) {
