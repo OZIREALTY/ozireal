@@ -46,6 +46,21 @@ export function Review({ campaignName, rows }: { campaignName: string; rows: Rev
   const [ver, setVer] = React.useState(0);
   const [progress, setProgress] = React.useState<string | null>(null);
 
+  /**
+   * Drafts written after the screen opened arrive ticked too (owner, 2026-11-24), so the
+   * button already counts them. Ones the agent unticked stay unticked.
+   */
+  const seen = React.useRef(new Set(waiting.map((r) => r.contactId)));
+  const waitingKey = waiting.map((r) => r.contactId).join(",");
+  React.useEffect(() => {
+    const fresh = waiting.map((r) => r.contactId).filter((id) => !seen.current.has(id));
+    if (!fresh.length) return;
+    fresh.forEach((id) => seen.current.add(id));
+    setTicked((s) => new Set([...s, ...fresh]));
+    setCur((c) => c || fresh[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingKey]);
+
   const writing = rows.filter((r) => r.state === "writing").length;
   React.useEffect(() => {
     if (!writing) return;

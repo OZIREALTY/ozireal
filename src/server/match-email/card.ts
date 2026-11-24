@@ -12,6 +12,18 @@ export const emailCardSchema = z
         advantages: z
           .preprocess((v) => (Array.isArray(v) ? v : []), z.array(z.object({ title: t(40), detail: t(70) })))
           .transform((a) => a.filter((x) => x.title).slice(0, 6)),
+        /** Extra properties' cards (2026-11-24), kept when a sample is reused. */
+        more: z
+          .array(
+            z.object({
+              listingId: z.string().uuid(),
+              title: t(60),
+              urgency: z.string().max(140).nullable(),
+              advantages: z.array(z.object({ title: t(40), detail: t(70) })).max(6),
+            }),
+          )
+          .max(4)
+          .optional(),
       })
       .nullable(),
   )

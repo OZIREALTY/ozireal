@@ -10,6 +10,7 @@ import { loadPrompt } from "@/server/ai/prompts";
 import { checkConsent } from "@/server/outbound/gate";
 import { emailPropertiesFor, propertyEmailHtml } from "@/server/outbound/property-email";
 import { enqueue } from "@/server/jobs/queues";
+import { emailCardSchema } from "@/server/match-email/card";
 import { COMPOSE_PROMPT, MAX_HOMES, TONES, cardsFor, draftFacts, draftRequest, draftSchema, extraHomes } from "@/server/match-email/draft";
 
 /**
@@ -88,7 +89,7 @@ export const previewComposeEmail = defineAction({
       unsubscribeUrl: "https://www.ozirealty.com.au/unsubscribe",
       agencyLine: t?.licence ? `${t.name} · ${t.licence}` : (t?.name ?? ""),
     });
-    return { subject: data.subject, reviewNote: data.reviewNote, html };
+    return { subject: data.subject, reviewNote: data.reviewNote, html, draft: { subject: data.subject, body: data.body, reviewNote: data.reviewNote, card } };
   },
 });
 
@@ -98,6 +99,20 @@ export const startComposeEmail = defineAction({
     ...brief,
     name: z.string().trim().max(120).default(""),
     contactIds: z.array(z.string().uuid()).min(1, "Choose at least one person").max(300),
+    /**
+     * The sample the agent already read (owner, 2026-11-24): it becomes that person's
+     * draft instead of being written twice. It still waits in the approval queue like
+     * every other draft (rule 1), and consent is checked again at the send (rule 2).
+     */
+    sample: z
+      .object({
+        contactId: z.string().uuid(),
+        subject: z.string().trim().min(3).max(120),
+        body: z.string().trim().min(20).max(3000),
+        reviewNote: z.string().max(200).nullable(),
+        card: emailCardSchema,
+      })
+      .optional(),
   }),
   async handler(input, ctx) {
     const ids = [...new Set(input.listingIds.length ? input.listingIds : input.listingId ? [input.listingId] : [])];
@@ -133,7 +148,34 @@ export const startComposeEmail = defineAction({
     const recipients = await ctx.tx
       .insert(campaignRecipients)
       .values(go.map((contactId) => ({ tenantId: ctx.tenantId, campaignId: c.id, contactId })))
-      .returning({ id: campaignRecipients.id });
+      .returning({ id: campaignRecipients.id, contactId: campaignRecipients.contactId });
+
+    const reuse = input.sample && go.includes(input.sample.contactId) ? input.sample : null;
+    if (reuse) {
+      const r = recipients.find((x) => x.contactId === reuse.contactId)!;
+      const g = await checkConsent(ctx.tx, reuse.contactId, "email");
+      const [item] = await ctx.tx
+        .insert(approvalItems)
+        .values({
+          tenantId: ctx.tenantId,
+          kind: "email",
+          status: "pending",
+          contactId: reuse.contactId,
+          listingId: home?.listingId ?? null,
+          campaignId: c.id,
+          draftSubject: reuse.subject,
+          draftBody: reuse.body,
+          reviewNote: reuse.reviewNote,
+          card: home ? reuse.card : null,
+          consentAtDraft: g.consentStatus,
+          consentCheckedAt: new Date(),
+          model: "sonnet",
+        })
+        .returning({ id: approvalItems.id });
+      await ctx.tx.update(campaignRecipients).set({ approvalItemId: item.id }).where(eq(campaignRecipients.id, r.id));
+      await ctx.tx.update(campaigns).set({ status: "in_approval" }).where(eq(campaigns.id, c.id));
+    }
+    const toDraft = recipients.filter((x) => x.contactId !== reuse?.contactId);
 
     await ctx.audit({
       kind: "edit",
@@ -143,7 +185,7 @@ export const startComposeEmail = defineAction({
       entityId: c.id,
     });
     ctx.afterCommit(async () => {
-      for (const r of recipients) await enqueue("DraftMatchEmail", { tenantId: ctx.tenantId, entityId: r.id });
+      for (const r of toDraft) await enqueue("DraftMatchEmail", { tenantId: ctx.tenantId, entityId: r.id });
     });
     revalidatePath("/campaigns");
     revalidatePath("/approvals");

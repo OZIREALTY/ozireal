@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Home, MessageSquareText, Search, Sparkles, Loader2, Users } from "lucide-react";
 import type { ComposeData } from "@/server/queries/compose";
+import type { EmailCard } from "@/db/schema";
 import { previewComposeEmail, startComposeEmail } from "@/server/actions/compose-email";
 
 /**
@@ -14,12 +15,14 @@ import { previewComposeEmail, startComposeEmail } from "@/server/actions/compose
  */
 
 type Tone = "warm" | "short" | "investor";
+type SampleDraft = { subject: string; body: string; reviewNote: string | null; card: EmailCard | null };
 const TONES: { v: Tone; label: string }[] = [
   { v: "warm", label: "Warm" },
   { v: "short", label: "Short and direct" },
   { v: "investor", label: "Investor numbers" },
 ];
-const STEPS = ["What is it about?", "Who gets it?", "What should it say?", "Check and send for OK"];
+/** Three steps (owner, 2026-11-24): the sample and the send sit together on the last one. */
+const STEPS = ["What is it about?", "Who gets it?", "Write it and send for OK"];
 
 export function Composer({
   data,
@@ -54,7 +57,9 @@ export function Composer({
   const [tone, setTone] = React.useState<Tone>("warm");
   const [note, setNote] = React.useState("");
   const [name, setName] = React.useState("");
-  const [sample, setSample] = React.useState<{ subject: string; html: string; reviewNote: string | null; who: string } | null>(null);
+  const [sample, setSample] = React.useState<{ subject: string; html: string; reviewNote: string | null; who: string; whoId: string; key: string; draft: SampleDraft } | null>(null);
+  /** What the sample was written from: reused for that person only while this still matches. */
+  const sampleKey = (whoId: string) => JSON.stringify([whoId, listingIds, tone, note]);
   const [busy, setBusy] = React.useState<"preview" | "send" | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<{ campaignId: string; count: number; noConsent: number; held: number } | null>(null);
@@ -165,7 +170,6 @@ export function Composer({
     kind === "general" || !!home,
     reachable.length > 0,
     kind === "property" || note.trim().length >= 10,
-    true,
   ][step];
 
   function go(n: number) {
@@ -181,7 +185,7 @@ export function Composer({
     try {
       const r = await previewComposeEmail({ listingIds: picked.map((h) => h.listingId), tone, note, contactId: who.id });
       if (!r.ok) setError(r.error);
-      else setSample({ ...r.data, who: who.name });
+      else setSample({ ...r.data, who: who.name, whoId: who.id, key: sampleKey(who.id) });
     } catch {
       setError("Could not reach the server. Try again.");
     } finally {
@@ -199,11 +203,13 @@ export function Composer({
         note,
         name,
         contactIds: reachable.map((p) => p.id),
+        // The sample becomes that person's draft when nothing changed since (owner, 2026-11-24).
+        sample: sample && sample.key === sampleKey(sample.whoId) && reachable.some((p) => p.id === sample.whoId) ? { contactId: sample.whoId, ...sample.draft } : undefined,
       });
       if (!r.ok) setError(r.error);
       else {
-        setDone(r.data);
-        router.refresh();
+        // Straight to the review screen: drafts appear there as they are written.
+        router.push(`/campaigns/${r.data.campaignId}/review`);
       }
     } catch {
       setError("Could not reach the server. Try again.");
@@ -257,7 +263,7 @@ export function Composer({
         <div className="grid sm:grid-cols-2 gap-3.5">
           {(
             [
-              { k: "property", icon: Home, t: "About a property", d: "New listing, price change, open home. Comes with the visual property card.", n: "4 steps" },
+              { k: "property", icon: Home, t: "About a property", d: "New listing, price change, open home. Comes with the visual property card.", n: "2 steps" },
               { k: "general", icon: MessageSquareText, t: "A general message", d: "Market update, seasonal note, news. A personal note with your signature.", n: "3 steps" },
             ] as const
           ).map((o) => (
@@ -545,10 +551,10 @@ export function Composer({
                 </div>
               )}
 
-              {step === 3 && (
-                <div>
-                  <p className="text-[19px] font-extrabold">Check and send for your OK</p>
-                  <p className="text-2 mb-4">This writes one email per person and puts them in <b>Waiting for my OK</b>. You can read, edit or remove any of them there.</p>
+              {step === 2 && (
+                <div className="mt-6 pt-5 border-t">
+                  <p className="text-[16px] font-extrabold">Then send for your OK</p>
+                  <p className="text-2 mb-3">This writes one email per person and puts them in <b>Waiting for my OK</b>. You can read, edit or remove any of them there.</p>
                   <ul className="space-y-2">
                     <Li><b>{reachable.length} {reachable.length === 1 ? "person" : "people"}</b> will get it: {reachable.map((p) => p.name).join(", ")}.</Li>
                     {chosen.length > reachable.length && (
@@ -588,7 +594,7 @@ export function Composer({
                     Close
                   </button>
                 </div>
-                {step < 3 ? (
+                {step < 2 ? (
                   <button
                     type="button"
                     disabled={!canNext}
@@ -600,7 +606,7 @@ export function Composer({
                 ) : (
                   <button
                     type="button"
-                    disabled={busy !== null || !reachable.length}
+                    disabled={busy !== null || !reachable.length || !canNext}
                     onClick={send}
                     className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] text-white font-bold px-5 min-h-11 disabled:opacity-40"
                   >
@@ -650,7 +656,7 @@ export function Composer({
               )}
               <br />
               <br />
-              In step 3, press <b>Show me a sample</b> to see a real draft here.
+              In the last step, press <b>Show me a sample</b> to see a real draft here.
             </div>
           )}
         </aside>
