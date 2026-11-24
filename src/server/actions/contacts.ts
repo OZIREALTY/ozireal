@@ -24,7 +24,7 @@ import {
   type PreferenceChangeProposal,
 } from "@/server/ai/proposals";
 import { ingestInTx } from "@/server/intake/pipeline";
-import { insertManualConsent } from "@/server/consent/manual";
+import { grantStandingConsent } from "@/server/consent/manual";
 import { enqueue } from "@/server/jobs/queues";
 import { CONTACT_ROLES as CONTACT_ROLES_ALL } from "@/lib/roles";
 
@@ -190,20 +190,7 @@ const contactInput = z.object({
  * lose the enquiry entirely.
  */
 export const createContact = defineAction({
-  input: contactInput.extend({
-    /**
-     * Consent at creation (owner, 2026-11-23): contacts added by hand used to start with
-     * none, so they could not be emailed even when they had agreed. Same record as
-     * "Record consent": how, who, when and what they agreed to.
-     */
-    consent: z
-      .object({
-        channels: z.array(z.enum(["email", "sms"])).min(1),
-        method: z.enum(["phone_call", "email", "sms", "in_person", "in_writing"]),
-        wording: z.string().trim().min(10, "Say what they agreed to, e.g. 'emails about new listings'").max(1000),
-      })
-      .optional(),
-  }),
+  input: contactInput,
   async handler(input, ctx) {
     const emailNormalised = normaliseEmail(input.email || null);
     const phoneE164 = toE164(input.phone || null);
@@ -280,23 +267,8 @@ export const createContact = defineAction({
       });
     }
 
-    if (input.consent) {
-      for (const channel of input.consent.channels) {
-        // Only for a channel they can actually be reached on.
-        if (channel === "email" && !emailNormalised) continue;
-        if (channel === "sms" && !phoneE164) continue;
-        await insertManualConsent(ctx.tx, {
-          tenantId: ctx.tenantId,
-          contactId: created.id,
-          channel,
-          status: "granted",
-          method: input.consent.method,
-          recordedBy: ctx.userName,
-          wording: input.consent.wording,
-          occurredAt: new Date(),
-        });
-      }
-    }
+    // Standing consent (owner, 2026-11-24): every contact has agreed before entry.
+    await grantStandingConsent(ctx.tx, { tenantId: ctx.tenantId, contactId: created.id });
 
     await ctx.audit({
       kind: "edit",

@@ -1,5 +1,6 @@
 "use server";
 
+import { grantStandingConsent } from "@/server/consent/manual";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
@@ -369,6 +370,8 @@ export const importContacts = defineAction({
           });
         }
       }
+      // Standing consent (owner, 2026-11-24) fills any channel the import left blank.
+      await grantStandingConsent(ctx.tx, { tenantId: ctx.tenantId, contactId });
     }
 
     // The matcher reads an embedding of preferences; refresh the ones this import touched.

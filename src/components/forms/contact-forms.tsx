@@ -35,7 +35,7 @@ import { CONTACT_ROLES as CONTACT_ROLES_ALL, roleLabel } from "@/lib/roles";
  */
 export function RecordConsentButton({ contactId }: { contactId: string }) {
   const [open, setOpen] = React.useState(false);
-  const [status, setStatus] = React.useState<"granted" | "revoked">("granted");
+  const [status, setStatus] = React.useState<"granted" | "revoked">("revoked");
   const a = useAction(recordConsent, { onSuccess: () => setOpen(false) });
 
   return (
@@ -44,14 +44,14 @@ export function RecordConsentButton({ contactId }: { contactId: string }) {
         type="button"
         onClick={() => {
           a.reset();
-          setStatus("granted");
+          setStatus("revoked");
           setOpen(true);
         }}
         className="text-[12px] px-2.5 min-h-7 rounded-md surface-2 border hover:surface-3"
       >
-        Record consent
+        Record an opt-out
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Record consent">
+      <Modal open={open} onClose={() => setOpen(false)} title="Record an opt-out (or a renewed consent)">
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -157,28 +157,13 @@ export function NewContactButton() {
       suburb: f.get("suburb") ?? "",
       roles: f.getAll("roles"),
       doNotContact: f.get("doNotContact") === "on",
-      ...(consentChannels.length && f.get("doNotContact") !== "on"
-        ? {
-            consent: {
-              channels: consentChannels,
-              method: f.get("consentMethod"),
-              wording: f.get("consentWording") ?? "",
-            },
-          }
-        : {}),
     });
   }
-
-  // Consent at creation (2026-11-23): without it a hand-added contact cannot be emailed.
-  const [consentChannels, setConsentChannels] = React.useState<("email" | "sms")[]>([]);
-  const toggleConsent = (c: "email" | "sms") =>
-    setConsentChannels((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c]));
 
   return (
     <>
       <button
         onClick={() => {
-          setConsentChannels([]);
           setDuplicate(false);
           a.reset();
           setOpen(true);
@@ -221,49 +206,14 @@ export function NewContactButton() {
             )}
           </div>
 
-          <fieldset className="rounded-md border p-3 space-y-2">
-            <legend className="text-[12px] font-medium text-2 px-1">They agreed to hear from us by</legend>
-            <div className="flex flex-wrap gap-2">
-              {(["email", "sms"] as const).map((c) => (
-                <label key={c} className="inline-flex items-center gap-1.5 text-[12.5px] border rounded-md px-2 py-1.5 surface-3 cursor-pointer">
-                  <input type="checkbox" checked={consentChannels.includes(c)} onChange={() => toggleConsent(c)} />
-                  {c === "email" ? "Email" : "SMS"}
-                </label>
-              ))}
-            </div>
-            {consentChannels.length > 0 && (
-              <>
-                <Select
-                  label="How did they agree?"
-                  name="consentMethod"
-                  defaultValue="in_person"
-                  options={[
-                    { value: "in_person", label: "In person" },
-                    { value: "phone_call", label: "Phone call" },
-                    { value: "email", label: "By email" },
-                    { value: "sms", label: "By SMS" },
-                    { value: "in_writing", label: "In writing (form, card)" },
-                  ]}
-                />
-                <Input
-                  label="What they agreed to"
-                  name="consentWording"
-                  required
-                  placeholder="Emails and texts about new listings and the market"
-                  errors={a.fieldErrors["consent.wording"] ?? a.fieldErrors.consent}
-                />
-              </>
-            )}
-            <p className="text-3 text-[11.5px] leading-relaxed">
-              Saved with today&apos;s date and your name: the record the Spam Act asks for. Leave both
-              unticked if they have not agreed; you can record it later on their page.
-            </p>
-          </fieldset>
-
           <label className="flex items-center gap-2 text-[12.5px]">
             <input type="checkbox" name="doNotContact" />
             Do not contact
           </label>
+          <p className="text-3 text-[11.5px] leading-relaxed">
+            Saved as agreeing to email, SMS and calls (agency consent, obtained before entry).
+            Anyone who unsubscribes, replies STOP or is marked Do not contact is left out automatically.
+          </p>
 
           <FormError message={a.error} />
           {duplicate && (

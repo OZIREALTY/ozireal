@@ -1,5 +1,6 @@
 "use server";
 
+import { grantStandingConsent } from "@/server/consent/manual";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
@@ -120,6 +121,7 @@ export const createFullListing = defineAction({
             })
             .returning({ id: contacts.id });
           contactId = c.id;
+          await grantStandingConsent(ctx.tx, { tenantId: ctx.tenantId, contactId });
           created++;
         }
       } else if (contactId) {

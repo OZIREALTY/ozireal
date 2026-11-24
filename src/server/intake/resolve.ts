@@ -1,3 +1,4 @@
+import { grantStandingConsent } from "@/server/consent/manual";
 import { and, eq, isNull, or } from "drizzle-orm";
 import type { Tx } from "@/db";
 import { contacts, mergeReviews } from "@/db/schema";
@@ -211,6 +212,8 @@ async function createRecord(
     .returning({ id: contacts.id });
 
   // Roles are applied by the pipeline from what the message says, not assumed here.
+  // Standing consent (owner, 2026-11-24); never overrides a form consent or an opt-out.
+  await grantStandingConsent(tx, { tenantId, contactId: created.id });
   return created.id;
 }
 

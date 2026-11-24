@@ -1,3 +1,4 @@
+import { grantStandingConsent } from "@/server/consent/manual";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and, desc } from "drizzle-orm";
@@ -215,6 +216,8 @@ async function resolveByPhone(tenantId: string, raw: string): Promise<string> {
         sourceChannel: "sms",
       })
       .returning({ id: contacts.id });
+    // Standing consent (owner, 2026-11-24); a STOP reply still revokes SMS.
+    await grantStandingConsent(tx, { tenantId, contactId: created.id });
     return created.id;
   });
 }
