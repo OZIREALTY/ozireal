@@ -365,12 +365,12 @@ export function Composer({
                         <button type="button" onClick={() => setListingIds([])} className="text-[13px] font-semibold text-[var(--accent)] hover:underline">Clear</button>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-4 max-h-[420px] overflow-y-auto pr-1">
+                    <div className="mt-3 max-h-[440px] overflow-y-auto rounded-xl border divide-y">
                       {shownHomes.map((h) => {
                         const n = listingIds.indexOf(h.listingId);
                         return (
-                        <div key={h.listingId} style={selStyle(n >= 0)} className={`${opt(n >= 0)} !p-2.5 flex gap-2 items-start`}>
-                          <label className="shrink-0 grid place-items-center w-7 h-7 -m-1 cursor-pointer" title={n >= 0 ? `Chosen ${n + 1}. Untick to remove` : "Tick to include"}>
+                        <div key={h.listingId} className={`flex items-center gap-3 px-3 py-2 ${n >= 0 ? "bg-[var(--accent)]/[0.07]" : ""}`}>
+                          <label className="shrink-0 grid place-items-center w-8 h-8 cursor-pointer" title={n >= 0 ? `Chosen ${n + 1}. Untick to remove` : "Tick to include"}>
                             <input
                               type="checkbox"
                               checked={n >= 0}
@@ -380,17 +380,17 @@ export function Composer({
                               className="w-[18px] h-[18px] accent-[var(--accent)] cursor-pointer"
                             />
                           </label>
-                          <div className="min-w-0">
-                          <b className="block leading-snug text-[13.5px]">{n >= 0 && <span className="inline-grid place-items-center w-[18px] h-[18px] mr-1 rounded-full bg-[var(--accent)] text-white text-[10.5px] align-middle">{n + 1}</span>}{h.label}</b>
-                          <small className="text-2 block mt-0.5 text-[12px]">
+                          <div className="min-w-0 flex-1">
+                          <b className="block truncate text-[14px]" title={h.label}>{n >= 0 && <span className="inline-grid place-items-center w-[18px] h-[18px] mr-1.5 rounded-full bg-[var(--accent)] text-white text-[10.5px] align-[2px]">{n + 1}</span>}{h.label}</b>
+                          <small className="text-2 block truncate text-[12.5px]">
                             {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.section === "email_only" ? "email only" : h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
                           </small>
                           </div>
                         </div>
                         );
                       })}
-                      {!data.homes.length && <p className="text-2">No live or draft listings yet.</p>}
-                      {!!data.homes.length && !shownHomes.length && <p className="text-2">Nothing matches &quot;{homeQ}&quot;.</p>}
+                      {!data.homes.length && <p className="text-2 p-3">No live or draft listings yet.</p>}
+                      {!!data.homes.length && !shownHomes.length && <p className="text-2 p-3">Nothing matches &quot;{homeQ}&quot;.</p>}
                     </div>
                     </>
                   )}
