@@ -42,7 +42,11 @@ export function Composer({
   const [open, setOpen] = React.useState(startOpen);
   const [step, setStep] = React.useState(0);
   const [kind, setKind] = React.useState<"property" | "general" | null>(null);
-  const [listingId, setListingId] = React.useState<string>(data.homes[0]?.listingId ?? "");
+  /** Several properties in one email (owner, 2026-11-24), in the order ticked. */
+  const [listingIds, setListingIds] = React.useState<string[]>(data.homes[0] ? [data.homes[0].listingId] : []);
+  const [homeQ, setHomeQ] = React.useState("");
+  const toggleHome = (id: string) =>
+    setListingIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 5 ? s : [...s, id]));
   const [groups, setGroups] = React.useState<Set<string>>(new Set(toPerson ? [] : ["matched"]));
   const [hand, setHand] = React.useState<Set<string>>(new Set(toPerson ? [toPerson.id] : []));
   const [removed, setRemoved] = React.useState<Set<string>>(new Set());
@@ -56,7 +60,16 @@ export function Composer({
   const [done, setDone] = React.useState<{ campaignId: string; count: number; noConsent: number; held: number } | null>(null);
   const rootRef = React.useRef<HTMLElement>(null);
 
-  const home = kind === "property" ? data.homes.find((h) => h.listingId === listingId) ?? null : null;
+  const picked = kind === "property" ? listingIds.map((id) => data.homes.find((h) => h.listingId === id)).filter((h): h is (typeof data.homes)[number] => !!h) : [];
+  const home = picked[0] ?? null;
+  const shownHomes = React.useMemo(() => {
+    const words = homeQ.toLowerCase().split(/s+/).filter(Boolean);
+    if (!words.length) return data.homes;
+    return data.homes.filter((h) => {
+      const t = [h.label, h.priceDisplay, h.beds ? `${h.beds} bed` : null, h.section === "new_homes" ? "new homes project" : null, h.section === "email_only" ? "email only" : null].filter(Boolean).join(" ").toLowerCase();
+      return words.every((w) => t.includes(w));
+    });
+  }, [data.homes, homeQ]);
   const audienceMembers = React.useMemo(
     () => new Map(data.audiences.map((a) => [a.id, new Set(a.members)])),
     [data.audiences],
@@ -66,7 +79,7 @@ export function Composer({
     const ids = new Set<string>();
     for (const p of data.people) {
       const inGroup =
-        (groups.has("matched") && home && p.matches[home.propertyId] !== undefined) ||
+        (groups.has("matched") && picked.some((h) => p.matches[h.propertyId] !== undefined)) ||
         (groups.has("all") && p.canEmail) ||
         [...groups].some((g) => g.startsWith("tag:") && p.tags.includes(g.slice(4))) ||
         [...groups].some((g) => g.startsWith("seg:") && !!audienceMembers.get(g.slice(4))?.has(p.id));
@@ -77,7 +90,8 @@ export function Composer({
       .sort((a, b) => (home ? (b.matches[home.propertyId] ?? 0) - (a.matches[home.propertyId] ?? 0) : 0));
   }, [data.people, groups, hand, removed, home, audienceMembers]);
   const reachable = chosen.filter((p) => p.canEmail);
-  const matchedCount = home ? data.people.filter((p) => p.matches[home.propertyId] !== undefined).length : 0;
+  const matchedCount = data.people.filter((p) => picked.some((h) => p.matches[h.propertyId] !== undefined)).length;
+  const aboutLabel = picked.length > 1 ? picked.map((h) => h.label).join(" · ") : home?.label ?? "";
   const emailable = data.people.filter((p) => p.canEmail).length;
 
   const toggleGroup = (g: string) =>
@@ -99,7 +113,7 @@ export function Composer({
     try {
       sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ kind, listingId, groups: [...groups], hand: [...hand], removed: [...removed], tone, note, name }),
+        JSON.stringify({ kind, listingIds, groups: [...groups], hand: [...hand], removed: [...removed], tone, note, name }),
       );
     } catch {
       /* private mode: the builder still works, the draft is just not kept */
@@ -112,6 +126,7 @@ export function Composer({
     let d: {
       kind?: "property" | "general" | null;
       listingId?: string;
+      listingIds?: string[];
       groups?: string[];
       hand?: string[];
       removed?: string[];
@@ -126,7 +141,8 @@ export function Composer({
       d = null;
     }
     if (d?.kind) setKind(d.kind);
-    if (d?.listingId) setListingId(d.listingId);
+    if (d?.listingIds?.length) setListingIds(d.listingIds);
+    else if (d?.listingId) setListingIds([d.listingId]);
     setGroups(new Set([...(d?.groups ?? []), ...(useAudience ? [`seg:${audience}`] : [])]));
     if (d?.hand) setHand(new Set(d.hand));
     if (d?.removed) setRemoved(new Set(d.removed));
@@ -163,7 +179,7 @@ export function Composer({
     setBusy("preview");
     setError(null);
     try {
-      const r = await previewComposeEmail({ listingId: home?.listingId ?? "", tone, note, contactId: who.id });
+      const r = await previewComposeEmail({ listingIds: picked.map((h) => h.listingId), tone, note, contactId: who.id });
       if (!r.ok) setError(r.error);
       else setSample({ ...r.data, who: who.name });
     } catch {
@@ -178,7 +194,7 @@ export function Composer({
     setError(null);
     try {
       const r = await startComposeEmail({
-        listingId: home?.listingId ?? "",
+        listingIds: picked.map((h) => h.listingId),
         tone,
         note,
         name,
@@ -332,19 +348,39 @@ export function Composer({
               {step === 0 && (
                 <div>
                   <p className="text-[19px] font-extrabold">Which property?</p>
-                  <p className="text-2 mb-4">Live and coming-soon listings. Its card goes under every email.</p>
+                  <p className="text-2 mb-4">Tick one or several (up to 5). Each gets its own card under the email, in the order ticked.</p>
                   {kind === "property" && (
+                    <>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <input
+                        type="search"
+                        value={homeQ}
+                        onChange={(e) => setHomeQ(e.target.value)}
+                        placeholder="Search by suburb, street, project or price"
+                        aria-label="Search properties"
+                        className="flex-1 min-w-[220px] rounded-xl border px-3 min-h-11 bg-transparent"
+                      />
+                      <span className="text-2 text-[13px]">{listingIds.length} chosen{listingIds.length >= 5 ? " (most allowed)" : ""}</span>
+                      {listingIds.length > 0 && (
+                        <button type="button" onClick={() => setListingIds([])} className="text-[13px] font-semibold text-[var(--accent)] hover:underline">Clear</button>
+                      )}
+                    </div>
                     <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2.5 mt-4 max-h-[420px] overflow-y-auto pr-1">
-                      {data.homes.map((h) => (
-                        <button key={h.listingId} type="button" style={selStyle(h.listingId === listingId)} className={opt(h.listingId === listingId)} onClick={() => setListingId(h.listingId)}>
-                          <b className="block leading-snug">{h.label}</b>
+                      {shownHomes.map((h) => {
+                        const n = listingIds.indexOf(h.listingId);
+                        return (
+                        <button key={h.listingId} type="button" aria-pressed={n >= 0} style={selStyle(n >= 0)} className={opt(n >= 0)} onClick={() => toggleHome(h.listingId)}>
+                          <b className="block leading-snug">{n >= 0 && <span className="inline-grid place-items-center w-5 h-5 mr-1.5 rounded-full bg-[var(--accent)] text-white text-[11px] align-middle">{n + 1}</span>}{h.label}</b>
                           <small className="text-2 block mt-1">
                             {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.section === "email_only" ? "email only" : h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
                           </small>
                         </button>
-                      ))}
+                        );
+                      })}
                       {!data.homes.length && <p className="text-2">No live or draft listings yet.</p>}
+                      {!!data.homes.length && !shownHomes.length && <p className="text-2">Nothing matches &quot;{homeQ}&quot;.</p>}
                     </div>
+                    </>
                   )}
                 </div>
               )}
@@ -508,7 +544,7 @@ export function Composer({
                         Left out: {chosen.filter((p) => !p.canEmail).map((p) => `${p.name} (${p.why})`).join("; ")}.
                       </Li>
                     )}
-                    <Li>About: <b>{home ? home.label : "a general message"}</b> · tone: {TONES.find((t) => t.v === tone)?.label}</Li>
+                    <Li>About: <b>{home ? aboutLabel : "a general message"}</b> · tone: {TONES.find((t) => t.v === tone)?.label}</Li>
                     <Li>Unsubscribe link and agency details are added to every email.</Li>
                     <Li>Consent is checked again at the moment of sending.</Li>
                   </ul>
@@ -592,7 +628,11 @@ export function Composer({
             <div className="rounded-xl border border-dashed p-5 text-2 text-[14px] leading-relaxed">
               <Users size={18} className="mb-2" />
               {home ? (
+                picked.length > 1 ? (
+                <>The email opens with a personal note to each person about all {picked.length} properties, then one card for each: <b>{aboutLabel}</b>.</>
+              ) : (
                 <>The email opens with a personal note to each person, then the <b>{home.label}</b> card: photo, price wording, specs, why it stands out and a button to the listing.</>
+              )
               ) : (
                 <>A personal note to each person, with your signature and the unsubscribe line.</>
               )}

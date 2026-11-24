@@ -6,7 +6,7 @@ import { withComplianceFooter } from "./gate";
 import { unsubscribeUrl } from "./unsubscribe";
 import { sendMarketingEmail } from "./notices";
 import { addTracking, replyAddress, replyInboxOn } from "./tracking";
-import { emailPropertyFor, propertyEmailHtml, propertyEmailText } from "./property-email";
+import { emailPropertiesFor, propertyEmailHtml, propertyEmailText, type EmailProperty } from "./property-email";
 
 /**
  * Actually putting a message on the wire (B5.6).
@@ -72,19 +72,21 @@ export async function sendMessage(req: SendRequest): Promise<SendResult> {
    */
   const unsub = unsubscribeUrl(req.tenantId, req.contactId);
   const agencyLine = req.agency.licence ? `${req.agency.name} · ${req.agency.licence}` : req.agency.name;
-  const loaded = req.listingId ? await emailPropertyFor(req.tenantId, req.listingId) : null;
+  const { property: loaded, more: moreLoaded } = await emailPropertiesFor(req.tenantId, req.listingId ?? null, req.card);
   /**
    * An email-only property with no source link asks for a reply ("Reply to find out
    * more", a mailto). Point it at THIS email's tracked reply address (owner, 2026-11-23)
    * so the message is counted as "Got back to you" and logged, then forwarded to Gmail
    * like any reply. Without the reply inbox it stays the agency address.
    */
-  const property =
-    loaded && req.trackId && replyInboxOn() && loaded.link.url.startsWith("mailto:")
-      ? { ...loaded, link: { ...loaded.link, url: loaded.link.url.replace(/^mailto:[^?]*/, `mailto:${replyAddress(req.trackId)}`) } }
-      : loaded;
-  const text = propertyEmailText({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
-  const base = propertyEmailHtml({ body: req.body, property, card: req.card, unsubscribeUrl: unsub, agencyLine });
+  const tracked = (p: EmailProperty): EmailProperty =>
+    req.trackId && replyInboxOn() && p.link.url.startsWith("mailto:")
+      ? { ...p, link: { ...p.link, url: p.link.url.replace(/^mailto:[^?]*/, `mailto:${replyAddress(req.trackId)}`) } }
+      : p;
+  const property = loaded ? tracked(loaded) : null;
+  const more = moreLoaded.map((m) => ({ ...m, property: tracked(m.property) }));
+  const text = propertyEmailText({ body: req.body, property, card: req.card, more, unsubscribeUrl: unsub, agencyLine });
+  const base = propertyEmailHtml({ body: req.body, property, card: req.card, more, unsubscribeUrl: unsub, agencyLine });
   const html = req.trackId ? addTracking(base, req.tenantId, req.trackId) : base;
   const r = await sendMarketingEmail({
     to: contact.email,

@@ -8,9 +8,9 @@ import { approvalItems, campaignRecipients, campaigns, contacts, listings, prope
 import { runTask } from "@/server/ai/run-task";
 import { loadPrompt } from "@/server/ai/prompts";
 import { checkConsent } from "@/server/outbound/gate";
-import { emailPropertyFor, propertyEmailHtml } from "@/server/outbound/property-email";
+import { emailPropertiesFor, propertyEmailHtml } from "@/server/outbound/property-email";
 import { enqueue } from "@/server/jobs/queues";
-import { COMPOSE_PROMPT, TONES, draftFacts, draftRequest, draftSchema } from "@/server/match-email/draft";
+import { COMPOSE_PROMPT, MAX_HOMES, TONES, cardsFor, draftFacts, draftRequest, draftSchema, extraHomes } from "@/server/match-email/draft";
 
 /**
  * The Campaigns composer (2026-11-20, owner-approved preview): one email, about a
@@ -21,6 +21,8 @@ import { COMPOSE_PROMPT, TONES, draftFacts, draftRequest, draftSchema } from "@/
 
 const brief = {
   listingId: z.union([z.string().uuid(), z.literal("")]).optional(),
+  /** Several properties in one email (owner, 2026-11-24); the first is the lead one. */
+  listingIds: z.array(z.string().uuid()).max(MAX_HOMES, `Up to ${MAX_HOMES} properties in one email`).default([]),
   tone: z.enum(TONES).default("warm"),
   note: z.string().trim().max(1500).default(""),
 };
@@ -46,7 +48,9 @@ async function about(tx: Parameters<Parameters<typeof defineAction>[0]["handler"
 export const previewComposeEmail = defineAction({
   input: z.object({ ...brief, contactId: z.string().uuid() }),
   async handler(input, ctx) {
-    const home = await about(ctx.tx, input.listingId || undefined);
+    const ids = [...new Set(input.listingIds.length ? input.listingIds : input.listingId ? [input.listingId] : [])];
+    const home = await about(ctx.tx, ids[0]);
+    const extra = await extraHomes(ctx.tx, ids, home?.listingId ?? null);
     if (!home && !input.note) throw new ActionError("Say what the email is about, or pick a property.");
     const [person] = await ctx.tx
       .select({ firstName: contacts.firstName })
@@ -54,7 +58,7 @@ export const previewComposeEmail = defineAction({
       .where(eq(contacts.id, input.contactId))
       .limit(1);
     if (!person) throw new ActionError("That person is no longer in your contacts.");
-    const facts = await draftFacts(ctx.tx, input.contactId, home?.propertyId ?? null);
+    const facts = await draftFacts(ctx.tx, input.contactId, home?.propertyId ?? null, extra.map((e) => e.propertyId));
     if (!facts.profile) throw new ActionError("Nothing on file for that person yet.");
     const prompt = loadPrompt(COMPOSE_PROMPT);
     const { data } = await runTask(draftSchema, {
@@ -65,7 +69,7 @@ export const previewComposeEmail = defineAction({
       messages: [
         {
           role: "user",
-          content: draftRequest({ firstName: person.firstName, ...facts, profile: facts.profile, brief: { tone: input.tone, note: input.note } }),
+          content: draftRequest({ firstName: person.firstName, ...facts, profile: facts.profile, brief: { tone: input.tone, note: input.note, listingIds: ids } }),
         },
       ],
       maxTokens: 2000,
@@ -74,11 +78,13 @@ export const previewComposeEmail = defineAction({
       promptVersion: prompt.version,
     });
     const [t] = await ctx.tx.select({ name: tenants.name, licence: tenants.licenceNumber }).from(tenants).where(eq(tenants.id, ctx.tenantId)).limit(1);
-    const property = home ? await emailPropertyFor(ctx.tenantId, home.listingId) : null;
+    const card = home ? cardsFor(data, extra.map((e) => e.listingId)) : null;
+    const { property, more } = await emailPropertiesFor(ctx.tenantId, home?.listingId ?? null, card);
     const html = propertyEmailHtml({
       body: data.body,
       property,
-      card: home ? data.card : null,
+      card,
+      more,
       unsubscribeUrl: "https://www.ozirealty.com.au/unsubscribe",
       agencyLine: t?.licence ? `${t.name} · ${t.licence}` : (t?.name ?? ""),
     });
@@ -94,21 +100,23 @@ export const startComposeEmail = defineAction({
     contactIds: z.array(z.string().uuid()).min(1, "Choose at least one person").max(300),
   }),
   async handler(input, ctx) {
-    const home = await about(ctx.tx, input.listingId || undefined);
+    const ids = [...new Set(input.listingIds.length ? input.listingIds : input.listingId ? [input.listingId] : [])];
+    const home = await about(ctx.tx, ids[0]);
+    const extra = await extraHomes(ctx.tx, ids, home?.listingId ?? null);
     if (!home && input.note.length < 10) throw new ActionError("Say what the email is about, or pick a property.");
 
-    const ids: string[] = [];
+    const okIds: string[] = [];
     const left: string[] = [];
     for (const id of [...new Set(input.contactIds)]) {
       const g = await checkConsent(ctx.tx, id, "email");
-      (g.allowed ? ids : left).push(id);
+      (g.allowed ? okIds : left).push(id);
     }
     // No sending limit (owner, 2026-11-20: the once-a-week rule is removed).
     const held = new Set<string>();
-    const go = ids;
+    const go = okIds;
     if (!go.length) throw new ActionError("Nobody chosen can be emailed: no email consent, or no address.");
 
-    const name = input.name || (home ? home.label : input.note.split(/[.\n]/)[0].slice(0, 80)) || "Email";
+    const name = input.name || (home ? (extra.length ? `${home.label} + ${extra.length} more` : home.label) : input.note.split(/[.\n]/)[0].slice(0, 80)) || "Email";
     const [c] = await ctx.tx
       .insert(campaigns)
       .values({
@@ -118,7 +126,7 @@ export const startComposeEmail = defineAction({
         status: "draft",
         propertyId: home?.propertyId ?? null,
         listingId: home?.listingId ?? null,
-        segment: { kind: "compose", tone: input.tone, note: input.note, contactIds: go },
+        segment: { kind: "compose", tone: input.tone, note: input.note, contactIds: go, listingIds: ids },
         createdByUserId: ctx.userId,
       })
       .returning({ id: campaigns.id });

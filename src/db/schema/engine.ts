@@ -377,6 +377,11 @@ export type EmailCard = {
   title: string;
   urgency: string | null;
   advantages: { title: string; detail: string }[];
+  /**
+   * An email about several properties (owner, 2026-11-24): the cards after the first,
+   * in order, each tied to its listing. The first card is this object itself.
+   */
+  more?: { listingId: string; title: string; urgency: string | null; advantages: { title: string; detail: string }[] }[];
 };
 
 /**

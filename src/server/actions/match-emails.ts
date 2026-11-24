@@ -210,7 +210,7 @@ export const aiRewriteDraft = defineAction({
     });
     await ctx.tx
       .update(approvalItems)
-      .set({ draftSubject: data.subject, draftBody: data.body, originalBody: item.original ?? item.body, reviewNote: null, ...(data.card ? { card: data.card } : {}) })
+      .set({ draftSubject: data.subject, draftBody: data.body, originalBody: item.original ?? item.body, reviewNote: null, ...(data.card ? { card: item.card?.more ? { ...data.card, more: item.card.more } : data.card } : {}) })
       .where(eq(approvalItems.id, input.id));
     revalidatePath("/matching");
     return data;

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { withTenant } from "@/db";
 import { approvalItems, tenants } from "@/db/schema";
-import { emailPropertyFor, propertyEmailHtml } from "@/server/outbound/property-email";
+import { emailPropertiesFor, propertyEmailHtml } from "@/server/outbound/property-email";
 
 /**
  * The full email a draft will send, rendered exactly as the client gets it (2026-11-18):
@@ -27,10 +27,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
   if (!row) return new Response("Not found", { status: 404 });
 
-  const property = row.item.listingId ? await emailPropertyFor(tenantId, row.item.listingId) : null;
+  const { property, more } = await emailPropertiesFor(tenantId, row.item.listingId, row.item.card);
   const html = propertyEmailHtml({
     body: row.item.body,
     property,
+    more,
     card: row.item.card,
     unsubscribeUrl: "https://www.ozirealty.com.au/unsubscribe",
     agencyLine: row.t.licence ? `${row.t.name} · ${row.t.licence}` : row.t.name,

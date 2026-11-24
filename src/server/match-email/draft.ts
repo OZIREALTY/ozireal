@@ -6,7 +6,9 @@ import {
   campaignRecipients,
   campaigns,
   contacts,
+  listings,
   matches,
+  type EmailCard,
 } from "@/db/schema";
 import { checkConsent } from "@/server/outbound/gate";
 import { runTask, TaskOutputError } from "@/server/ai/run-task";
@@ -32,6 +34,8 @@ const draftSchema = z.object({
   body: z.preprocess((v) => String(v ?? "").slice(0, 3000), z.string().min(20)),
   reviewNote: z.preprocess((v) => (v == null || v === "" ? null : String(v).slice(0, 200)), z.string().nullable()),
   card: emailCardSchema,
+  /** Several properties (2026-11-24): one card per property, in the order given. */
+  cards: z.preprocess((v) => (Array.isArray(v) ? v : []), z.array(emailCardSchema)).default([]),
 });
 
 export async function draftMatchEmail(tenantId: string, recipientId: string) {
@@ -72,11 +76,12 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
       return null;
     }
 
-    const facts = await draftFacts(tx, r.contactId, r.propertyId);
-    return { r, gate, person, brief, ...facts };
+    const extra = await extraHomes(tx, brief?.listingIds ?? [], r.listingId);
+    const facts = await draftFacts(tx, r.contactId, r.propertyId, extra.map((e) => e.propertyId));
+    return { r, gate, person, brief, extra, ...facts };
   });
   if (!ctx || !ctx.profile || (ctx.r.propertyId && !ctx.property)) return { skipped: true };
-  const { r, gate, person, brief } = ctx;
+  const { r, gate, person, brief, extra } = ctx;
 
   const request = draftRequest({ firstName: person.firstName, ...ctx, profile: ctx.profile, brief });
   const prompt = loadPrompt(brief ? COMPOSE_PROMPT : "match-email.v4");
@@ -113,7 +118,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
           draftSubject: data.subject,
           draftBody: data.body,
           reviewNote: data.reviewNote,
-          card: data.card,
+          card: cardsFor(data, extra.map((e) => e.listingId)),
           consentAtDraft: gate.consentStatus,
           consentCheckedAt: new Date(),
           aiGenerationId: generationId,
@@ -139,20 +144,21 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
 }
 
 /** The composer's brief (Campaigns, 2026-11-20): what the email is about, and its tone. */
-export const COMPOSE_PROMPT = "campaign-email.v1";
+export const COMPOSE_PROMPT = "campaign-email.v2";
 export const TONES = ["warm", "short", "investor"] as const;
-export type ComposeBrief = { tone: (typeof TONES)[number]; note: string };
+export type ComposeBrief = { tone: (typeof TONES)[number]; note: string; listingIds: string[] };
 export function composeBrief(segment: unknown): ComposeBrief | null {
   if (!segment || typeof segment !== "object" || (segment as { kind?: unknown }).kind !== "compose") return null;
-  const s = segment as { tone?: unknown; note?: unknown };
+  const s = segment as { tone?: unknown; note?: unknown; listingIds?: unknown };
   const tone = TONES.includes(s.tone as ComposeBrief["tone"]) ? (s.tone as ComposeBrief["tone"]) : "warm";
-  return { tone, note: typeof s.note === "string" ? s.note.slice(0, 1500) : "" };
+  const listingIds = Array.isArray(s.listingIds) ? s.listingIds.filter((x): x is string => typeof x === "string").slice(0, MAX_HOMES) : [];
+  return { tone, note: typeof s.note === "string" ? s.note.slice(0, 1500) : "", listingIds };
 }
 
 type Tx = Parameters<Parameters<typeof withTenant>[1]>[0];
 
 /** What the model reads about the person and (when there is one) the property. */
-export async function draftFacts(tx: Tx, contactId: string, propertyId: string | null) {
+export async function draftFacts(tx: Tx, contactId: string, propertyId: string | null, extraPropertyIds: string[] = []) {
   const [match] = propertyId
     ? await tx
         .select({ score: matches.score, reason: matches.reason })
@@ -162,7 +168,38 @@ export async function draftFacts(tx: Tx, contactId: string, propertyId: string |
     : [];
   const [profile] = await clientProfiles(tx, [contactId], { enquiries: 6, enquiryChars: 700 });
   const property = propertyId ? await propertyProfile(tx, propertyId) : null;
-  return { match, profile, property };
+  const others: { text: string }[] = [];
+  for (const id of extraPropertyIds) {
+    const p = await propertyProfile(tx, id);
+    if (p) others.push(p);
+  }
+  return { match, profile, property, others };
+}
+
+/** At most this many properties in one email (owner, 2026-11-24). */
+export const MAX_HOMES = 5;
+
+/** The listings after the first, with their properties, in the order chosen. Gone ones are skipped. */
+export async function extraHomes(tx: Tx, listingIds: string[], first: string | null) {
+  const ids = listingIds.filter((id) => id !== first);
+  if (!ids.length) return [];
+  const rows = await tx
+    .select({ listingId: listings.id, propertyId: listings.propertyId })
+    .from(listings)
+    .where(inArray(listings.id, ids));
+  return ids.map((id) => rows.find((r) => r.listingId === id)).filter((r): r is { listingId: string; propertyId: string } => !!r);
+}
+
+/** The stored card: the first property's card, with the rest under more. */
+export function cardsFor(data: z.infer<typeof draftSchema>, extraListingIds: string[]): EmailCard | null {
+  if (!extraListingIds.length) return data.card ?? data.cards[0] ?? null;
+  const cards = data.cards.length ? data.cards : data.card ? [data.card] : [];
+  const first = cards[0] ?? { title: "", urgency: null, advantages: [] };
+  const more = extraListingIds.map((listingId, i) => {
+    const c = cards[i + 1] ?? { title: "", urgency: null, advantages: [] };
+    return { listingId, title: c.title, urgency: c.urgency, advantages: c.advantages };
+  });
+  return { ...first, more };
 }
 
 export function draftRequest(o: {
@@ -170,8 +207,10 @@ export function draftRequest(o: {
   profile: { text: string };
   match?: { score: number; reason: string } | null;
   property: { text: string } | null;
+  others?: { text: string }[];
   brief: ComposeBrief | null;
 }) {
+  const several = !!o.property && !!o.others?.length;
   return [
     o.brief ? `ESI'S BRIEF (tone: ${o.brief.tone})\n${o.brief.note || "(no brief: write about the property)"}\n` : null,
     "THE CLIENT",
@@ -179,8 +218,12 @@ export function draftRequest(o: {
     o.profile.text,
     o.match ? `\nWhy they were picked (fit ${o.match.score.toFixed(2)}): ${o.match.reason}` : null,
     "",
-    o.property ? "THE PROPERTY" : "THERE IS NO PROPERTY: this is a general message, so card must be null.",
-    o.property ? o.property.text : null,
+    several
+      ? `THERE ARE ${1 + o.others!.length} PROPERTIES: write about each of them, in this order, and return "cards" (one per property, same order) with "card" null.`
+      : o.property ? "THE PROPERTY" : "THERE IS NO PROPERTY: this is a general message, so card must be null.",
+    several
+      ? [o.property!, ...o.others!].map((p, i) => `PROPERTY ${i + 1}\n${p.text}`).join("\n\n")
+      : o.property ? o.property.text : null,
   ]
     .filter((x) => x !== null)
     .join("\n");
