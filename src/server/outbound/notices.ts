@@ -261,8 +261,8 @@ export async function notifyEnquiry(tenantId: string, interactionId: string) {
   }
 
   // Every form alerts the agency; the free-book form gets no receipt (owner's request,
-  // 2026-11-03). Its subject is "Website enquiry — Gift Party bundle" (web-form adapter).
-  const bookForm = row.subject?.endsWith("Gift Party bundle") ?? false;
+  // 2026-11-03). Its subject is "Website enquiry — Gift Book" (renamed from "Gift Party bundle" 2026-11-24; both match).
+  const bookForm = /Gift (Book|Party bundle)$/.test(row.subject ?? "");
   if (!row.email) return { alerted: true, acknowledged: false };
 
   /**

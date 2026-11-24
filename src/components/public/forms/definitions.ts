@@ -335,7 +335,7 @@ const DEFINED: FormDefinition[] = [
     slug: "realestate-gift-adelaide",
     // The live site's "Free book & Gift party" form. It is on the gift page and on the
     // home page (FormSection slug="realestate-gift-adelaide"), one definition for both.
-    formName: "Gift Party bundle",
+    formName: "Gift Book",
     roles: [],
     roleFrom: {
       field: "looking",
