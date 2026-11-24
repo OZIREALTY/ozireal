@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   POSTS,
+  relatedPosts,
   TOPICS,
   formatDate,
   postBySeoSlug,
@@ -58,7 +59,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const post = postBySeoSlug(slug);
   if (!post) notFound();
 
-  const more = POSTS.filter((p) => p.slug !== post.slug).slice(0, 3);
+  const more = relatedPosts(post);
 
   return (
     <>

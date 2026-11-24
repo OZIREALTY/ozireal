@@ -63,6 +63,10 @@ const nextConfig: NextConfig = {
         destination: "/contact",
         statusCode: 301,
       },
+      // Old URLs Google still requests that returned 404 (Search Console, 2026-11-24).
+      { source: "/buy", destination: "/for-sale", statusCode: 301 },
+      { source: "/contact-us", destination: "/contact", statusCode: 301 },
+      { source: "/other-services", destination: "/property-services", statusCode: 301 },
       // Wix URLs found in the live sitemap on 2026-10-26 with no page of their own here.
       { source: "/blog/categories/:slug*", destination: "/blog", statusCode: 301 },
       { source: "/inquiry-services-page", destination: "/contact", statusCode: 301 },

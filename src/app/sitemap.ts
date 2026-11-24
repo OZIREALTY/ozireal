@@ -51,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...PAGES.map((p) => ({ url: base + p })),
     ...custom.map((p) => ({ url: base + p })),
-    ...POSTS.map((p) => ({ url: base + postHref(p) })),
+    ...POSTS.map((p) => ({ url: base + postHref(p), ...(p.date ? { lastModified: p.date } : {}) })),
     ...TOPICS.map((t) => ({ url: `${base}/blog/topic/${t.key}` })),
     ...suburbs.map((s) => ({ url: `${base}/suburbs/${s.slug}` })),
   ];

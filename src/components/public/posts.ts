@@ -174,3 +174,18 @@ export function topicsOf(p: Post): TopicKey[] {
 }
 
 export const topicLabel = (k: string) => TOPICS.find((t) => t.key === k)?.label ?? k;
+
+/**
+ * Related posts (SEO, 2026-11-24): the same-topic posts first, then the posts next to it
+ * in date order. Before this every post linked to the same newest three, so most posts
+ * had no internal links at all and Google left them "Discovered - not indexed".
+ */
+export function relatedPosts(post: Post, n = 3): Post[] {
+  const topics = new Set(topicsOf(post));
+  const i = POSTS.findIndex((p) => p.slug === post.slug);
+  const near = [...POSTS.slice(i + 1), ...POSTS.slice(0, Math.max(0, i))];
+  const same = near.filter((p) => topicsOf(p).some((t) => topics.has(t)));
+  const out: Post[] = [];
+  for (const p of [...same, ...near]) if (!out.includes(p) && out.length < n) out.push(p);
+  return out;
+}
