@@ -43,7 +43,7 @@ export function Composer({
   const [step, setStep] = React.useState(0);
   const [kind, setKind] = React.useState<"property" | "general" | null>(null);
   /** Several properties in one email (owner, 2026-11-24), in the order ticked. */
-  const [listingIds, setListingIds] = React.useState<string[]>(data.homes[0] ? [data.homes[0].listingId] : []);
+  const [listingIds, setListingIds] = React.useState<string[]>([]);
   const [homeQ, setHomeQ] = React.useState("");
   const toggleHome = (id: string) =>
     setListingIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 5 ? s : [...s, id]));
@@ -365,16 +365,28 @@ export function Composer({
                         <button type="button" onClick={() => setListingIds([])} className="text-[13px] font-semibold text-[var(--accent)] hover:underline">Clear</button>
                       )}
                     </div>
-                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2.5 mt-4 max-h-[420px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-4 max-h-[420px] overflow-y-auto pr-1">
                       {shownHomes.map((h) => {
                         const n = listingIds.indexOf(h.listingId);
                         return (
-                        <button key={h.listingId} type="button" aria-pressed={n >= 0} style={selStyle(n >= 0)} className={opt(n >= 0)} onClick={() => toggleHome(h.listingId)}>
-                          <b className="block leading-snug">{n >= 0 && <span className="inline-grid place-items-center w-5 h-5 mr-1.5 rounded-full bg-[var(--accent)] text-white text-[11px] align-middle">{n + 1}</span>}{h.label}</b>
-                          <small className="text-2 block mt-1">
+                        <div key={h.listingId} style={selStyle(n >= 0)} className={`${opt(n >= 0)} !p-2.5 flex gap-2 items-start`}>
+                          <label className="shrink-0 grid place-items-center w-7 h-7 -m-1 cursor-pointer" title={n >= 0 ? `Chosen ${n + 1}. Untick to remove` : "Tick to include"}>
+                            <input
+                              type="checkbox"
+                              checked={n >= 0}
+                              disabled={n < 0 && listingIds.length >= 5}
+                              onChange={() => toggleHome(h.listingId)}
+                              aria-label={`Include ${h.label}`}
+                              className="w-[18px] h-[18px] accent-[var(--accent)] cursor-pointer"
+                            />
+                          </label>
+                          <div className="min-w-0">
+                          <b className="block leading-snug text-[13.5px]">{n >= 0 && <span className="inline-grid place-items-center w-[18px] h-[18px] mr-1 rounded-full bg-[var(--accent)] text-white text-[10.5px] align-middle">{n + 1}</span>}{h.label}</b>
+                          <small className="text-2 block mt-0.5 text-[12px]">
                             {[h.beds ? `${h.beds} bed` : null, h.priceDisplay, h.section === "email_only" ? "email only" : h.status === "draft" ? "not live yet" : null].filter(Boolean).join(" · ") || "No price wording yet"}
                           </small>
-                        </button>
+                          </div>
+                        </div>
                         );
                       })}
                       {!data.homes.length && <p className="text-2">No live or draft listings yet.</p>}
