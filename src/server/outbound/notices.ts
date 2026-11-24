@@ -262,8 +262,52 @@ export async function notifyEnquiry(tenantId: string, interactionId: string) {
 
   // Every form alerts the agency; the free-book form gets no receipt (owner's request,
   // 2026-11-03). Its subject is "Website enquiry — Gift Party bundle" (web-form adapter).
-  const noReceipt = row.subject?.endsWith("Gift Party bundle") ?? false;
-  if (!row.email || noReceipt) return { alerted: true, acknowledged: false };
+  const bookForm = row.subject?.endsWith("Gift Party bundle") ?? false;
+  if (!row.email) return { alerted: true, acknowledged: false };
+
+  /**
+   * The free-book form now gets the book (owner-approved, 2026-11-24): a designed
+   * welcome email with a personal link that opens the book in the browser. Replaces
+   * the "no receipt" rule of 2026-11-03 for that form. Same idempotency marker.
+   */
+  if (bookForm) {
+    const { bookToken } = await import("@/server/book/book");
+    const { bookEmailHtml, bookEmailSubject, bookEmailText } = await import("./book-email");
+    const { unsubscribeUrl } = await import("./unsubscribe");
+    const firstName = row.firstName?.trim() || "there";
+    const token = bookToken(tenantId, row.contactId);
+    const unsub = unsubscribeUrl(tenantId, row.contactId);
+    const subject = bookEmailSubject();
+    const text = bookEmailText({ firstName, token, unsubscribeUrl: unsub });
+    const r = await sendMarketingEmail({
+      to: row.email,
+      subject,
+      text,
+      html: bookEmailHtml({ firstName, token, unsubscribeUrl: unsub, signatureHtml: SIGNATURE_HTML }),
+      unsubscribeUrl: unsub,
+    });
+    if (!r.ok) {
+      if (/MessageRejected|AccountSuspended|BadRequest/.test(r.error)) return { alerted: true, acknowledged: false, refused: r.error };
+      throw new Error(`Book email failed: ${r.error}`);
+    }
+    await withTenant(tenantId, (tx) =>
+      tx
+        .insert(interactions)
+        .values({
+          tenantId,
+          contactId: row.contactId,
+          channel: "email",
+          direction: "out",
+          occurredAt: new Date(),
+          subject,
+          body: text,
+          messageId: `ack:${interactionId}`,
+          threadRef: r.id,
+        })
+        .onConflictDoNothing(),
+    );
+    return { alerted: true, acknowledged: true, book: true };
+  }
 
   // Wording is the owner's, verbatim (2026-11-03).
   const first = row.firstName?.trim() || "there";
