@@ -10,7 +10,8 @@ import {
   Empty,
   ProtoNote,
 } from "@/components/ui";
-import { getSeoIssues } from "@/server/queries";
+import { getSearchOverview, getSeoIssues } from "@/server/queries";
+import { SearchDashboard } from "@/components/seo/search-dashboard";
 import { SeoIssueButtons } from "@/components/forms/ops-forms";
 
 const sev = {
@@ -32,7 +33,7 @@ const sev = {
 };
 
 export default async function SeoPage() {
-  const seoIssues = await getSeoIssues();
+  const [seoIssues, search] = await Promise.all([getSeoIssues(), getSearchOverview()]);
   const critical = seoIssues.filter((i) => i.severity === "critical").length;
   const affected = seoIssues.reduce((s, i) => s + (i.affected ?? 0), 0);
 
@@ -41,7 +42,7 @@ export default async function SeoPage() {
       <InsightsTabs />
       <PageHeader
         title="SEO"
-        subtitle="Crawls the site fortnightly and produces a change set you can read. It has no ability to publish — not even a disabled one."
+        subtitle="How ozirealty.com.au does in Google search, and what to improve. It reads only; nothing here changes the website."
         /* No "Run a crawl" button. The crawler is Phase 5 and does not exist, and a
            button that starts nothing is worse than none — it makes an empty findings
            list look like a clean site rather than a tool that never ran. */
@@ -52,6 +53,8 @@ export default async function SeoPage() {
           </span>
         }
       />
+
+      <SearchDashboard data={search} />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 [&>*:last-child:nth-child(odd)]:sm:col-span-2">
         <Card>
@@ -69,12 +72,7 @@ export default async function SeoPage() {
           </div>
           <div className="text-[26px] font-semibold tabular mt-1">{affected}</div>
         </Card>
-        <Card className="sm:col-span-2 lg:col-span-2">
-          <CardTitle>Search impressions and clicks</CardTitle>
-          {/* Search Console is not connected yet, so there are no impressions or clicks
-              to plot. An invented curve here would be indistinguishable from a real one. */}
-          <Empty>No search data yet</Empty>
-        </Card>
+
       </div>
 
       <div className="mb-6">

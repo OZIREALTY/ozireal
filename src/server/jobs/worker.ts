@@ -120,6 +120,10 @@ const handlers: Record<JobName, Handler> = {
     const { checkReplies } = await import("@/server/outbound/replies");
     return checkReplies();
   },
+  async SyncSearchConsole() {
+    const { syncSearchConsole } = await import("@/server/seo/search-console");
+    return syncSearchConsole();
+  },
   async NotifyEnquiry(job) {
     const { notifyEnquiry } = await import("@/server/outbound/notices");
     return notifyEnquiry(job.data.tenantId, job.data.entityId);
@@ -143,6 +147,11 @@ export function startWorker() {
         "CheckReplies",
         { every: 5 * 60_000 },
         { name: "CheckReplies", data: { tenantId: "all", entityId: "all" } },
+      );
+      await getQueue().upsertJobScheduler(
+        "SyncSearchConsole",
+        { pattern: "0 15 6 * * *", tz: "Australia/Adelaide" },
+        { name: "SyncSearchConsole", data: { tenantId: "all", entityId: "all" } },
       );
     } catch (e) {
       console.error("[worker] could not schedule the nightly match:", e instanceof Error ? e.message : e);

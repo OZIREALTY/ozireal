@@ -34,7 +34,9 @@ export type JobName =
   /** entityId = an audience_runs id: read every client and pick who suits the property. */
   | "FindAudience"
   /** entityId = "all": read the agency Gmail for replies to emails the CRM sent. */
-  | "CheckReplies";
+  | "CheckReplies"
+  /** entityId = "all": pull Google Search Console figures (daily, 2026-11-24). */
+  | "SyncSearchConsole";
 
 export type JobPayload = {
   tenantId: string;

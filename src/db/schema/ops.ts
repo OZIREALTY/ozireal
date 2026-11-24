@@ -10,6 +10,9 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  date,
+  real,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { tenants, users } from "./tenancy";
 import { contacts, interactions } from "./contacts";
@@ -414,4 +417,21 @@ export const siteContent = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
   },
   (t) => [uniqueIndex("site_content_version_uq").on(t.tenantId, t.path, t.version)],
+);
+
+/** Search Console, one row per day, phrase and page (0032). Pulled daily; read only. */
+export const seoSearchDaily = pgTable(
+  "seo_search_daily",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    day: date("day").notNull(),
+    query: text("query").notNull(),
+    page: text("page").notNull(),
+    clicks: integer("clicks").notNull().default(0),
+    impressions: integer("impressions").notNull().default(0),
+    position: real("position").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.day, t.query, t.page] })],
 );
