@@ -67,7 +67,6 @@ export const IMAGE_IDS = Object.keys(GALLERY) as [keyof typeof GALLERY, ...(keyo
 export const BUILTIN_PAGES: { path: string; label: string }[] = [
   { path: "/", label: "Home" },
   { path: "/all-listings", label: "Every listing" },
-  { path: "/for-sale", label: "For sale" },
   { path: "/sold", label: "Sold and leased" },
   { path: "/suburbs", label: "Suburbs" },
   { path: "/property-services", label: "Services" },

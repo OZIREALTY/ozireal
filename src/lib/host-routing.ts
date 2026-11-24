@@ -58,7 +58,7 @@ export function routeForHost(input: {
     // The Wix site's property pages lived at /properties/<slug>; the console owns that
     // prefix on its own host, and the public equivalent is the for-sale page.
     if (pathname === "/properties" || pathname.startsWith("/properties/")) {
-      return { location: `https://${publicHost}/for-sale`, status: 301 };
+      return { location: `https://${publicHost}/all-listings`, status: 301 };
     }
     if (isConsolePath(pathname)) {
       return { location: `https://${crmHost}${pathname}${search}`, status: 307 };

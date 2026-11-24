@@ -23,9 +23,9 @@ export default function NotFound() {
         </p>
 
         <div className="nf-paths">
-          <Link href="/for-sale" className="nf-path">
-            <span className="t">Homes for sale</span>
-            <span className="d">Everything on the market right now.</span>
+          <Link href="/all-listings" className="nf-path">
+            <span className="t">Every listing</span>
+            <span className="d">Everything for sale and lease right now.</span>
             <span className="go">Browse &rarr;</span>
           </Link>
           <Link href="/sold" className="nf-path">
