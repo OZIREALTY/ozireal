@@ -43,7 +43,7 @@ const chip = (on: boolean) =>
 const vbtn = (on: boolean) => `grid place-items-center w-9 min-h-9 rounded-[10px] border ${on ? "border-[var(--accent)] text-[var(--accent)]" : "surface-2 text-2"}`;
 const tel = (p: string) => `tel:${p.replace(/[^\d+]/g, "")}`;
 
-const btn = "min-h-[52px] rounded-[14px] px-4 text-[16px] font-bold inline-flex items-center justify-center gap-2 flex-1 basis-[120px]";
+const btn = "min-h-[52px] rounded-[14px] px-4 text-[16px] font-bold inline-flex items-center justify-center gap-2 flex-1 basis-[120px] lg:min-h-9 lg:rounded-[10px] lg:text-[13.5px] lg:px-3 lg:flex-none lg:basis-auto [&_svg]:lg:w-4 [&_svg]:lg:h-4";
 const primary = `${btn} bg-[var(--accent)] text-white`;
 const ghost = `${btn} surface-3 border text-[var(--text)]`;
 
@@ -156,8 +156,8 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
     const late = new Date().getHours() >= 15;
     const item = "block w-full text-left rounded-lg px-2.5 py-2 text-[14.5px] hover:surface-3";
     return (
-      <div className={inline ? "relative" : "absolute top-3 right-3 z-10"}>
-        <button type="button" aria-label="Organise this card" aria-expanded={open} onClick={() => setMenu(open ? null : k)} className="grid place-items-center w-9 h-9 rounded-[10px] border surface-2 hover:surface-3">
+      <div className={inline ? "relative" : "absolute top-3 right-3 lg:top-2 lg:right-2 z-10"}>
+        <button type="button" aria-label="Organise this card" aria-expanded={open} onClick={() => setMenu(open ? null : k)} className="grid place-items-center w-9 h-9 lg:w-8 lg:h-8 rounded-[10px] border surface-2 hover:surface-3">
           <MoreHorizontal size={18} />
         </button>
         {open && (
@@ -210,12 +210,12 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
               {i.kind === "enquiry" && (
                 <>
                   <Tag tone="bad">New enquiry · {ago(i.at)}</Tag>
-                  <Link href={`/contacts/${i.contactId}`} className="block text-[19px] font-bold mt-2 leading-snug">
+                  <Link href={`/contacts/${i.contactId}`} className="block text-[19px] lg:text-[15.5px] font-bold mt-2 lg:mt-1.5 leading-snug">
                     {i.name}
                   </Link>
-                  <p className="text-[16px]">{i.subject}</p>
-                  {i.phone && <p className="text-2 text-[14px] mt-1">{i.phone}</p>}
-                  <div className="flex flex-wrap gap-2.5 mt-3.5">
+                  <p className="text-[16px] lg:text-[13.5px] lg:text-2">{i.subject}</p>
+                  {i.phone && <p className="text-2 text-[14px] lg:text-[13px] mt-1 lg:mt-0">{i.phone}</p>}
+                  <div className="flex flex-wrap gap-2.5 lg:gap-2 mt-3.5 lg:mt-2.5">
                     {i.phone && (
                       <a href={tel(i.phone)} className={ghost}>
                         <Phone size={20} /> Call
@@ -232,9 +232,9 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
                   <Tag tone="info">
                     {i.count} {i.count === 1 ? "email" : "emails"} waiting
                   </Tag>
-                  <p className="text-[19px] font-bold mt-2 leading-snug">{i.name}</p>
-                  <p className="text-[16px]">Personal emails ready for your OK.</p>
-                  <div className="flex flex-wrap gap-2.5 mt-3.5">
+                  <p className="text-[19px] lg:text-[15.5px] font-bold mt-2 lg:mt-1.5 leading-snug">{i.name}</p>
+                  <p className="text-[16px] lg:text-[13.5px] lg:text-2">Personal emails ready for your OK.</p>
+                  <div className="flex flex-wrap gap-2.5 lg:gap-2 mt-3.5 lg:mt-2.5">
                     <Link href={i.href} className={primary}>
                       <Mail size={20} /> Review &amp; send <ChevronRight size={18} />
                     </Link>
@@ -246,16 +246,16 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
                   <Tag tone={i.overdue ? "bad" : "warn"}>
                     {i.overdue ? "Overdue" : i.dueAt ? `Due ${time(i.dueAt)}` : "Today"}
                   </Tag>
-                  <p className="text-[19px] font-bold mt-2 leading-snug">{i.title}</p>
+                  <p className="text-[19px] lg:text-[15.5px] font-bold mt-2 lg:mt-1.5 leading-snug">{i.title}</p>
                   {i.name && (
-                    <p className="text-[16px]">
+                    <p className="text-[16px] lg:text-[13.5px] lg:text-2">
                       <Link href={`/contacts/${i.contactId}`} className="underline underline-offset-2">
                         {i.name}
                       </Link>
                       {i.phone && <span className="text-2"> · {i.phone}</span>}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-2.5 mt-3.5">
+                  <div className="flex flex-wrap gap-2.5 lg:gap-2 mt-3.5 lg:mt-2.5">
                     {i.phone && (
                       <a href={tel(i.phone)} className={ghost} aria-label={`Call ${i.name}`}>
                         <Phone size={20} /> Call
@@ -341,7 +341,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
             <p className="text-[14px] font-bold tracking-wide text-[#FFB59E]">{time(data.next.startsAt)}</p>
             <p className="text-[20px] font-bold leading-snug mt-0.5">{data.next.title}</p>
             {data.next.name && <p className="text-[#D5DCEB] text-[16px]">with {data.next.name}</p>}
-            <div className="flex flex-wrap gap-2.5 mt-3.5">
+            <div className="flex flex-wrap gap-2.5 lg:gap-2 mt-3.5 lg:mt-2.5">
               {data.next.phone && (
                 <a href={tel(data.next.phone)} className={`${btn} bg-white/10 border border-white/25 text-white`}>
                   <Phone size={20} /> Call
@@ -394,11 +394,11 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
       {items.length === 0 ? (
         <p className="text-center text-2 py-8">{filter === "all" ? "All done for now. Nice work." : "Nothing of this kind right now."}</p>
       ) : view === "cards" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-2.5">
           {items.map((i) => (
-            <article key={keyOf(i)} data-kind={i.kind === "emails" ? "emails" : i.kind} className={`relative surface-2 border rounded-2xl p-4 ${isPinned(i) ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : ""}`}>
+            <article key={keyOf(i)} data-kind={i.kind === "emails" ? "emails" : i.kind} className={`relative surface-2 border rounded-2xl p-4 lg:p-3 lg:pr-12 lg:rounded-xl ${isPinned(i) ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : ""}`}>
               <CardMenu i={i} />
-              {isPinned(i) && <span className="absolute top-[18px] right-14 inline-flex items-center gap-1 text-[12.5px] font-bold text-[var(--accent)]"><Pin size={13} /> Pinned</span>}
+              {isPinned(i) && <span className="absolute top-[18px] right-14 lg:top-[13px] lg:right-12 inline-flex items-center gap-1 text-[12.5px] font-bold text-[var(--accent)]"><Pin size={13} /> Pinned</span>}
               {body(i)}
             </article>
           ))}
@@ -469,5 +469,5 @@ function Tag({ tone, children }: { tone: "bad" | "warn" | "info"; children: Reac
       : tone === "warn"
         ? "bg-[#FFF1DC] text-[#8A4B00] dark:bg-[#3A2C12] dark:text-[#FFC266]"
         : "bg-[#E6EEFC] text-[#0B4FB3] dark:bg-[#182C4F] dark:text-[#8DB5FF]";
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[13px] font-bold ${cls}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 lg:py-0.5 text-[13px] lg:text-[12px] font-bold ${cls}`}>{children}</span>;
 }
