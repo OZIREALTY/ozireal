@@ -147,7 +147,9 @@ export async function assistantTurn(raw: unknown): Promise<ActionResult<TurnResu
     hour: "numeric",
     minute: "2-digit",
     timeZone: "Australia/Adelaide",
-  }).format(new Date());
+    // Rounded to 10 minutes so the instructions stay identical between questions a few
+    // minutes apart, and the cached conversation after them is reused (AI cost, 2026-11-25).
+  }).format(new Date(Math.floor(Date.now() / 600_000) * 600_000));
 
   try {
     for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -157,9 +159,10 @@ export async function assistantTurn(raw: unknown): Promise<ActionResult<TurnResu
         output: "prose",
         system: [
           { text: fillPrompt(prompt.text, { agency: agency.name, user: agency.user.name }), cache: true },
-          { text: `It is now ${now} in Adelaide.${pageContext}` },
+          { text: `It is now about ${now} in Adelaide.${pageContext}` },
         ],
         messages: history as { role: "user" | "assistant"; content: string | ContentBlock[] }[],
+        cacheConversation: true,
         // Web search (2026-11-20): Anthropic runs it inside the reply and cites sources.
         tools: [...TOOL_DEFINITIONS, WEB_SEARCH],
         maxTokens: 16_000,

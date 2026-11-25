@@ -316,6 +316,8 @@ export const matchRuns = pgTable(
     stage3Count: integer("stage3_count").notNull().default(0),
     vectorStageRan: boolean("vector_stage_ran").notNull().default(false),
     aiGenerationId: uuid("ai_generation_id"),
+    /** sha256 of exactly what the ranker was sent (0034): identical input = skip the call. */
+    inputHash: text("input_hash"),
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

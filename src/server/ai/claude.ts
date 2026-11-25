@@ -95,6 +95,19 @@ export type ClaudeCall = {
   output: "structured" | "prose";
   system?: SystemBlock[];
   messages: { role: "user" | "assistant"; content: string | ContentBlock[] }[];
+  /**
+   * Cache the conversation so far (AI cost, 2026-11-25). The assistant re-sends its
+   * whole history on every tool round and every question; with a cache mark on the
+   * newest block, the next call reads everything before it at a tenth of the price.
+   */
+  cacheConversation?: boolean;
+  /**
+   * Thinking depth (AI cost, 2026-11-25). Sonnet 5 thinks by default at "high", and the
+   * thinking counts toward max_tokens: a 150-word email used 2,000-5,700 tokens and often
+   * ran out, failing and being paid for twice. Short, well-specified jobs set "low".
+   * Sent only to models that accept it (not Haiku 4.5 or older).
+   */
+  effort?: "low" | "medium" | "high";
   /** Client tools, plus Anthropic server tools (web search) that run inside the reply. */
   tools?: (ToolDefinition | ServerTool)[];
   maxTokens?: number;
@@ -204,9 +217,10 @@ export async function callClaude(call: ClaudeCall): Promise<ClaudeResult> {
         model,
         max_tokens: call.maxTokens ?? 1500,
         ...(withTemperature ? { temperature } : {}),
+        ...(call.effort && acceptsEffort(model) ? { output_config: { effort: call.effort } } : {}),
         ...(system?.length ? { system } : {}),
         ...(call.tools?.length ? { tools: call.tools } : {}),
-        messages: call.messages,
+        messages: call.cacheConversation ? withCacheMark(call.messages) : call.messages,
       }),
     });
 
@@ -405,4 +419,35 @@ async function ledger(
       .returning({ id: aiGenerations.id }),
   );
   return row.id;
+}
+
+/** Kinds of block a cache mark may sit on. */
+const CACHEABLE = new Set(["text", "image", "tool_use", "tool_result", "document"]);
+
+/** The messages with one ephemeral cache mark on the newest block that can carry it. */
+function withCacheMark(messages: ClaudeCall["messages"]): ClaudeCall["messages"] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (typeof m.content === "string") {
+      if (!m.content) continue;
+      const out = messages.slice();
+      out[i] = { ...m, content: [{ type: "text", text: m.content, cache_control: { type: "ephemeral" } } as unknown as ContentBlock] };
+      return out;
+    }
+    for (let j = m.content.length - 1; j >= 0; j--) {
+      const b = m.content[j] as { type: string };
+      if (!CACHEABLE.has(b.type)) continue;
+      const blocks = m.content.slice();
+      blocks[j] = { ...(b as object), cache_control: { type: "ephemeral" } } as unknown as ContentBlock;
+      const out = messages.slice();
+      out[i] = { ...m, content: blocks };
+      return out;
+    }
+  }
+  return messages;
+}
+
+/** Effort is accepted from the 4.6 generation on; Haiku 4.5 and older reject it. */
+function acceptsEffort(model: string) {
+  return /(sonnet|opus|haiku|fable|mythos)-(5|4-[6-9])/.test(model);
 }

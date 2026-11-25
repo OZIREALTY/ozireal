@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
-import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { withTenant, type Tx } from "@/db";
 import {
   contacts,
@@ -316,8 +317,53 @@ export async function matchContactsForProperty(
 
   const config = await getLlmConfig(tenantId);
   const prompt = loadPrompt(RANK_PROMPT);
+  const rankerInput = JSON.stringify({
+    subject: propertyForRanker(ctx.p, ctx.listing),
+    /**
+     * `stated` is what each person asked for. Without it the ranker saw only a
+     * brief and soft requirements, so a buyer with neither looked like someone
+     * with no wants and was dropped (2026-09-27).
+     */
+    candidates: shortlist.map((c) => ({
+      id: c.contactId,
+      name: `${c.firstName} ${c.lastName}`,
+      stated: {
+        suburbs: c.suburbNames ?? [],
+        postcodes: c.postcodes ?? [],
+        priceMin: c.priceMin,
+        priceMax: c.priceMax,
+        rentPerWeekMax: c.rentPwMax,
+        bedsMin: c.bedsMin,
+        bathsMin: c.bathsMin,
+        propertyTypes: c.propertyTypes ?? [],
+      },
+      summary: c.embeddedText ?? c.brief ?? null,
+      softRequirements: c.softRequirements,
+      intentType: c.intentType,
+      similarity: c.similarity,
+    })),
+  });
+
+  /**
+   * AI cost (owner, 2026-11-25): the nightly sweep used to re-rank every property with
+   * Claude even when nothing had changed. If the property, its campaign and every
+   * candidate are exactly as they were at the last successful ranking (same prompt
+   * version too), the matches on file are already the answer: skip the call.
+   */
+  const inputHash = createHash("sha256").update(`${prompt.version}
+${rankerInput}`).digest("hex");
+  const [same] = await withTenant(tenantId, (tx) =>
+    tx
+      .select({ id: matchRuns.id })
+      .from(matchRuns)
+      .where(and(eq(matchRuns.propertyId, propertyId), eq(matchRuns.inputHash, inputHash), isNotNull(matchRuns.aiGenerationId)))
+      .limit(1),
+  );
+  if (same) return { written: 0, stage1, stage2: shortlist.length, vectorStageRan, skipped: "unchanged" };
+
   const { data, generationId } = await runTask(rankOutput, {
     task: "rank-matches:property",
+    effort: "medium",
     model: "sonnet",
     output: "structured",
     tenantId,
@@ -328,32 +374,7 @@ export async function matchContactsForProperty(
     messages: [
       {
         role: "user",
-        content: JSON.stringify({
-          subject: propertyForRanker(ctx.p, ctx.listing),
-          /**
-           * `stated` is what each person asked for. Without it the ranker saw only a
-           * brief and soft requirements, so a buyer with neither looked like someone
-           * with no wants and was dropped (2026-09-27).
-           */
-          candidates: shortlist.map((c) => ({
-            id: c.contactId,
-            name: `${c.firstName} ${c.lastName}`,
-            stated: {
-              suburbs: c.suburbNames ?? [],
-              postcodes: c.postcodes ?? [],
-              priceMin: c.priceMin,
-              priceMax: c.priceMax,
-              rentPerWeekMax: c.rentPwMax,
-              bedsMin: c.bedsMin,
-              bathsMin: c.bathsMin,
-              propertyTypes: c.propertyTypes ?? [],
-            },
-            summary: c.embeddedText ?? c.brief ?? null,
-            softRequirements: c.softRequirements,
-            intentType: c.intentType,
-            similarity: c.similarity,
-          })),
-        }),
+        content: rankerInput,
       },
     ],
   });
@@ -377,6 +398,7 @@ export async function matchContactsForProperty(
     stage3: valid.length,
     vectorStageRan,
     generationId,
+    inputHash,
   });
   return { written: valid.length, stage1, stage2: shortlist.length, vectorStageRan };
 }
@@ -570,6 +592,7 @@ export async function matchPropertiesForContact(
   const prompt = loadPrompt(RANK_PROMPT);
   const { data, generationId } = await runTask(rankOutput, {
     task: "rank-matches:contact",
+    effort: "medium",
     model: "sonnet",
     output: "structured",
     tenantId,
@@ -688,6 +711,7 @@ async function recordRun(
     stage3: number;
     vectorStageRan: boolean;
     generationId?: string;
+    inputHash?: string;
   },
 ) {
   await withTenant(tenantId, (tx) =>
@@ -701,6 +725,7 @@ async function recordRun(
       stage3Count: r.stage3,
       vectorStageRan: r.vectorStageRan,
       aiGenerationId: r.generationId ?? null,
+      inputHash: r.inputHash ?? null,
       note: r.vectorStageRan
         ? null
         : "Vector stage did not run: pgvector unavailable, nothing embedded, or the shortlist was already small.",
