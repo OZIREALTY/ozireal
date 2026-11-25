@@ -25,16 +25,19 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
   const { range = "30" } = await searchParams;
   const r = RANGES.find((x) => x.k === range) ?? RANGES[1];
   /**
-   * Opening the report reads new replies first (at most once a minute), so the numbers do
+   * Opening the report also starts a reply check (at most once a minute), so the numbers do
    * not depend on the background worker alone (owner, 2026-11-20).
    */
   const tenantId = await currentTenantId();
-  let last = await lastReplyCheck(tenantId);
+  const last = await lastReplyCheck(tenantId);
+  /**
+   * The reply check used to run BEFORE the page rendered and could hold it for up to 15 s
+   * (a Gmail login), so a click on the Email tab looked dead (owner, 2026-11-25). It now
+   * starts in the background and the page shows at once; the worker also checks every 5
+   * minutes, and "Check replies now" is still on the page.
+   */
   if (!last || Date.now() - new Date(last.at).getTime() > 60_000) {
-    last = await Promise.race([
-      checkRepliesFor(tenantId),
-      new Promise<typeof last>((res) => setTimeout(() => res(last), 15_000)),
-    ]);
+    void checkRepliesFor(tenantId).catch(() => undefined);
   }
   const d = await emailInsights(r.days);
   const t = d.totals;
