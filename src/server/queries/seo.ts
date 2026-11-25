@@ -45,10 +45,12 @@ export async function getSearchOverview() {
         from cur full join prev on prev.key = cur.key
         order by ${sql.raw(order)} limit ${limit}`)).map((r) => ({ ...r, position: Number(r.position), prevPosition: Number(r.prevPosition), ctr: Number(r.ctr) }));
 
-    const weekly = await tx.execute<{ week: string; clicks: number; impressions: number }>(sql`
-      select to_char(date_trunc('week', day), 'DD Mon') as week, sum(clicks)::int as clicks, sum(impressions)::int as impressions
-      from seo_search_daily where day > ${last}::date - 182
-      group by date_trunc('week', day) order by date_trunc('week', day)`);
+    // Every week synced (up to 16 months); the chart filters the range and the measure.
+    const weekly = (await tx.execute<{ start: string; clicks: number; impressions: number; position: number | null }>(sql`
+      select to_char(date_trunc('week', day), 'YYYY-MM-DD') as start, sum(clicks)::int as clicks, sum(impressions)::int as impressions,
+             (sum(position*impressions)/nullif(sum(impressions),0))::float as position
+      from seo_search_daily
+      group by date_trunc('week', day) order by date_trunc('week', day)`)).map((w) => ({ ...w, position: w.position == null ? null : Number(w.position) }));
 
     return {
       last,

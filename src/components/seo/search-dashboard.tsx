@@ -1,4 +1,5 @@
 import { Card, CardTitle, Section } from "@/components/ui";
+import { WeeklyChart } from "./weekly-chart";
 import type { getSearchOverview, SeoRow, SeoTotals } from "@/server/queries/seo";
 
 /**
@@ -51,39 +52,9 @@ function Totals({ now, before }: { now: SeoTotals; before: SeoTotals }) {
  * made one click a full-height bar; impressions show the trend, clicks are in each tip.
  */
 function Weekly({ weeks }: { weeks: Overview["weekly"] }) {
-  const max = Math.max(1, ...weeks.map((w) => w.impressions));
-  const labelEvery = Math.max(1, Math.ceil(weeks.length / 6));
-  const W = 640;
-  const H = 150;
-  const gap = 2;
-  const bw = weeks.length ? (W - gap * (weeks.length - 1)) / weeks.length : 0;
   return (
     <Card className="mb-6">
-      <CardTitle>Times shown in Google, by week (last 6 months)</CardTitle>
-      <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full h-auto mt-2" role="img" aria-label="Weekly clicks from Google">
-        <line x1="0" x2={W} y1={H} y2={H} stroke="currentColor" strokeOpacity=".15" />
-        {weeks.map((w, i) => {
-          const h = w.impressions ? Math.max(3, (w.impressions / max) * (H - 8)) : 0;
-          const x = i * (bw + gap);
-          return (
-            <g key={w.week}>
-              <path
-                d={h ? `M${x},${H} v${-Math.max(0, h - 4)} q0,-4 4,-4 h${Math.max(0, bw - 8)} q4,0 4,4 v${Math.max(0, h - 4)} z` : ""}
-                fill="var(--accent)"
-              >
-                <title>{`Week of ${w.week}: ${n(w.clicks)} clicks, ${n(w.impressions)} times shown`}</title>
-              </path>
-              <rect x={x} y={0} width={bw + gap} height={H} fill="transparent">
-                <title>{`Week of ${w.week}: ${n(w.clicks)} clicks, ${n(w.impressions)} times shown`}</title>
-              </rect>
-              {i % labelEvery === 0 && i <= weeks.length - Math.ceil(labelEvery / 2) && (
-                <text x={x + bw / 2} y={H + 14} textAnchor="middle" fontSize="10" fill="currentColor" opacity=".55">{w.week}</text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      <p className="text-3 text-[11.5px] mt-1">Highest week: shown {n(max)} times. Hover a bar for that week's clicks and showings.</p>
+      <WeeklyChart weeks={weeks} />
     </Card>
   );
 }
