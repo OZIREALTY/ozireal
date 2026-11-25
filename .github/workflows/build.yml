@@ -1,0 +1,80 @@
+# Build the app on GitHub (owner-approved, 2026-11-25) so the live server no longer
+# builds it. Every push to master produces one bundle, uploaded to the private backups
+# bucket as builds/<commit>.tgz. Nothing here deploys: infra/deploy.sh fetches the
+# bundle for the commit being deployed, when a person runs it.
+#
+# ARM runner: the server is Graviton (aarch64), and native modules must match.
+# No secrets and no database: the build needs neither, and AWS access is keyless
+# (GitHub OIDC -> role ozirealty-github-ci, which can only write builds/*).
+name: build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          STANDALONE: "1"
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: "1"
+          # Placeholder only: the build must not reach a database. A page that tries
+          # fails the build here rather than shipping something built against nothing.
+          DATABASE_URL: postgres://build:build@127.0.0.1:1/none
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: pnpm build
+
+      - name: Worker dependencies
+        # The worker runs from source and needs real packages; hoisted so they survive
+        # being copied on the server (see infra/deploy.sh).
+        run: |
+          mkdir -p /tmp/deps
+          cp package.json pnpm-lock.yaml /tmp/deps/
+          (cd /tmp/deps && pnpm install --prod --frozen-lockfile --node-linker=hoisted --ignore-scripts)
+
+      - name: Bundle
+        run: |
+          B=/tmp/bundle
+          mkdir -p $B/.next $B/infra
+          cp -r .next/standalone $B/.next/standalone
+          cp -r .next/static $B/.next/static
+          cp -r public src prompts drizzle scripts $B/
+          cp package.json tsconfig.json pnpm-lock.yaml $B/
+          cp infra/backup.sh infra/ozirealty-backup.service infra/ozirealty-backup.timer $B/infra/
+          mv /tmp/deps/node_modules $B/deps-node_modules
+          echo "${{ github.sha }}" > $B/BUILD_COMMIT
+          tar -C $B -czf /tmp/build.tgz .
+          ls -lh /tmp/build.tgz
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::310792823958:role/ozirealty-github-ci
+          aws-region: ap-southeast-2
+
+      - name: Upload
+        run: aws s3 cp /tmp/build.tgz "s3://ozirealty-backups-310792823958/builds/${{ github.sha }}.tgz" --only-show-errors

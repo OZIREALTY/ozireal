@@ -9,7 +9,11 @@ import { publishedCustomPaths } from "@/server/public/content";
  * Listing detail pages join it when they exist.
  */
 
-export const revalidate = 3600;
+/**
+ * Built per request, not at build time (2026-11-25): the app is now built on GitHub, which
+ * has no database. CloudFront caches it, so Google still gets a fast response.
+ */
+export const dynamic = "force-dynamic";
 
 const PAGES = [
   "",

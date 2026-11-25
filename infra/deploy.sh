@@ -51,6 +51,43 @@ run_detached() {
   echo "  $name done in $(( $(date +%s) - started ))s"
 }
 
+# BUILD=ci (default since 2026-11-25): GitHub builds every push to master (see
+# .github/workflows/build.yml) and uploads builds/<commit>.tgz; the server only
+# downloads it. BUILD=local is the old on-instance build, kept as a fallback.
+MODE="${BUILD:-ci}"
+BUCKET_BUILDS=s3://ozirealty-backups-310792823958/builds
+
+if [ "$MODE" = ci ]; then
+  cd "$ROOT"
+  SHA=$(git rev-parse HEAD)
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    echo "  uncommitted changes: commit and push them first (or BUILD=local)" >&2; exit 1
+  fi
+  git fetch -q origin master
+  if ! git merge-base --is-ancestor "$SHA" origin/master; then
+    echo "  $SHA is not on GitHub master yet: push first" >&2; exit 1
+  fi
+  log "Waiting for GitHub to build ${SHA:0:7}"
+  started=$(date +%s)
+  until $SSH "aws s3api head-object --bucket ozirealty-backups-310792823958 --key builds/$SHA.tgz --region ap-southeast-2 >/dev/null 2>&1"; do
+    if [ $(( $(date +%s) - started )) -gt 1800 ]; then
+      echo "  no build after 30 min. Check https://github.com/xempie/ozireal/actions" >&2; exit 1
+    fi
+    sleep 20
+  done
+  echo "  ready after $(( $(date +%s) - started ))s"
+  log "Downloading the build"
+  $SSH bash -s <<REMOTE
+set -euo pipefail
+aws s3 cp "$BUCKET_BUILDS/$SHA.tgz" /tmp/ozirealty-build.tgz --region ap-southeast-2 --only-show-errors
+sudo rm -rf /tmp/build && mkdir -p /tmp/build
+tar -xzf /tmp/ozirealty-build.tgz -C /tmp/build
+test "$(cat /tmp/build/BUILD_COMMIT)" = "$SHA"
+rm -rf /tmp/migrate && mkdir -p /tmp/migrate && cp -r /tmp/build/drizzle /tmp/migrate/drizzle
+du -sh /tmp/ozirealty-build.tgz | cut -f1
+REMOTE
+else
+
 log "Packaging source"
 # .env* is excluded deliberately. It used to ship, so the developer's .env.local
 # -- a DATABASE_URL pointing at 127.0.0.1:5433, plus AUTH_SECRET and SECRETS_KEY --
@@ -70,6 +107,8 @@ ls -lh /tmp/ozirealty-src.tgz | awk '{print "  " $5}'
 
 log "Uploading"
 scp -i "$KEY" -o StrictHostKeyChecking=no /tmp/ozirealty-src.tgz ubuntu@"$IP":/tmp/
+$SSH "rm -rf /tmp/migrate && mkdir -p /tmp/migrate && tar -xzf /tmp/ozirealty-src.tgz -C /tmp/migrate ./drizzle"
+fi
 
 log "Applying database migrations"
 # Deploys used to ship code without its migrations, which relied on someone running
@@ -85,8 +124,6 @@ log "Applying database migrations"
 # unaffected if the build then fails.
 $SSH bash -s <<'REMOTE'
 set -euo pipefail
-rm -rf /tmp/migrate && mkdir -p /tmp/migrate
-tar -xzf /tmp/ozirealty-src.tgz -C /tmp/migrate ./drizzle
 sudo bash -c '
   set -euo pipefail
   set -a; . /etc/ozirealty/env; set +a
@@ -106,6 +143,7 @@ sudo bash -c '
 '
 REMOTE
 
+if [ "$MODE" = local ]; then
 log "Building on the instance"
 # The build takes several minutes and the SSH session used to carry it; a dropped
 # connection ("Connection reset by peer", 2026-11-23, twice) killed the deploy halfway.
@@ -139,6 +177,7 @@ trap 'shred -u /tmp/build/.env.production 2>/dev/null || rm -f /tmp/build/.env.p
 NODE_OPTIONS=--max-old-space-size=2560 STANDALONE=1 pnpm build
 shred -u /tmp/build/.env.production 2>/dev/null || rm -f /tmp/build/.env.production
 REMOTE
+fi
 
 log "Installing the build"
 run_detached install 900 <<'REMOTE'
@@ -208,8 +247,13 @@ command -v tsx >/dev/null || { echo "tsx is not installed; re-run provision.sh";
 # store, and this tree gets copied to another directory. Hoisted gives real
 # directories that survive the copy.
 rm -rf /tmp/deps && mkdir -p /tmp/deps
-cp /tmp/build/package.json /tmp/build/pnpm-lock.yaml /tmp/deps/
-(cd /tmp/deps && pnpm install --prod --frozen-lockfile --node-linker=hoisted --ignore-scripts)
+if [ -d /tmp/build/deps-node_modules ]; then
+  # Built on GitHub (BUILD=ci): the same hoisted install, done there.
+  mv /tmp/build/deps-node_modules /tmp/deps/node_modules
+else
+  cp /tmp/build/package.json /tmp/build/pnpm-lock.yaml /tmp/deps/
+  (cd /tmp/deps && pnpm install --prod --frozen-lockfile --node-linker=hoisted --ignore-scripts)
+fi
 # Merged with -n: anything the standalone bundle already provides WINS, so the
 # web server keeps the exact next/react it was traced against.
 # `|| true`: the standalone bundle's entries are symlinks, so cp reports
