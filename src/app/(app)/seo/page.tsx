@@ -12,6 +12,7 @@ import {
 } from "@/components/ui";
 import { getSearchOverview, getSeoIssues } from "@/server/queries";
 import { SearchDashboard } from "@/components/seo/search-dashboard";
+import { SeoTabs } from "@/components/seo/seo-tabs";
 import { SeoIssueButtons } from "@/components/forms/ops-forms";
 
 const sev = {
@@ -42,7 +43,7 @@ export default async function SeoPage() {
       <InsightsTabs />
       <PageHeader
         title="SEO"
-        subtitle="How ozirealty.com.au does in Google search, and what to improve. It reads only; nothing here changes the website."
+        subtitle="How ozirealty.com.au does in Google, and the blog posts that grow it."
         /* No "Run a crawl" button. The crawler is Phase 5 and does not exist, and a
            button that starts nothing is worse than none — it makes an empty findings
            list look like a clean site rather than a tool that never ran. */
@@ -53,6 +54,7 @@ export default async function SeoPage() {
           </span>
         }
       />
+      <SeoTabs />
 
       <SearchDashboard data={search} />
 

@@ -48,6 +48,7 @@ export const PRIVATE_PREFIXES = [
   /** Draft emails rendered for review (2026-11-18). */
   "/api/email-preview",
   "/api/task-files",
+  "/api/blog-cover",
 ] as const;
 
 /**

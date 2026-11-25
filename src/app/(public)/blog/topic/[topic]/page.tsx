@@ -5,11 +5,8 @@ import { TOPICS, topicLabel } from "@/components/public/posts";
 
 /** One indexable page per journal topic, with that topic pre-selected in the filter. */
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return TOPICS.map((t) => ({ topic: t.key }));
-}
+/** Posts come from the database since 2026-11-25, so this renders per request. */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ topic: string }> }): Promise<Metadata> {
   const { topic } = await params;

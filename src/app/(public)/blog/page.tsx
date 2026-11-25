@@ -8,6 +8,9 @@ import { BlogList } from "@/components/public/blog-list";
  * old `/post/<slug>` addresses permanently redirect there.
  */
 
+/** Posts come from the database since 2026-11-25, so this renders per request. */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   /*
     A title about the content, not about the archive. "All 53 posts" describes the row
@@ -20,6 +23,6 @@ export const metadata: Metadata = {
   alternates: { canonical: "/blog" },
 };
 
-export default function Page() {
+export default async function Page() {
   return <BlogList />;
 }

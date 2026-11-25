@@ -157,6 +157,9 @@ export const publishStatus = pgEnum("publish_status", [
   "archived",
 ]);
 
+/** One block of a post body (0035): paragraph, heading or bullet list. */
+export type BlogBlock = { t: "p" | "h2" | "h3" | "ul"; text?: string; items?: string[] };
+
 export const blogPosts = pgTable(
   "blog_posts",
   {
@@ -168,6 +171,18 @@ export const blogPosts = pgTable(
     title: text("title").notNull(),
     body: text("body"),
     status: publishStatus("status").notNull().default("draft"),
+    /** 0035, the CRM blog editor (2026-11-25). */
+    wixSlug: text("wix_slug"),
+    seoTitle: text("seo_title"),
+    description: text("description").notNull().default(""),
+    targetSearch: text("target_search"),
+    author: text("author").notNull().default("Esi Dor"),
+    coverUrl: text("cover_url"),
+    coverAlt: text("cover_alt").notNull().default(""),
+    blocks: jsonb("blocks").$type<BlogBlock[]>().notNull().default([]),
+    firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
+    aiGenerated: boolean("ai_generated").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     wordCount: integer("word_count"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     /** Rollup, refreshed by a job - same reasoning as listings.views7d. */
@@ -459,3 +474,4 @@ export const taskAttachments = pgTable(
   },
   (t) => [index("task_attachments_task_idx").on(t.taskId)],
 );
+

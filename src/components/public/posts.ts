@@ -1,22 +1,14 @@
-import raw from "@/content/posts.json";
-
 /**
- * The blog, migrated out of Wix by `scripts/scrape-blog.mjs`.
+ * Blog helpers shared by the public pages and the CRM (2026-11-25).
  *
- * A JSON file in the repo rather than rows in the database, deliberately. The posts are
- * static content: reading them from a build-time import means the blog renders with no
- * query and no network, survives the Wix account lapsing, and shows up in a diff when it
- * changes. When the CMS side of Phase 5 exists this becomes a table and this module
- * becomes the query; nothing that imports it needs to change.
+ * Posts live in the database since 2026-11-25 (blog_posts, written in SEO -> Blog) and
+ * the public pages read them through src/server/public/posts.ts. The JSON snapshot the
+ * Wix scraper produced (src/content/posts.json) is now only the source of the one-time
+ * import (scripts/import-blog-posts.ts); legacyPosts() below reads it for that.
  *
- * `slug` is the Wix slug. Posts are served at `/blog/<seoSlug>` since 2026-10-31 and the
- * old `/post/<slug>` addresses permanently redirect (see SEO_SLUGS below).
- *
- * Re-run the scraper before cutover. The live blog is actively published to, so this
- * snapshot goes stale, and a post written during the migration that nobody re-pulled is
- * the classic way content is lost.
+ * Posts are served at /blog/<slug>. The old Wix /post/<wix-slug> addresses permanently
+ * redirect (wix_slug on the row). Never reuse or change a slug once live.
  */
-
 export interface PostBlock {
   t: "p" | "h2" | "h3" | "ul";
   text?: string;
@@ -24,7 +16,12 @@ export interface PostBlock {
 }
 
 export interface Post {
+  /** The address under /blog. */
   slug: string;
+  /** The old Wix slug, for /post/<wix-slug> redirects; null for posts written here. */
+  wixSlug?: string | null;
+  /** The <title> when it differs from the heading. */
+  seoTitle?: string | null;
   title: string;
   description: string;
   /** ISO date, or "" when the source had none. */
@@ -46,13 +43,19 @@ function displayTitle(t: string): string {
   return t.replace(/\s*[|–—-]\s*Ozi\s?Realty\s*$/i, "").trim() || t;
 }
 
-/** Newest first, and only posts that actually have a body worth rendering. */
-export const POSTS: Post[] = (raw as Post[])
-  .filter((p) => p.title && p.blocks.length > 0)
-  .map((p) => ({ ...p, title: displayTitle(p.title), coverAlt: displayTitle(p.coverAlt || p.title) }))
-  .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
-export const postBySlug = (slug: string) => POSTS.find((p) => p.slug === slug);
+/** The Wix snapshot, for the one-time import only. Never read by a page. */
+export async function legacyPosts(): Promise<(Post & { wixSlug: string })[]> {
+  const raw = (await import("@/content/posts.json")).default as Post[];
+  return raw
+    .filter((p) => p.title && p.blocks.length > 0)
+    .map((p) => ({
+      ...p,
+      wixSlug: p.slug,
+      slug: SEO_SLUGS[p.slug] ?? p.slug,
+      title: displayTitle(p.title),
+      coverAlt: displayTitle(p.coverAlt || p.title),
+    }));
+}
 
 /** Reading time, from the same 200 words-per-minute everyone uses. */
 export function readingMinutes(p: Post): number {
@@ -71,25 +74,6 @@ export function formatDate(iso: string): string {
 }
 
 /**
- * Twelve to a page.
- *
- * Fifty-four cards on one page was one request and no pagination to get wrong, which is
- * the right trade at fifty. It stops being the right trade as the blog grows: the page
- * carries every cover image, so the weight climbs with the archive and the reader pays
- * for fifty posts to reach the three they wanted.
- *
- * Twelve fills four rows of three on a desktop and is a short scroll on a phone.
- */
-export const POSTS_PER_PAGE = 12;
-
-export const pageCount = () => Math.max(1, Math.ceil(POSTS.length / POSTS_PER_PAGE));
-
-export function postsForPage(n: number): Post[] {
-  const start = (n - 1) * POSTS_PER_PAGE;
-  return POSTS.slice(start, start + POSTS_PER_PAGE);
-}
-
-/**
  * Search-friendly addresses (owner's request, 2026-10-31).
  *
  * Posts moved from `/post/<wix-slug>` to `/blog/<slug>`, and the long Wix slugs were cut
@@ -97,7 +81,7 @@ export function postsForPage(n: number): Post[] {
  * (app/(public)/post/[slug]), so the indexed equity carries over. A slug not listed here
  * keeps its Wix slug under /blog. Never reuse or change a new slug once live.
  */
-const SEO_SLUGS: Record<string, string> = {
+export const SEO_SLUGS: Record<string, string> = {
   "rental-property-maintenance-in-adelaide-what-landlords-need-to-know": "rental-property-maintenance-adelaide",
   "what-to-expect-from-a-rental-property-inspection-in-adelaide": "rental-property-inspection-adelaide",
   "optimise-your-property-management-in-adelaide-adelaide-property-management-services": "optimise-property-management-adelaide",
@@ -147,9 +131,10 @@ const SEO_SLUGS: Record<string, string> = {
 };
 
 /** The post's address under /blog. */
-export const seoSlug = (p: Post) => SEO_SLUGS[p.slug] ?? p.slug;
-export const postHref = (p: Post) => `/blog/${seoSlug(p)}`;
-export const postBySeoSlug = (s: string) => POSTS.find((p) => seoSlug(p) === s);
+export const seoSlug = (p: Post) => p.slug;
+export const postHref = (p: Post) => `/blog/${p.slug}`;
+export const postBySeoSlug = (posts: Post[], s: string) => posts.find((p) => p.slug === s);
+export const postByWixSlug = (posts: Post[], s: string) => posts.find((p) => p.wixSlug === s);
 
 /** Topics, in display order. Each gets an indexable page at /blog/topic/<key>. */
 export const TOPICS = [
@@ -168,7 +153,7 @@ export type TopicKey = (typeof TOPICS)[number]["key"];
 
 /** Up to three topics per post, from its slug and title; never empty. */
 export function topicsOf(p: Post): TopicKey[] {
-  const hay = `${p.slug} ${p.title}`.toLowerCase();
+  const hay = `${p.wixSlug ?? ""} ${p.slug} ${p.title}`.toLowerCase();
   const hit = TOPICS.filter((t) => t.re.test(hay)).map((t) => t.key);
   return (hit.length ? hit : (["agents"] as TopicKey[])).slice(0, 3);
 }
@@ -180,10 +165,10 @@ export const topicLabel = (k: string) => TOPICS.find((t) => t.key === k)?.label 
  * in date order. Before this every post linked to the same newest three, so most posts
  * had no internal links at all and Google left them "Discovered - not indexed".
  */
-export function relatedPosts(post: Post, n = 3): Post[] {
+export function relatedPosts(post: Post, posts: Post[], n = 3): Post[] {
   const topics = new Set(topicsOf(post));
-  const i = POSTS.findIndex((p) => p.slug === post.slug);
-  const near = [...POSTS.slice(i + 1), ...POSTS.slice(0, Math.max(0, i))];
+  const i = posts.findIndex((p) => p.slug === post.slug);
+  const near = [...posts.slice(i + 1), ...posts.slice(0, Math.max(0, i))];
   const same = near.filter((p) => topicsOf(p).some((t) => topics.has(t)));
   const out: Post[] = [];
   for (const p of [...same, ...near]) if (!out.includes(p) && out.length < n) out.push(p);

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { publishedPosts } from "@/server/public/posts";
+import { inlineText } from "@/components/public/inline";
 import {
-  POSTS,
   relatedPosts,
   TOPICS,
   formatDate,
@@ -26,11 +27,8 @@ import {
  * 404. The static /blog/page and /blog/topic segments win over this dynamic one.
  */
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return POSTS.map((p) => ({ slug: seoSlug(p) }));
-}
+/** Read from the database per request since 2026-11-25: a post published in the CRM is live at once. */
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -38,10 +36,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = postBySeoSlug(slug);
+  const post = postBySeoSlug(await publishedPosts(), slug);
   if (!post) return {};
   return {
-    title: post.title,
+    title: post.seoTitle || post.title,
     description: post.description,
     alternates: { canonical: postHref(post) },
     openGraph: {
@@ -56,10 +54,11 @@ export async function generateMetadata({
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = postBySeoSlug(slug);
+  const posts = await publishedPosts();
+  const post = postBySeoSlug(posts, slug);
   if (!post) notFound();
 
-  const more = relatedPosts(post);
+  const more = relatedPosts(post, posts);
 
   return (
     <>
@@ -104,11 +103,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 return (
                   <ul key={i}>
                     {b.items?.map((it, j) => (
-                      <li key={j}>{it}</li>
+                      <li key={j}>{inlineText(it)}</li>
                     ))}
                   </ul>
                 );
-              return <p key={i}>{b.text}</p>;
+              return <p key={i}>{inlineText(b.text ?? "")}</p>;
             })}
 
             {/* Every journal topic, this post's own first and highlighted (owner's request, 2026-10-31). */}

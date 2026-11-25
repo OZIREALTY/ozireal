@@ -1,6 +1,7 @@
 import { PageHero } from "./page-shell";
 import { BlogFilter, type BlogCard } from "./blog-filter";
-import { POSTS, TOPICS, formatDate, postHref, readingMinutes, topicLabel, topicsOf } from "./posts";
+import { TOPICS, formatDate, postHref, readingMinutes, topicLabel, topicsOf } from "./posts";
+import { publishedPosts } from "@/server/public/posts";
 
 /**
  * The journal index: /blog, and /blog/topic/<key> with that topic pre-selected.
@@ -10,8 +11,9 @@ import { POSTS, TOPICS, formatDate, postHref, readingMinutes, topicLabel, topics
  * old /blog/page/<n> pages redirect here.
  */
 
-export function BlogList({ topic }: { topic?: string } = {}) {
-  const cards: BlogCard[] = POSTS.map((p) => ({
+export async function BlogList({ topic }: { topic?: string } = {}) {
+  const posts = await publishedPosts();
+  const cards: BlogCard[] = posts.map((p) => ({
     href: postHref(p),
     title: p.title,
     description: p.description,

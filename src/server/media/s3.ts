@@ -27,7 +27,8 @@ export function mediaBucket(): string {
 }
 
 export const MEDIA_KEY_RE =
-  /^t\/[0-9a-f-]{36}\/l\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(webp|jpg|png)$/;
+  /^t\/[0-9a-f-]{36}\/(l\/[0-9a-f-]{36}|b)\/[0-9a-f-]{36}\.(webp|jpg|png)$/;
+/* Blog cover photos (2026-11-25) are t/<tenant>/b/<uuid>.<ext>, served by /media too. */
 
 export const mediaUrl = (key: string) => `/media/${key}`;
 
