@@ -177,3 +177,53 @@ export const deleteBlogPost = defineAction({
     return { ok: true };
   },
 });
+
+/**
+ * Bulk actions on the Blog list (owner, 2026-11-25). Each post is handled by the same
+ * rules as one at a time: delete only drafts that were never published, publish only
+ * posts with a title and some text, take off any live post. Reports what it skipped.
+ */
+export const bulkBlogPosts = defineAction({
+  input: z.object({
+    ids: z.array(z.string().uuid()).min(1, "Tick at least one post").max(200),
+    op: z.enum(["publish", "unpublish", "delete"]),
+  }),
+  async handler(input, ctx) {
+    let done = 0;
+    const skipped: string[] = [];
+    for (const id of input.ids) {
+      const [p] = await ctx.tx.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
+      if (!p) continue;
+      if (input.op === "delete") {
+        if (p.firstPublishedAt || p.status === "published") {
+          skipped.push(`${p.title} (published: take it off instead)`);
+          continue;
+        }
+        await ctx.tx.delete(blogPosts).where(eq(blogPosts.id, id));
+      } else if (input.op === "unpublish") {
+        if (p.status !== "published") continue;
+        await ctx.tx.update(blogPosts).set({ status: "draft", updatedAt: new Date() }).where(eq(blogPosts.id, id));
+      } else {
+        if (p.status === "published") continue;
+        if (p.title.trim().length < 3 || words(p.blocks ?? []) < 80) {
+          skipped.push(`${p.title} (too short to publish)`);
+          continue;
+        }
+        const at = new Date();
+        await ctx.tx
+          .update(blogPosts)
+          .set({ status: "published", publishedAt: at, firstPublishedAt: p.firstPublishedAt ?? at, updatedAt: at })
+          .where(eq(blogPosts.id, id));
+      }
+      done++;
+    }
+    await ctx.audit({
+      kind: "edit",
+      action: `${input.op === "delete" ? "Deleted" : input.op === "unpublish" ? "Took off the website" : "Published"} ${done} blog post${done === 1 ? "" : "s"}`,
+      target: `${done} posts`,
+      entityType: "blog_post",
+    });
+    touch();
+    return { done, skipped };
+  },
+});

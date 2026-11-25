@@ -55,10 +55,10 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
       </button>
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={close}>
-          <div className="w-full max-w-[620px] rounded-2xl bg-[var(--bg)] shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New post">
+          <div className="w-full max-w-[620px] rounded-2xl surface-2 shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New post">
             <div className="flex items-center px-5 py-4 border-b">
               <b className="text-[16px]">{step === "pick" ? "New post" : "New post · What is it about?"}</b>
-              <button type="button" onClick={close} aria-label="Close" className="ml-auto text-3 hover:text-[var(--fg)]">
+              <button type="button" onClick={close} aria-label="Close" className="ml-auto text-3 hover:text-[var(--text)]">
                 <X size={18} />
               </button>
             </div>

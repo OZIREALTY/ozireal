@@ -25,7 +25,7 @@ export function SeoTabs({ counts }: { counts?: Partial<Record<(typeof TABS)[numb
             href={t.href}
             aria-current={on ? "page" : undefined}
             className={`px-4 py-2.5 text-[14px] font-semibold border-b-[3px] -mb-px whitespace-nowrap ${
-              on ? "border-[var(--accent)] text-[var(--accent)]" : "border-transparent text-2 hover:text-[var(--fg)]"
+              on ? "border-[var(--accent)] text-[var(--accent)]" : "border-transparent text-2 hover:text-[var(--text)]"
             }`}
           >
             {t.label}

@@ -216,7 +216,7 @@ function DeleteDialog({
           {more} will be removed from your contacts and every list, and marked do not contact so
           nothing can be sent to them again.
         </p>
-        <p className="text-[12.5px] text-2 surface-1 rounded-md p-2.5">
+        <p className="text-[12.5px] text-2 surface-2 rounded-md p-2.5">
           Their message history is sealed, not erased, so the agency can still show that past
           emails were lawful (Privacy Act, Spam Act). This cannot be undone.
         </p>

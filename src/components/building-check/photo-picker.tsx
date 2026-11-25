@@ -111,7 +111,7 @@ export function PhotoPicker({
         <ul className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
           {photos.map((p, i) => (
             <li key={p.id} className="space-y-1">
-              <div className="relative aspect-[4/3] rounded-md overflow-hidden border surface-1">
+              <div className="relative aspect-[4/3] rounded-md overflow-hidden border surface-2">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
                 <img src={p.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                 <span className="absolute top-1 left-1 rounded bg-[#13254A]/85 text-white text-[10.5px] px-1.5">{i + 1}</span>

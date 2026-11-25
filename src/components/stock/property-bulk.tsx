@@ -233,7 +233,7 @@ function DeleteDialog({ ids, names, onClose }: { ids: string[]; names: Record<st
           {shown}
           {more} will be deleted, with their draft listings, photos and matches. This cannot be undone.
         </p>
-        <p className="text-[12.5px] text-2 surface-1 rounded-md p-2.5">
+        <p className="text-[12.5px] text-2 surface-2 rounded-md p-2.5">
           Any that have been advertised on the website are kept for the sold archive; archive those instead.
         </p>
         <FormError message={a.error} />

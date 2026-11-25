@@ -204,7 +204,7 @@ export default async function PropertiesPage({
           {(["preparing", "website", "off_market", "sold", "archived"] as Stage[]).map((st) => {
             const items = shown.filter((x) => x.stage === st);
             return (
-              <div key={st} className="rounded-lg surface-1 border p-2.5 space-y-2 min-w-0">
+              <div key={st} className="rounded-lg surface-2 border p-2.5 space-y-2 min-w-0">
                 <div className="flex items-center justify-between px-1">
                   <Badge tone={BADGE[st].tone}>{BADGE[st].label}</Badge>
                   <span className="text-3 text-[12px] tabular">{items.length}</span>

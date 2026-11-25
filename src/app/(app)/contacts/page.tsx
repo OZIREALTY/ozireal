@@ -285,7 +285,7 @@ export default async function ContactsPage({
                   {c.tags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {c.tags.slice(0, 4).map((t) => (
-                        <span key={t} className="rounded px-1.5 py-px text-[11px] surface-1 border text-2">
+                        <span key={t} className="rounded px-1.5 py-px text-[11px] surface-2 border text-2">
                           {t}
                         </span>
                       ))}

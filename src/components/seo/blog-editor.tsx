@@ -162,7 +162,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
       {saveError && <p className="mb-3 rounded-lg bg-[#fde8e8] text-[#a12a2a] px-3 py-2 text-[13px]">{saveError}</p>}
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
-        <div className="rounded-2xl border p-4 surface-1 min-w-0">
+        <div className="rounded-2xl border p-4 surface-2 min-w-0">
           <label className="block text-[13px] font-semibold mb-1.5">Title</label>
           <input value={d.title} onChange={(e) => set("title", e.target.value)} className={`${input} text-[16px] font-semibold`} />
 
@@ -240,8 +240,8 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
                     <option value="ul">Bullet list</option>
                   </select>
                   <span className="flex-1" />
-                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => setD((x) => { const a = [...x.blocks]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return { ...x, blocks: a }; })} className="p-1 text-3 hover:text-[var(--fg)] disabled:opacity-30"><ArrowUp size={14} /></button>
-                  <button type="button" aria-label="Move down" disabled={i === d.blocks.length - 1} onClick={() => setD((x) => { const a = [...x.blocks]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; return { ...x, blocks: a }; })} className="p-1 text-3 hover:text-[var(--fg)] disabled:opacity-30"><ArrowDown size={14} /></button>
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => setD((x) => { const a = [...x.blocks]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return { ...x, blocks: a }; })} className="p-1 text-3 hover:text-[var(--text)] disabled:opacity-30"><ArrowUp size={14} /></button>
+                  <button type="button" aria-label="Move down" disabled={i === d.blocks.length - 1} onClick={() => setD((x) => { const a = [...x.blocks]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; return { ...x, blocks: a }; })} className="p-1 text-3 hover:text-[var(--text)] disabled:opacity-30"><ArrowDown size={14} /></button>
                   <button type="button" aria-label="Delete block" disabled={d.blocks.length === 1} onClick={() => setD((x) => ({ ...x, blocks: x.blocks.filter((_, j) => j !== i) }))} className="p-1 text-3 hover:text-[#b02f2f] disabled:opacity-30"><Trash2 size={14} /></button>
                 </div>
                 {b.t === "ul" ? (
@@ -276,7 +276,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border p-4 surface-1">
+          <div className="rounded-2xl border p-4 surface-2">
             <div className="text-3 text-[11px] uppercase tracking-[0.08em] font-bold mb-2">How it looks in Google</div>
             <div className="rounded-lg border p-3 bg-white text-left" style={{ fontFamily: "Arial, sans-serif" }}>
               <div className="text-[12px] text-[#202124] truncate">ozirealty.com.au › blog › {d.slug}</div>
@@ -290,7 +290,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
             <label className="block text-[13px] font-semibold mt-3 mb-1.5">Target search</label>
             <input value={d.targetSearch} onChange={(e) => set("targetSearch", e.target.value)} placeholder="e.g. independent property valuation adelaide" className={`${input} text-[13px]`} />
           </div>
-          <div className="rounded-2xl border p-4 surface-1">
+          <div className="rounded-2xl border p-4 surface-2">
             <div className="text-3 text-[11px] uppercase tracking-[0.08em] font-bold mb-2">SEO checklist · {score} of {checks.length}</div>
             {checks.map((c) => (
               <div key={c.label} className="flex gap-2 py-1 text-[13px]">
@@ -384,7 +384,7 @@ function PublishDialog(p: {
   const url = `https://www.ozirealty.com.au/blog/${p.slug}`;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={p.onClose}>
-      <div className="w-full max-w-[600px] rounded-2xl bg-[var(--bg)] shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Publish">
+      <div className="w-full max-w-[600px] rounded-2xl surface-2 shadow-2xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Publish">
         {done ? (
           <div className="p-7 text-center">
             <div className="text-[40px]">{done.scheduled ? "🗓️" : "🎉"}</div>

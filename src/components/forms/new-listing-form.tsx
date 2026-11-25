@@ -163,7 +163,7 @@ export function FullListingButton({
                 role="radio"
                 aria-checked={type === t}
                 onClick={() => setType(t)}
-                className={`min-h-9 px-4 rounded-full text-[13px] ${type === t ? "bg-[var(--accent)] text-white font-semibold" : "surface-1 border"}`}
+                className={`min-h-9 px-4 rounded-full text-[13px] ${type === t ? "bg-[var(--accent)] text-white font-semibold" : "surface-2 border"}`}
               >
                 {t === "sale" ? "For sale" : "For rent"}
               </button>

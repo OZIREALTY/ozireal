@@ -198,7 +198,7 @@ function PhotoTile({ p, main, first, last }: { p: ListingPhoto; main: boolean; f
           onBlur={() => alt !== (p.altText ?? "") && update.run({ id: p.id, altText: alt })}
           placeholder="Describe the photo (e.g. North-facing back garden)"
           maxLength={200}
-          className="w-full rounded-md border surface-1 px-2 min-h-8 text-[12px]"
+          className="w-full rounded-md border surface-2 px-2 min-h-8 text-[12px]"
         />
         <div className="flex flex-wrap gap-1">
           {!main && p.kind === "photo" && (

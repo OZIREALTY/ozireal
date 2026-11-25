@@ -204,7 +204,7 @@ export function NewTaskButton({
                   type="button"
                   aria-label={`Remove ${f.name}`}
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  className="ml-auto text-3 hover:text-[var(--fg)]"
+                  className="ml-auto text-3 hover:text-[var(--text)]"
                 >
                   <X size={14} />
                 </button>

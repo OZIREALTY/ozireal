@@ -330,7 +330,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <label className="flex flex-col gap-2 rounded-lg border border-dashed p-4 text-[13px] cursor-pointer surface-1">
+          <label className="flex flex-col gap-2 rounded-lg border border-dashed p-4 text-[13px] cursor-pointer surface-2">
             <span className="font-medium">{fileName || "Choose a file"}</span>
             <span className="text-2 text-[12.5px]">
               CSV, Excel (.xlsx), tab-separated or vCard (.vcf), with one heading row. Google and
