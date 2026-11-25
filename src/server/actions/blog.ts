@@ -331,6 +331,8 @@ const suggestOut = z.object({
     .max(20)
     .optional(),
   note: z.preprocess((v) => (v == null ? undefined : String(v).slice(0, 300)), z.string().optional()),
+  /** Several candidates (description, titles): the code picks one that meets the rule, by counting. */
+  options: z.preprocess((v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, 6) : undefined), z.array(z.string()).optional()),
 }).passthrough();
 
 export const suggestForPost = defineAction({
@@ -349,7 +351,7 @@ export const suggestForPost = defineAction({
   async handler(input, ctx) {
     const { runTask } = await import("@/server/ai/run-task");
     const { loadPrompt } = await import("@/server/ai/prompts");
-    const prompt = loadPrompt("blog-suggest.v2");
+    const prompt = loadPrompt("blog-suggest.v3");
     /**
      * The standards the checklist uses, checked here too (owner, 2026-11-25: an 83-character
      * description came back for a 120-160 rule). One retry tells the model what was wrong.
@@ -393,7 +395,19 @@ export const suggestForPost = defineAction({
        * "value" (2026-11-25: suggestions came back empty). Accept the first text it gave.
        */
       const extra = data as Record<string, unknown>;
-      const value = (
+      // Exact counting in code (owner, 2026-11-25): the model writes several lengths, the
+      // first that meets the rule (and contains the target search where required) wins.
+      const lim0 = LIMITS[input.task];
+      const tgt = input.post.targetSearch.trim().toLowerCase();
+      const fits = (v: string) =>
+        (!lim0 || (v.length >= lim0[0] && v.length <= lim0[1])) &&
+        (!tgt || !["title", "seoTitle"].includes(input.task) || v.toLowerCase().includes(tgt));
+      const picked = data.options?.length
+        ? (data.options.filter(fits).sort((a, b) => Math.abs(a.length - (lim0 ? (lim0[0] + lim0[1]) / 2 : 0)) - Math.abs(b.length - (lim0 ? (lim0[0] + lim0[1]) / 2 : 0)))[0] ??
+          [...data.options].sort((a, b) => b.length - a.length).find((v) => !lim0 || v.length <= lim0[1]) ??
+          data.options[0])
+        : undefined;
+      const value = (picked ??
         data.value ??
         (typeof extra[input.task] === "string" ? (extra[input.task] as string) : undefined) ??
         (Object.entries(extra).find(([k, v]) => !["note", "changes", "inserts"].includes(k) && typeof v === "string")?.[1] as string | undefined)
