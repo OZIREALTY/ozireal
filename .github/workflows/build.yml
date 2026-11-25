@@ -75,6 +75,13 @@ jobs:
           tar -C $B -czf /tmp/build.tgz .
           ls -lh /tmp/build.tgz
 
+      - name: Show the identity AWS will check
+        # Prints only the claims AWS matches on (repo, branch, audience); the token itself
+        # is never printed. Makes a refused sign-in diagnosable from the public log.
+        run: |
+          T=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "$T" | cut -d. -f2 | tr "_-" "/+" | base64 -d 2>/dev/null | jq -c "{sub, aud, repository, ref}" || true
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::310792823958:role/ozirealty-github-ci

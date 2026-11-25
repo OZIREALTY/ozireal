@@ -9,7 +9,7 @@
 #   3. every object in the media bucket named by S3_BUCKET (listing photos etc.)
 #
 # How to run it (Session Manager / EC2 Instance Connect / SSH, as ubuntu):
-#   curl -fsSL https://raw.githubusercontent.com/xempie/ozireal/master/infra/export-for-migration.sh -o /tmp/export.sh
+#   curl -fsSL https://raw.githubusercontent.com/OZIREALTY/ozireal/master/infra/export-for-migration.sh -o /tmp/export.sh
 #   sudo bash /tmp/export.sh
 #
 # The bundle is uploaded to the backups bucket in the old account, and the

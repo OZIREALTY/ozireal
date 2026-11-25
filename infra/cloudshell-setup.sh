@@ -2,7 +2,7 @@
 #
 # Run in AWS CloudShell, signed in to account 310792823958, region Sydney.
 #
-#   curl -fsSL https://raw.githubusercontent.com/xempie/ozireal/master/infra/cloudshell-setup.sh -o setup.sh
+#   curl -fsSL https://raw.githubusercontent.com/OZIREALTY/ozireal/master/infra/cloudshell-setup.sh -o setup.sh
 #   bash setup.sh
 #
 # Safe to run more than once. It:

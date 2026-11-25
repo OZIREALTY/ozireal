@@ -7,7 +7,7 @@
 #
 # Creates, keylessly (no access key is ever made):
 #   1. GitHub's OIDC identity provider in this account (if missing).
-#   2. Role ozirealty-github-ci, which ONLY the master branch of xempie/ozireal can
+#   2. Role ozirealty-github-ci, which ONLY the master branch of OZIREALTY/ozireal can
 #      assume, and which can ONLY write s3://ozirealty-backups-310792823958/builds/*.
 #   3. Read access to builds/* for the server's role (ozirealty-instance).
 #   4. A lifecycle rule: builds/ older than 14 days are deleted (storage never grows).
@@ -16,7 +16,7 @@ set -euo pipefail
 
 ACCOUNT=310792823958
 BUCKET=ozirealty-backups-$ACCOUNT
-REPO=xempie/ozireal
+REPO=OZIREALTY/ozireal
 ROLE=ozirealty-github-ci
 INSTANCE_ROLE=ozirealty-instance
 OIDC=token.actions.githubusercontent.com

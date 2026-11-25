@@ -71,7 +71,7 @@ if [ "$MODE" = ci ]; then
   started=$(date +%s)
   until $SSH "aws s3api head-object --bucket ozirealty-backups-310792823958 --key builds/$SHA.tgz --region ap-southeast-2 >/dev/null 2>&1"; do
     if [ $(( $(date +%s) - started )) -gt 1800 ]; then
-      echo "  no build after 30 min. Check https://github.com/xempie/ozireal/actions" >&2; exit 1
+      echo "  no build after 30 min. Check https://github.com/OZIREALTY/ozireal/actions" >&2; exit 1
     fi
     sleep 20
   done
