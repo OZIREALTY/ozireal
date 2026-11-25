@@ -52,7 +52,7 @@ type NavItem = { href: string; label: string; children?: { href: string; label: 
  * Since 2026-10-31 (owner's request) FAQ, the privacy policy and Free Meeting sit under
  * "About Us": a hover/focus dropdown on desktop, an indented list in the drawer.
  */
-const NAV: NavItem[] = [
+export const NAV: NavItem[] = [
   {
     // The seven services, same names and pages as the homepage grid. Strategy Services
     // is its own top-level item again since 2026-10-31.
@@ -83,6 +83,27 @@ const NAV: NavItem[] = [
   },
   { href: "/blog", label: "Blog" },
 ];
+
+/**
+ * Every page worth linking from a blog post (2026-11-25): the menu (services, About, FAQ,
+ * Contact) plus the free reports, which are not in the menu. The blog editor and the AI
+ * draft read this, so a service added to the menu is offered there too.
+ */
+export const LINKABLE_PAGES: { href: string; label: string }[] = (() => {
+  const out: { href: string; label: string }[] = [];
+  const add = (href: string, label: string) => {
+    if (!out.some((x) => x.href === href) && !["/blog", "/privacy"].includes(href)) out.push({ href, label });
+  };
+  for (const n of NAV) {
+    for (const c of n.children ?? []) add(c.href, c.label);
+    add(n.href, n.href === "/property-services" ? "All services" : n.label);
+  }
+  add("/free-property-appraisal-sa", "Free property appraisal");
+  add("/free-suburb-insight-report", "Free suburb insight report");
+  add("/property-rental-report", "Free rental report");
+  add("/all-listings", "Every listing");
+  return out;
+})();
 
 const isCurrent = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(href + "/") ? ("page" as const) : undefined;

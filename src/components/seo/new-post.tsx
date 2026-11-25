@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, X } from "lucide-react";
 import { createBlogPost, draftBlogWithAI } from "@/server/actions/blog";
+import { LINKABLE_PAGES } from "@/components/public/site-nav";
 
 /**
  * "+ New post" (owner-approved preview, 2026-11-25): blank, from a search people make,
@@ -141,14 +142,9 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
                   </div>
                   <div className="font-semibold text-[13px] mb-1.5">Link it to one of your services</div>
                   <select value={service} onChange={(e) => setService(e.target.value)} className="w-full rounded-lg border px-3 min-h-10 surface-2 mb-3">
-                    <option value="/buyer-agent-adelaide">Buyer&#39;s agent</option>
-                    <option value="/free-property-appraisal-sa">Free property appraisal</option>
-                    <option value="/free-suburb-insight-report">Free suburb insight report</option>
-                    <option value="/property-investment">Property investment</option>
-                    <option value="/manage-property-adelaide">Property management</option>
-                    <option value="/sell-property-house-adelaide">Sell your property</option>
-                    <option value="/new-homes-adelaide">New homes</option>
-                    <option value="/overseas-investment">Overseas investment</option>
+                    {LINKABLE_PAGES.map((x) => (
+                      <option key={x.href} value={x.href}>{x.label}</option>
+                    ))}
                   </select>
                   <div className="font-semibold text-[13px] mb-1.5">Anything to include? <span className="text-3 font-normal">(optional; any figures you want used go here)</span></div>
                   <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. Mention our free suburb insight report. Keep it practical, no hype." className="w-full rounded-lg border px-3 py-2 surface-2" />

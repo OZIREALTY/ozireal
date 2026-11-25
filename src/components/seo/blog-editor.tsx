@@ -8,6 +8,7 @@ import type { BlogEditorPost } from "@/server/queries/blog";
 import type { BlogBlock } from "@/db/schema";
 import { deleteBlogPost, publishBlogPost, saveBlogPost, unpublishBlogPost } from "@/server/actions/blog";
 import { inlineText, plainText } from "@/components/public/inline";
+import { LINKABLE_PAGES } from "@/components/public/site-nav";
 
 /**
  * The blog editor (owner-approved preview, 2026-11-25). Title, address, cover, body as
@@ -19,19 +20,8 @@ import { inlineText, plainText } from "@/components/public/inline";
  * renders (components/public/inline).
  */
 
-const SERVICES = [
-  { href: "/buyer-agent-adelaide", label: "Buyer's agent" },
-  { href: "/free-property-appraisal-sa", label: "Free property appraisal" },
-  { href: "/free-suburb-insight-report", label: "Free suburb insight report" },
-  { href: "/property-investment", label: "Property investment" },
-  { href: "/manage-property-adelaide", label: "Property management" },
-  { href: "/sell-property-house-adelaide", label: "Sell your property" },
-  { href: "/new-homes-adelaide", label: "New homes" },
-  { href: "/overseas-investment", label: "Overseas investment" },
-  { href: "/all-listings", label: "Every listing" },
-  { href: "/contact", label: "Contact" },
-];
-const SERVICE_PATHS = SERVICES.filter((s) => !["/all-listings", "/contact"].includes(s.href)).map((s) => s.href);
+const SERVICES = LINKABLE_PAGES;
+const SERVICE_PATHS = SERVICES.filter((s) => !["/all-listings", "/contact", "/adelaide-property-faq", "/about-adelaide-land-agent"].includes(s.href)).map((s) => s.href);
 
 type Draft = Omit<BlogEditorPost, "id" | "status" | "publishedAt" | "firstPublishedAt" | "aiGenerated" | "updatedAt">;
 
@@ -232,7 +222,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
               aria-label="Insert a link"
             >
               <option value="">🔗 Link to…</option>
-              <optgroup label="Your service pages">
+              <optgroup label="Your website pages">
                 {SERVICES.map((s) => (
                   <option key={s.href} value={s.href}>{s.label}</option>
                 ))}
