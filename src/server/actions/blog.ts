@@ -314,3 +314,66 @@ export const draftBlogWithAI = defineAction({
     return { id: p.id };
   },
 });
+
+/**
+ * ✦ Suggest / ✦ Fix in the editor (owner, 2026-11-25): on request only, the fast model
+ * (about A$0.01 each), shown to the owner to accept or dismiss; it never saves anything
+ * itself. Field tasks return one value; "edit" tasks return the blocks to change or add.
+ */
+const suggestOut = z.object({
+  value: z.preprocess((v) => (v == null ? undefined : String(v).trim().slice(0, 2000)), z.string().optional()),
+  changes: z
+    .array(z.object({ index: z.number().int().min(0), block }))
+    .max(40)
+    .optional(),
+  inserts: z
+    .array(z.object({ after: z.number().int().min(-1), block }))
+    .max(20)
+    .optional(),
+  note: z.preprocess((v) => (v == null ? undefined : String(v).slice(0, 300)), z.string().optional()),
+});
+
+export const suggestForPost = defineAction({
+  input: z.object({
+    id: z.string().uuid(),
+    task: z.enum(["title", "seoTitle", "description", "targetSearch", "coverAlt", "firstParagraph", "edit"]),
+    /** For "edit": what to do, e.g. "Add a link to /buyer-agent-adelaide where it fits". */
+    instruction: z.string().trim().max(600).default(""),
+    post: z.object({
+      title: z.string().max(200),
+      targetSearch: z.string().max(200),
+      description: z.string().max(300),
+      blocks: z.array(block).max(400),
+    }),
+  }),
+  async handler(input, ctx) {
+    const { runTask } = await import("@/server/ai/run-task");
+    const { loadPrompt } = await import("@/server/ai/prompts");
+    const prompt = loadPrompt("blog-suggest.v1");
+    const { data } = await runTask(suggestOut, {
+      task: `blog-suggest:${input.task}`,
+      model: "haiku",
+      output: "structured",
+      system: [{ text: prompt.text, cache: true }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            `TASK: ${input.task}${input.instruction ? ` - ${input.instruction}` : ""}`,
+            "",
+            `Title: ${input.post.title}`,
+            `Target search: ${input.post.targetSearch || "(not set)"}`,
+            `SEO description: ${input.post.description || "(empty)"}`,
+            "Blocks:",
+            JSON.stringify(input.post.blocks.map((b, i) => ({ i, ...b }))).slice(0, 40000),
+          ].join("\n"),
+        },
+      ],
+      maxTokens: 6000,
+      tenantId: ctx.tenantId,
+      entity: { type: "blog_post", id: input.id },
+      promptVersion: prompt.version,
+    });
+    return data;
+  },
+});

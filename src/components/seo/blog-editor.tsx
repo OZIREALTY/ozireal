@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Trash2, X } from "lucide-react";
 import type { BlogEditorPost } from "@/server/queries/blog";
 import type { BlogBlock } from "@/db/schema";
-import { deleteBlogPost, publishBlogPost, saveBlogPost, unpublishBlogPost } from "@/server/actions/blog";
+import { deleteBlogPost, publishBlogPost, saveBlogPost, suggestForPost, unpublishBlogPost } from "@/server/actions/blog";
 import { inlineText, plainText } from "@/components/public/inline";
 import { LINKABLE_PAGES } from "@/components/public/site-nav";
 
@@ -48,6 +48,46 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
   const [focus, setFocus] = React.useState(0);
   const [publishOpen, setPublishOpen] = React.useState(false);
   const [preview, setPreview] = React.useState(false);
+  /**
+   * ✦ Suggest / ✦ Fix (owner, 2026-11-25): on request only, shown to accept or dismiss.
+   * key = the field or checklist item it belongs to.
+   */
+  type Sug = { loading?: boolean; error?: string; value?: string; changes?: { index: number; block: BlogBlock }[]; inserts?: { after: number; block: BlogBlock }[]; note?: string };
+  const [sug, setSug] = React.useState<Record<string, Sug>>({});
+  async function ask(key: string, task: "title" | "seoTitle" | "description" | "targetSearch" | "coverAlt" | "firstParagraph" | "edit", instruction = "") {
+    setSug((x) => ({ ...x, [key]: { loading: true } }));
+    try {
+      const r = await suggestForPost({ id: post.id, task, instruction, post: { title: d.title, targetSearch: d.targetSearch, description: d.description, blocks: d.blocks } });
+      setSug((x) => ({ ...x, [key]: r.ok ? r.data : { error: r.error } }));
+    } catch {
+      setSug((x) => ({ ...x, [key]: { error: "No suggestion: the CRM could not be reached." } }));
+    }
+  }
+  const dismiss = (key: string) => setSug((x) => { const y = { ...x }; delete y[key]; return y; });
+  function applyEdit(key: string) {
+    const g = sug[key];
+    if (!g) return;
+    setD((x) => {
+      let blocks = [...x.blocks];
+      for (const c of g.changes ?? []) if (c.index < blocks.length) blocks[c.index] = c.block;
+      for (const ins of [...(g.inserts ?? [])].sort((a, b) => b.after - a.after)) blocks.splice(Math.min(ins.after + 1, blocks.length), 0, ins.block);
+      blocks = blocks.length ? blocks : x.blocks;
+      return { ...x, blocks };
+    });
+    dismiss(key);
+  }
+  const firstParaIndex = Math.max(0, d.blocks.findIndex((b) => b.t === "p"));
+  /** The links already in the post, for the chips with ✕. */
+  const attached = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const b of d.blocks) for (const t of b.t === "ul" ? b.items ?? [] : [b.text ?? ""]) for (const m of t.matchAll(/\[([^\]]+)\]\(([^)\s]+)\)/g)) if (!seen.has(m[2])) seen.set(m[2], m[1]);
+    return [...seen.entries()].map(([href, words]) => ({ href, words, label: LINKABLE_PAGES.find((x) => x.href === href)?.label ?? posts.find((x) => `/blog/${x.slug}` === href)?.title ?? href }));
+  }, [d.blocks, posts]);
+  function removeLink(href: string) {
+    const esc = href.replace(/[.*+?^${}()|[\]\\]/g, (c) => "\\" + c);
+    const re = new RegExp(`\\[([^\\]]+)\\]\\(${esc}\\)`, "g");
+    setD((x) => ({ ...x, blocks: x.blocks.map((b) => (b.t === "ul" ? { ...b, items: (b.items ?? []).map((t) => t.replace(re, "$1")) } : { ...b, text: (b.text ?? "").replace(re, "$1") })) }));
+  }
   const [uploading, setUploading] = React.useState(false);
   const first = React.useRef(true);
 
@@ -113,15 +153,18 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
   const words = countWords(d.blocks);
   const links = [...allText.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]);
   const desc = d.description.trim().length;
-  const checks: { ok: boolean | "half"; label: string }[] = [
-    { ok: !target ? "half" : (d.seoTitle || d.title).toLowerCase().includes(target), label: target ? "Target search in the title" : "Set a target search (right)" },
-    { ok: !target ? "half" : firstPara.includes(target), label: "Target search in the first paragraph" },
-    { ok: desc >= 120 && desc <= 160 ? true : desc >= 70 ? "half" : false, label: `SEO description 120–160 characters (${desc})` },
-    { ok: d.blocks.filter((b) => b.t === "h2").length >= 2, label: "At least 2 headings" },
-    { ok: !!d.coverUrl && d.coverAlt.trim().length > 4, label: "Cover photo with a description (alt text)" },
-    { ok: words >= 600 ? true : words >= 300 ? "half" : false, label: `About 600+ words (${words})` },
-    { ok: links.some((l) => SERVICE_PATHS.some((s) => l.startsWith(s))), label: "Link to one of your service pages" },
-    { ok: links.filter((l) => l.startsWith("/blog/")).length >= 2 ? true : links.some((l) => l.startsWith("/blog/")) ? "half" : false, label: "Link to 2 related posts" },
+  const servicesList = SERVICES.filter((x) => SERVICE_PATHS.includes(x.href)).map((x) => `${x.href} (${x.label})`).join(", ");
+  const postsList = posts.slice(0, 40).map((x) => `/blog/${x.slug} (${x.title})`).join("; ");
+  type Fix = { key: string; task: "title" | "description" | "targetSearch" | "coverAlt" | "firstParagraph" | "edit"; instruction?: string; label: string };
+  const checks: { ok: boolean | "half"; label: string; fix?: Fix }[] = [
+    { ok: !target ? "half" : (d.seoTitle || d.title).toLowerCase().includes(target), label: target ? "Target search in the title" : "Set a target search (right)", fix: target ? { key: "title", task: "title", label: "Suggest a title" } : { key: "targetSearch", task: "targetSearch", label: "Suggest a target search" } },
+    { ok: !target ? "half" : firstPara.includes(target), label: "Target search in the first paragraph", fix: target ? { key: "firstParagraph", task: "firstParagraph", label: "Suggest an opening" } : undefined },
+    { ok: desc >= 120 && desc <= 160 ? true : desc >= 70 ? "half" : false, label: `SEO description 120–160 characters (${desc})`, fix: { key: "description", task: "description", label: "Suggest a description" } },
+    { ok: d.blocks.filter((b) => b.t === "h2").length >= 2, label: "At least 2 headings", fix: { key: "fix-headings", task: "edit", instruction: "Add headings (h2) so the post has at least 2, splitting it into clear sections. Do not change any other wording.", label: "Add headings" } },
+    { ok: !!d.coverUrl && d.coverAlt.trim().length > 4, label: "Cover photo with a description (alt text)", fix: d.coverAlt.trim().length > 4 ? undefined : { key: "coverAlt", task: "coverAlt", label: "Suggest a description" } },
+    { ok: words >= 600 ? true : words >= 300 ? "half" : false, label: `About 600+ words (${words})`, fix: words >= 600 ? undefined : { key: "fix-length", task: "edit", instruction: "Expand the post toward 650 words with practical, useful detail for the reader: add paragraphs or a short section where it helps. No figures.", label: "Suggest more content" } },
+    { ok: links.some((l) => SERVICE_PATHS.some((s) => l.startsWith(s))), label: "Link to one of your service pages", fix: { key: "fix-service", task: "edit", instruction: `Add ONE link to the most relevant of these pages, on words that already fit in an existing paragraph: ${servicesList}`, label: "Add a link" } },
+    { ok: links.filter((l) => l.startsWith("/blog/")).length >= 2 ? true : links.some((l) => l.startsWith("/blog/")) ? "half" : false, label: "Link to 2 related posts", fix: posts.length ? { key: "fix-related", task: "edit", instruction: `Add links to the 2 most related of these posts, on words that already fit in existing paragraphs (or one short sentence): ${postsList}`, label: "Add links" } : undefined },
   ];
   const score = checks.filter((c) => c.ok === true).length;
 
@@ -173,8 +216,9 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
         <div className="rounded-2xl border p-4 surface-2 min-w-0">
-          <label className="block text-[13px] font-semibold mb-1.5">Title</label>
+          <FieldHead label="Title" onSuggest={() => ask("title", "title")} loading={sug.title?.loading} />
           <input value={d.title} onChange={(e) => set("title", e.target.value)} className={`${input} text-[16px] font-semibold`} />
+          <SuggestBox s={sug.title} onUse={(v) => { set("title", v); dismiss("title"); }} onAgain={() => ask("title", "title")} onDismiss={() => dismiss("title")} />
 
           <label className="block text-[13px] font-semibold mt-3 mb-1.5">Web address</label>
           <div className="flex items-center rounded-lg border min-h-10 px-3 text-[13.5px]">
@@ -202,7 +246,11 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
               {d.coverUrl && (
                 <button type="button" onClick={() => set("coverUrl", "")} className="ml-2 text-[12.5px] text-2 hover:underline">Remove</button>
               )}
-              <input value={d.coverAlt} onChange={(e) => set("coverAlt", e.target.value)} placeholder="Describe the photo, e.g. Aerial view of an Adelaide suburb" className={`${input} text-[13px]`} />
+              <div className="flex gap-2">
+                <input value={d.coverAlt} onChange={(e) => set("coverAlt", e.target.value)} placeholder="Describe the photo, e.g. Aerial view of an Adelaide suburb" className={`${input} text-[13px]`} />
+                <SuggestButton onClick={() => ask("coverAlt", "coverAlt")} loading={sug.coverAlt?.loading} />
+              </div>
+              <SuggestBox s={sug.coverAlt} onUse={(v) => { set("coverAlt", v); dismiss("coverAlt"); }} onAgain={() => ask("coverAlt", "coverAlt")} onDismiss={() => dismiss("coverAlt")} />
             </div>
           </div>
 
@@ -235,6 +283,22 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
             </select>
             <span className="text-3 text-[11.5px]">Adds to the end of the block you are in. Bold: **words**</span>
           </div>
+          {attached.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              <span className="text-3 text-[12px]">Links in this post:</span>
+              {attached.map((a) => (
+                <span key={a.href} className="inline-flex items-center gap-1 rounded-full border surface-3 pl-2.5 pr-1 py-0.5 text-[12px]" title={a.href}>
+                  {a.label.length > 34 ? a.label.slice(0, 33) + "…" : a.label}
+                  <button type="button" aria-label={`Remove link to ${a.label}`} title="Remove the link (the words stay)" onClick={() => removeLink(a.href)} className="grid place-items-center w-5 h-5 rounded-full text-3 hover:text-[#b02f2f] hover:surface-2">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {sug.firstParagraph && (
+            <SuggestBox s={sug.firstParagraph} title="Suggested opening paragraph" onUse={(v) => { setBlock(firstParaIndex, { t: "p", text: v }); dismiss("firstParagraph"); }} onAgain={() => ask("firstParagraph", "firstParagraph")} onDismiss={() => dismiss("firstParagraph")} />
+          )}
 
           <div className="space-y-2">
             {d.blocks.map((b, i) => (
@@ -293,21 +357,35 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
               <div className="text-[17px] text-[#1a0dab] leading-snug my-0.5">{(seoTitle + " | Ozi Realty").slice(0, 62)}{(seoTitle + " | Ozi Realty").length > 62 ? "…" : ""}</div>
               <div className="text-[12.5px] text-[#4d5156]">{snippet.slice(0, 158) || "Write an SEO description below."}{snippet.length > 158 ? "…" : ""}</div>
             </div>
-            <label className="block text-[13px] font-semibold mt-3 mb-1.5">Google title <span className="text-3 font-normal">(optional, {d.seoTitle.length}/60)</span></label>
+            <FieldHead className="mt-3" label={<>Google title <span className="text-3 font-normal">(optional, {d.seoTitle.length}/60)</span></>} onSuggest={() => ask("seoTitle", "seoTitle")} loading={sug.seoTitle?.loading} />
             <input value={d.seoTitle} onChange={(e) => set("seoTitle", e.target.value)} placeholder="Defaults to the title" className={`${input} text-[13px]`} />
-            <label className="block text-[13px] font-semibold mt-3 mb-1.5">SEO description <span className="text-3 font-normal">({desc} / 160)</span></label>
+            <SuggestBox s={sug.seoTitle} onUse={(v) => { set("seoTitle", v); dismiss("seoTitle"); }} onAgain={() => ask("seoTitle", "seoTitle")} onDismiss={() => dismiss("seoTitle")} />
+            <FieldHead className="mt-3" label={<>SEO description <span className="text-3 font-normal">({desc} / 160)</span></>} onSuggest={() => ask("description", "description")} loading={sug.description?.loading} />
             <textarea value={d.description} onChange={(e) => set("description", e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 bg-transparent text-[13px]" placeholder="One or two sentences that make someone want to click" />
-            <label className="block text-[13px] font-semibold mt-3 mb-1.5">Target search</label>
+            <SuggestBox s={sug.description} onUse={(v) => { set("description", v); dismiss("description"); }} onAgain={() => ask("description", "description")} onDismiss={() => dismiss("description")} />
+            <FieldHead className="mt-3" label="Target search" onSuggest={() => ask("targetSearch", "targetSearch")} loading={sug.targetSearch?.loading} />
             <input value={d.targetSearch} onChange={(e) => set("targetSearch", e.target.value)} placeholder="e.g. independent property valuation adelaide" className={`${input} text-[13px]`} />
+            <SuggestBox s={sug.targetSearch} onUse={(v) => { set("targetSearch", v); dismiss("targetSearch"); }} onAgain={() => ask("targetSearch", "targetSearch")} onDismiss={() => dismiss("targetSearch")} />
           </div>
           <div className="rounded-2xl border p-4 surface-2">
             <div className="text-3 text-[11px] uppercase tracking-[0.08em] font-bold mb-2">SEO checklist · {score} of {checks.length}</div>
             {checks.map((c) => (
-              <div key={c.label} className="flex gap-2 py-1 text-[13px]">
-                <span className={c.ok === true ? "text-[#1f7a4d] font-bold" : c.ok === "half" ? "text-[#946200] font-bold" : "text-[#b02f2f] font-bold"}>{c.ok === true ? "✓" : c.ok === "half" ? "!" : "✗"}</span>
-                {c.label}
+              <div key={c.label} className="py-1 text-[13px]">
+                <div className="flex gap-2 items-start">
+                  <span className={c.ok === true ? "text-[#1f7a4d] font-bold" : c.ok === "half" ? "text-[#946200] font-bold" : "text-[#b02f2f] font-bold"}>{c.ok === true ? "✓" : c.ok === "half" ? "!" : "✗"}</span>
+                  <span className="flex-1">{c.label}</span>
+                  {c.ok !== true && c.fix && (
+                    <button type="button" disabled={!!sug[c.fix.key]?.loading} onClick={() => ask(c.fix!.key, c.fix!.task, c.fix!.instruction ?? "")} className="shrink-0 inline-flex items-center gap-1 rounded-md border px-2 min-h-7 text-[12px] font-semibold text-[var(--accent)] hover:surface-3 disabled:opacity-50" title={`${c.fix.label} with AI (about A$0.01)`}>
+                      {sug[c.fix.key]?.loading ? <Loader2 size={12} className="animate-spin" /> : "✦"} Fix
+                    </button>
+                  )}
+                </div>
+                {c.fix?.task === "edit" && sug[c.fix.key] && !sug[c.fix.key].loading && (
+                  <EditSuggestion s={sug[c.fix.key]} blocks={d.blocks} onUse={() => applyEdit(c.fix!.key)} onAgain={() => ask(c.fix!.key, "edit", c.fix!.instruction ?? "")} onDismiss={() => dismiss(c.fix!.key)} />
+                )}
               </div>
             ))}
+            <p className="text-3 text-[11.5px] mt-2">✦ uses AI only when pressed, about A$0.01 each. Nothing changes until you choose Use it.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {status === "published" ? (
@@ -438,6 +516,83 @@ function PublishDialog(p: {
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SuggestButton({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} disabled={loading} title="Suggest with AI (about A$0.01)" className="shrink-0 inline-flex items-center gap-1 rounded-md border px-2 min-h-8 text-[12px] font-semibold text-[var(--accent)] hover:surface-3 disabled:opacity-50">
+      {loading ? <Loader2 size={12} className="animate-spin" /> : "✦"} Suggest
+    </button>
+  );
+}
+
+function FieldHead({ label, onSuggest, loading, className = "" }: { label: React.ReactNode; onSuggest: () => void; loading?: boolean; className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 mb-1.5 ${className}`}>
+      <span className="text-[13px] font-semibold flex-1">{label}</span>
+      <SuggestButton onClick={onSuggest} loading={loading} />
+    </div>
+  );
+}
+
+type SugView = { loading?: boolean; error?: string; value?: string; note?: string; changes?: { index: number; block: BlogBlock }[]; inserts?: { after: number; block: BlogBlock }[] };
+
+function SuggestBox({ s, title = "Suggestion", onUse, onAgain, onDismiss }: { s?: SugView; title?: string; onUse: (v: string) => void; onAgain: () => void; onDismiss: () => void }) {
+  if (!s || s.loading) return null;
+  return (
+    <div className="mt-1.5 mb-2 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/[0.05] px-3 py-2 text-[13px]">
+      {s.error ? (
+        <p className="text-[#b02f2f]">{s.error}</p>
+      ) : (
+        <>
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--accent)] mb-1">✦ {title}</div>
+          <p className="whitespace-pre-line">{s.value}</p>
+        </>
+      )}
+      <div className="flex gap-2 mt-2">
+        {!s.error && s.value && <button type="button" onClick={() => onUse(s.value!)} className="rounded-md bg-[var(--accent)] text-white px-2.5 min-h-7 text-[12px] font-bold">Use it</button>}
+        <button type="button" onClick={onAgain} className="rounded-md border px-2.5 min-h-7 text-[12px] font-semibold hover:surface-3">Try another</button>
+        <button type="button" onClick={onDismiss} className="rounded-md px-2 min-h-7 text-[12px] text-2 hover:underline">Dismiss</button>
+      </div>
+    </div>
+  );
+}
+
+function EditSuggestion({ s, blocks, onUse, onAgain, onDismiss }: { s: SugView; blocks: BlogBlock[]; onUse: () => void; onAgain: () => void; onDismiss: () => void }) {
+  const show = (b: BlogBlock) => (b.t === "ul" ? (b.items ?? []).map((x) => "• " + x).join("\n") : b.text ?? "");
+  const n = (s.changes?.length ?? 0) + (s.inserts?.length ?? 0);
+  return (
+    <div className="mt-1.5 mb-1 ml-5 rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/[0.05] px-3 py-2 text-[12.5px]">
+      {s.error ? (
+        <p className="text-[#b02f2f]">{s.error}</p>
+      ) : !n ? (
+        <p className="text-2">No change suggested{s.note ? `: ${s.note}` : "."}</p>
+      ) : (
+        <>
+          {s.note && <p className="font-semibold mb-1">✦ {s.note}</p>}
+          <div className="max-h-[220px] overflow-y-auto space-y-1.5">
+            {(s.changes ?? []).map((c, i) => (
+              <div key={"c" + i} className="rounded surface-2 border px-2 py-1">
+                <span className="text-3 text-[11px]">Changes block {c.index + 1}{blocks[c.index] ? "" : " (new)"}</span>
+                <p className="whitespace-pre-line">{inlineText(show(c.block))}</p>
+              </div>
+            ))}
+            {(s.inserts ?? []).map((c, i) => (
+              <div key={"i" + i} className="rounded surface-2 border px-2 py-1">
+                <span className="text-3 text-[11px]">Adds {c.block.t === "h2" ? "a heading" : c.block.t === "h3" ? "a sub-heading" : c.block.t === "ul" ? "a list" : "a paragraph"} after block {c.after + 1}</span>
+                <p className={`whitespace-pre-line ${c.block.t === "h2" || c.block.t === "h3" ? "font-bold" : ""}`}>{inlineText(show(c.block))}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="flex gap-2 mt-2">
+        {!s.error && n > 0 && <button type="button" onClick={onUse} className="rounded-md bg-[var(--accent)] text-white px-2.5 min-h-7 text-[12px] font-bold">Use it</button>}
+        <button type="button" onClick={onAgain} className="rounded-md border px-2.5 min-h-7 text-[12px] font-semibold hover:surface-3">Try another</button>
+        <button type="button" onClick={onDismiss} className="rounded-md px-2 min-h-7 text-[12px] text-2 hover:underline">Dismiss</button>
       </div>
     </div>
   );
