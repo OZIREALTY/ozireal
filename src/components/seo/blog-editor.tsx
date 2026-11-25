@@ -160,6 +160,26 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
         </button>
       </div>
       {saveError && <p className="mb-3 rounded-lg bg-[#fde8e8] text-[#a12a2a] px-3 py-2 text-[13px]">{saveError}</p>}
+      {post.aiGenerated && status !== "published" && (() => {
+        // Every sentence with a number, for the owner to confirm (the prompt forbids invented figures).
+        const claims = d.blocks
+          .flatMap((b) => (b.t === "ul" ? b.items ?? [] : [b.text ?? ""]))
+          .flatMap((t) => plainText(t).split(/(?<=[.!?])s+/))
+          .filter((x) => /d/.test(x));
+        return (
+          <div className="mb-3 rounded-lg border border-[#f1dda6] bg-[#fff8e6] text-[#6b4e00] px-3 py-2.5 text-[13px]">
+            <b>Written with AI. Check before publishing:</b> read it through and make it sound like you.
+            {claims.length ? (
+              <>
+                {" "}These {claims.length} sentence{claims.length === 1 ? " states" : "s state"} a number; confirm or remove {claims.length === 1 ? "it" : "them"}:
+                <ul className="list-disc pl-5 mt-1.5 space-y-0.5">{claims.slice(0, 12).map((c, i) => <li key={i}>{c}</li>)}</ul>
+              </>
+            ) : (
+              <> It contains no figures.</>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
         <div className="rounded-2xl border p-4 surface-2 min-w-0">

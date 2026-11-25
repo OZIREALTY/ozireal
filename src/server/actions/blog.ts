@@ -227,3 +227,90 @@ export const bulkBlogPosts = defineAction({
     return { done, skipped };
   },
 });
+
+/**
+ * Write with AI (owner-approved, 2026-11-25): on request only, one draft per press,
+ * logged with its cost like every AI call (rule 7). The result is a DRAFT in the editor;
+ * publishing is still a person pressing Publish (rule 1). The prompt forbids invented
+ * figures, and the editor lists every sentence with a number for checking.
+ */
+const aiDraft = z.object({
+  title: z.string().trim().min(5).max(120),
+  seoTitle: z.preprocess((v) => String(v ?? "").trim().slice(0, 70), z.string()),
+  description: z.preprocess((v) => String(v ?? "").trim().slice(0, 170), z.string()),
+  coverAlt: z.preprocess((v) => String(v ?? "").trim().slice(0, 200), z.string()),
+  blocks: z
+    .array(
+      z.object({
+        t: z.enum(["p", "h2", "h3", "ul"]),
+        text: z.preprocess((v) => (v == null ? undefined : String(v).slice(0, 6000)), z.string().optional()),
+        items: z.preprocess((v) => (Array.isArray(v) ? v.map((x) => String(x).slice(0, 1000)) : undefined), z.array(z.string()).optional()),
+      }),
+    )
+    .min(4)
+    .max(200),
+});
+
+export const draftBlogWithAI = defineAction({
+  input: z.object({
+    topic: z.string().trim().min(3, "Say what the post is about").max(160),
+    audience: z.enum(["home buyers", "investors", "sellers", "landlords", "overseas buyers"]).default("home buyers"),
+    words: z.union([z.literal(600), z.literal(900), z.literal(1400)]).default(900),
+    servicePath: z.string().regex(/^\/[a-z0-9-]+$/).default("/buyer-agent-adelaide"),
+    note: z.string().trim().max(1000).default(""),
+  }),
+  async handler(input, ctx) {
+    const { runTask } = await import("@/server/ai/run-task");
+    const { loadPrompt } = await import("@/server/ai/prompts");
+    const prompt = loadPrompt("blog-draft.v1");
+    const { data } = await runTask(aiDraft, {
+      task: "blog-draft",
+      model: "sonnet",
+      output: "structured",
+      effort: "medium",
+      system: [{ text: prompt.text, cache: true }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Search or topic: ${input.topic}`,
+            `Written for: ${input.audience}`,
+            `Target length: about ${input.words} words`,
+            `Service page to link: ${input.servicePath}`,
+            `Esi's note: ${input.note || "(none)"}`,
+          ].join("\n"),
+        },
+      ],
+      maxTokens: 12000,
+      tenantId: ctx.tenantId,
+      entity: { type: "blog_post", id: ctx.tenantId },
+      promptVersion: prompt.version,
+    });
+    let slug = slugify(input.topic);
+    for (let n = 2; ; n++) {
+      const [clash] = await ctx.tx.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, slug)).limit(1);
+      if (!clash) break;
+      slug = `${slugify(input.topic)}-${n}`;
+    }
+    const blocks = data.blocks.filter((b) => (b.t === "ul" ? (b.items ?? []).some(Boolean) : (b.text ?? "").trim()));
+    const [p] = await ctx.tx
+      .insert(blogPosts)
+      .values({
+        tenantId: ctx.tenantId,
+        slug,
+        title: data.title,
+        seoTitle: data.seoTitle || null,
+        description: data.description,
+        targetSearch: input.topic,
+        coverAlt: data.coverAlt,
+        blocks,
+        wordCount: words(blocks),
+        status: "draft",
+        aiGenerated: true,
+      })
+      .returning({ id: blogPosts.id });
+    await ctx.audit({ kind: "edit", action: "Drafted a blog post with AI", target: data.title, entityType: "blog_post", entityId: p.id });
+    revalidatePath("/seo/blog");
+    return { id: p.id };
+  },
+});
