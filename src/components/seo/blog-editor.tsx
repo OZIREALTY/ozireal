@@ -154,7 +154,18 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
   const links = [...allText.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]);
   const desc = d.description.trim().length;
   const servicesList = SERVICES.filter((x) => SERVICE_PATHS.includes(x.href)).map((x) => `${x.href} (${x.label})`).join(", ");
-  const postsList = posts.slice(0, 40).map((x) => `/blog/${x.slug} (${x.title})`).join("; ");
+  /** The posts most like this one (shared words in the title and target search), best first. */
+  const postsList = React.useMemo(() => {
+    const stop = new Set(["the", "a", "an", "in", "to", "for", "of", "and", "your", "you", "how", "what", "why", "with", "on", "is", "are", "guide", "adelaide", "sa", "australia"]);
+    const words = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !stop.has(w)));
+    const mine = words(`${d.title} ${d.targetSearch}`);
+    return posts
+      .map((x) => ({ x, score: [...words(`${x.title} ${x.slug}`)].filter((w) => mine.has(w)).length }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map(({ x }) => `/blog/${x.slug} (${x.title})`)
+      .join("; ");
+  }, [posts, d.title, d.targetSearch]);
   type Fix = { key: string; task: "title" | "description" | "targetSearch" | "coverAlt" | "firstParagraph" | "edit"; instruction?: string; label: string };
   const checks: { ok: boolean | "half"; label: string; fix?: Fix }[] = [
     { ok: !target ? "half" : (d.seoTitle || d.title).toLowerCase().includes(target), label: target ? "Target search in the title" : "Set a target search (right)", fix: target ? { key: "title", task: "title", label: "Suggest a title" } : { key: "targetSearch", task: "targetSearch", label: "Suggest a target search" } },
@@ -164,7 +175,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
     { ok: !!d.coverUrl && d.coverAlt.trim().length > 4, label: "Cover photo with a description (alt text)", fix: d.coverAlt.trim().length > 4 ? undefined : { key: "coverAlt", task: "coverAlt", label: "Suggest a description" } },
     { ok: words >= 600 ? true : words >= 300 ? "half" : false, label: `About 600+ words (${words})`, fix: words >= 600 ? undefined : { key: "fix-length", task: "edit", instruction: "Expand the post toward 650 words with practical, useful detail for the reader: add paragraphs or a short section where it helps. No figures.", label: "Suggest more content" } },
     { ok: links.some((l) => SERVICE_PATHS.some((s) => l.startsWith(s))), label: "Link to one of your service pages", fix: { key: "fix-service", task: "edit", instruction: `Add ONE link to the most relevant of these pages, on words that already fit in an existing paragraph: ${servicesList}`, label: "Add a link" } },
-    { ok: links.filter((l) => l.startsWith("/blog/")).length >= 2 ? true : links.some((l) => l.startsWith("/blog/")) ? "half" : false, label: "Link to 2 related posts", fix: posts.length ? { key: "fix-related", task: "edit", instruction: `Add links to the 2 most related of these posts, on words that already fit in existing paragraphs (or one short sentence): ${postsList}`, label: "Add links" } : undefined },
+    { ok: links.filter((l) => l.startsWith("/blog/")).length >= 2 ? true : links.some((l) => l.startsWith("/blog/")) ? "half" : false, label: "Link to 2 related posts", fix: posts.length ? { key: "fix-related", task: "edit", instruction: `Add links to the 2 posts below that are most related to this one (same subject). First choice: link words in an existing paragraph that already mention that subject. Only if there is no natural place, add at the end a heading (h2) "Related guides" followed by a bullet list of the 2 links, each written as [post title](/blog/slug). Posts, most similar first: ${postsList}`, label: "Add links" } : undefined },
   ];
   const score = checks.filter((c) => c.ok === true).length;
 
@@ -550,6 +561,7 @@ function SuggestBox({ s, title = "Suggestion", onUse, onAgain, onDismiss }: { s?
         <>
           <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--accent)] mb-1">✦ {title}</div>
           <p className="whitespace-pre-line">{s.value}</p>
+          {s.note && <p className="mt-1 text-[12px] text-[#946200]">{s.note}</p>}
         </>
       )}
       <div className="flex gap-2 mt-2">

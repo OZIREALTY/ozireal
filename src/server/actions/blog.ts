@@ -338,7 +338,7 @@ export const suggestForPost = defineAction({
     id: z.string().uuid(),
     task: z.enum(["title", "seoTitle", "description", "targetSearch", "coverAlt", "firstParagraph", "edit"]),
     /** For "edit": what to do, e.g. "Add a link to /buyer-agent-adelaide where it fits". */
-    instruction: z.string().trim().max(600).default(""),
+    instruction: z.string().trim().max(8000).default(""),
     post: z.object({
       title: z.string().max(200),
       targetSearch: z.string().max(200),
@@ -350,40 +350,70 @@ export const suggestForPost = defineAction({
     const { runTask } = await import("@/server/ai/run-task");
     const { loadPrompt } = await import("@/server/ai/prompts");
     const prompt = loadPrompt("blog-suggest.v2");
-    const { data } = await runTask(suggestOut, {
-      task: `blog-suggest:${input.task}`,
-      model: "haiku",
-      output: "structured",
-      system: [{ text: prompt.text, cache: true }],
-      messages: [
-        {
-          role: "user",
-          content: [
-            `TASK: ${input.task}${input.instruction ? ` - ${input.instruction}` : ""}`,
-            "",
-            `Title: ${input.post.title}`,
-            `Target search: ${input.post.targetSearch || "(not set)"}`,
-            `SEO description: ${input.post.description || "(empty)"}`,
-            "Blocks:",
-            JSON.stringify(input.post.blocks.map((b, i) => ({ i, ...b }))).slice(0, 40000),
-          ].join("\n"),
-        },
-      ],
-      maxTokens: 6000,
-      tenantId: ctx.tenantId,
-      entity: { type: "blog_post", id: input.id },
-      promptVersion: prompt.version,
-    });
     /**
-     * The model sometimes names the field after the task ({"seoTitle": "..."}) instead of
-     * "value" (2026-11-25: suggestions came back empty). Accept the first text it gave.
+     * The standards the checklist uses, checked here too (owner, 2026-11-25: an 83-character
+     * description came back for a 120-160 rule). One retry tells the model what was wrong.
      */
-    const extra = data as Record<string, unknown>;
-    const value =
-      data.value ??
-      (typeof extra[input.task] === "string" ? (extra[input.task] as string) : undefined) ??
-      (Object.entries(extra).find(([k, v]) => !["note", "changes", "inserts"].includes(k) && typeof v === "string")?.[1] as string | undefined);
-    if (input.task !== "edit" && !value?.trim()) throw new ActionError("The AI gave no suggestion. Press Try another.");
-    return { value: value?.trim(), changes: data.changes, inserts: data.inserts, note: data.note };
+    const LIMITS: Partial<Record<typeof input.task, [number, number]>> = {
+      title: [20, 70],
+      seoTitle: [20, 60],
+      description: [120, 160],
+      targetSearch: [6, 80],
+      coverAlt: [10, 160],
+    };
+    let feedback = "";
+    for (let attempt = 0; ; attempt++) {
+      const { data } = await runTask(suggestOut, {
+        task: `blog-suggest:${input.task}`,
+        model: "haiku",
+        output: "structured",
+        system: [{ text: prompt.text, cache: true }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              `TASK: ${input.task}${input.instruction ? ` - ${input.instruction}` : ""}`,
+              feedback,
+              "",
+              `Title: ${input.post.title}`,
+              `Target search: ${input.post.targetSearch || "(not set)"}`,
+              `SEO description: ${input.post.description || "(empty)"}`,
+              "Blocks:",
+              JSON.stringify(input.post.blocks.map((b, i) => ({ i, ...b }))).slice(0, 40000),
+            ].join("\n"),
+          },
+        ],
+        maxTokens: 6000,
+        tenantId: ctx.tenantId,
+        entity: { type: "blog_post", id: input.id },
+        promptVersion: prompt.version,
+      });
+      /**
+       * The model sometimes names the field after the task ({"seoTitle": "..."}) instead of
+       * "value" (2026-11-25: suggestions came back empty). Accept the first text it gave.
+       */
+      const extra = data as Record<string, unknown>;
+      const value = (
+        data.value ??
+        (typeof extra[input.task] === "string" ? (extra[input.task] as string) : undefined) ??
+        (Object.entries(extra).find(([k, v]) => !["note", "changes", "inserts"].includes(k) && typeof v === "string")?.[1] as string | undefined)
+      )?.trim();
+      if (input.task === "edit") return { value: undefined, changes: data.changes, inserts: data.inserts, note: data.note };
+      const lim = LIMITS[input.task];
+      const target = input.post.targetSearch.trim().toLowerCase();
+      const problems: string[] = [];
+      if (!value) problems.push("you gave no value");
+      else {
+        if (lim && (value.length < lim[0] || value.length > lim[1])) problems.push(`it is ${value.length} characters and must be ${lim[0]}-${lim[1]}`);
+        if (target && ["title", "seoTitle", "firstParagraph"].includes(input.task) && !value.toLowerCase().includes(target))
+          problems.push(`it must contain the exact target search "${target}"`);
+      }
+      if (!problems.length) return { value, changes: undefined, inserts: undefined, note: data.note };
+      if (attempt >= 1) {
+        if (value) return { value, changes: undefined, inserts: undefined, note: `Check: ${problems.join("; ")}.` };
+        throw new ActionError("The AI gave no suggestion. Press Try another.");
+      }
+      feedback = `YOUR LAST ANSWER WAS WRONG: ${problems.join("; ")}. Answer again following the rules exactly.`;
+    }
   },
 });
