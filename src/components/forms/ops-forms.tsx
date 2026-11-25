@@ -78,35 +78,39 @@ export function NewTaskButton({
             label="What needs doing"
             name="title"
             required
-            placeholder="Send the Powell St contract to the conveyancer"
+            placeholder="e.g. Renew the licence, pay the office rent, call the accountant"
             errors={a.fieldErrors.title}
           />
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Select
-              label="About"
-              name="contactId"
-              options={[{ value: "", label: "Nobody in particular" }, ...contacts]}
-              errors={a.fieldErrors.contactId}
-            />
-            <Select
-              label="Due"
-              name="dueInDays"
-              defaultValue="1"
-              options={[
-                { value: "0", label: "Today" },
-                { value: "1", label: "Tomorrow" },
-                { value: "3", label: "In 3 days" },
-                { value: "7", label: "In a week" },
-                { value: "14", label: "In 2 weeks" },
-              ]}
-            />
-          </div>
           <Select
-            label="Property"
-            name="listingId"
-            options={[{ value: "", label: "Not about a listing" }, ...listings]}
-            errors={a.fieldErrors.listingId}
+            label="Due"
+            name="dueInDays"
+            defaultValue="1"
+            options={[
+              { value: "0", label: "Today" },
+              { value: "1", label: "Tomorrow" },
+              { value: "3", label: "In 3 days" },
+              { value: "7", label: "In a week" },
+              { value: "14", label: "In 2 weeks" },
+            ]}
           />
+          {/* Any kind of task (owner, 2026-11-25): a person or property is an optional link, folded away. */}
+          <details className="rounded-md border px-3 py-2" open={!!(a.fieldErrors.contactId || a.fieldErrors.listingId)}>
+            <summary className="cursor-pointer text-[13px] text-2 select-none">Link to a person or property (optional)</summary>
+            <div className="grid sm:grid-cols-2 gap-3 mt-3">
+              <Select
+                label="Person"
+                name="contactId"
+                options={[{ value: "", label: "None" }, ...contacts]}
+                errors={a.fieldErrors.contactId}
+              />
+              <Select
+                label="Property"
+                name="listingId"
+                options={[{ value: "", label: "None" }, ...listings]}
+                errors={a.fieldErrors.listingId}
+              />
+            </div>
+          </details>
 
           <FormError message={a.error} />
           <div className="flex gap-2 pt-1">
