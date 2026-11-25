@@ -331,7 +331,7 @@ const suggestOut = z.object({
     .max(20)
     .optional(),
   note: z.preprocess((v) => (v == null ? undefined : String(v).slice(0, 300)), z.string().optional()),
-});
+}).passthrough();
 
 export const suggestForPost = defineAction({
   input: z.object({
@@ -349,7 +349,7 @@ export const suggestForPost = defineAction({
   async handler(input, ctx) {
     const { runTask } = await import("@/server/ai/run-task");
     const { loadPrompt } = await import("@/server/ai/prompts");
-    const prompt = loadPrompt("blog-suggest.v1");
+    const prompt = loadPrompt("blog-suggest.v2");
     const { data } = await runTask(suggestOut, {
       task: `blog-suggest:${input.task}`,
       model: "haiku",
@@ -374,6 +374,16 @@ export const suggestForPost = defineAction({
       entity: { type: "blog_post", id: input.id },
       promptVersion: prompt.version,
     });
-    return data;
+    /**
+     * The model sometimes names the field after the task ({"seoTitle": "..."}) instead of
+     * "value" (2026-11-25: suggestions came back empty). Accept the first text it gave.
+     */
+    const extra = data as Record<string, unknown>;
+    const value =
+      data.value ??
+      (typeof extra[input.task] === "string" ? (extra[input.task] as string) : undefined) ??
+      (Object.entries(extra).find(([k, v]) => !["note", "changes", "inserts"].includes(k) && typeof v === "string")?.[1] as string | undefined);
+    if (input.task !== "edit" && !value?.trim()) throw new ActionError("The AI gave no suggestion. Press Try another.");
+    return { value: value?.trim(), changes: data.changes, inserts: data.inserts, note: data.note };
   },
 });
