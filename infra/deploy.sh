@@ -82,7 +82,7 @@ set -euo pipefail
 aws s3 cp "$BUCKET_BUILDS/$SHA.tgz" /tmp/ozirealty-build.tgz --region ap-southeast-2 --only-show-errors
 sudo rm -rf /tmp/build && mkdir -p /tmp/build
 tar -xzf /tmp/ozirealty-build.tgz -C /tmp/build
-test "$(cat /tmp/build/BUILD_COMMIT)" = "$SHA"
+test "\$(cat /tmp/build/BUILD_COMMIT)" = "$SHA"
 rm -rf /tmp/migrate && mkdir -p /tmp/migrate && cp -r /tmp/build/drizzle /tmp/migrate/drizzle
 du -sh /tmp/ozirealty-build.tgz | cut -f1
 REMOTE
