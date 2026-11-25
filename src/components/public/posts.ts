@@ -30,6 +30,8 @@ export interface Post {
   /** Local path under /public/blog, or null when the cover could not be fetched. */
   cover: string | null;
   coverAlt: string;
+  /** "Name / Pixabay" under a stock cover; empty or absent for the agency's own. */
+  coverCredit?: string;
   blocks: PostBlock[];
 }
 

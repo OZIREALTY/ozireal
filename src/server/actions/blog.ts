@@ -82,6 +82,7 @@ export const saveBlogPost = defineAction({
     slug: z.string().trim().max(90).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lower-case words joined by dashes").optional(),
     coverUrl: z.union([z.literal(""), z.string().max(500).regex(/^(\/|https:\/\/)/)]).default(""),
     coverAlt: z.string().trim().max(200).default(""),
+    coverCredit: z.string().trim().max(120).default(""),
     blocks: z.array(block).max(400),
   }),
   async handler(input, ctx) {
@@ -113,6 +114,7 @@ export const saveBlogPost = defineAction({
         slug,
         coverUrl: input.coverUrl || null,
         coverAlt: input.coverAlt,
+        coverCredit: input.coverUrl ? input.coverCredit : "",
         blocks: input.blocks,
         wordCount: words(input.blocks),
         updatedAt: savedAt,

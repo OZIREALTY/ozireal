@@ -24,6 +24,7 @@ export const publishedPosts = cache(async (): Promise<Post[]> => {
         author: blogPosts.author,
         cover: blogPosts.coverUrl,
         coverAlt: blogPosts.coverAlt,
+        coverCredit: blogPosts.coverCredit,
         blocks: blogPosts.blocks,
         date: sql<string>`to_char(${blogPosts.publishedAt} at time zone 'Australia/Adelaide', 'YYYY-MM-DD')`,
       })
@@ -41,6 +42,7 @@ export const publishedPosts = cache(async (): Promise<Post[]> => {
     author: r.author,
     cover: r.cover,
     coverAlt: r.coverAlt || r.title,
+    coverCredit: r.coverCredit,
     blocks: r.blocks ?? [],
   }));
 });

@@ -91,6 +91,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 sizes="(max-width: 1080px) 100vw, 1000px"
               />
             </div>
+            {post.coverCredit && <p className="post-credit">Photo: {post.coverCredit}</p>}
           </div>
         )}
 

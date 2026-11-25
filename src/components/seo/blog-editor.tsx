@@ -9,6 +9,7 @@ import type { BlogBlock } from "@/db/schema";
 import { deleteBlogPost, publishBlogPost, saveBlogPost, suggestForPost, unpublishBlogPost } from "@/server/actions/blog";
 import { inlineText, plainText } from "@/components/public/inline";
 import { LINKABLE_PAGES } from "@/components/public/site-nav";
+import { PhotoPicker, photoQuery } from "@/components/seo/photo-picker";
 
 /**
  * The blog editor (owner-approved preview, 2026-11-25). Title, address, cover, body as
@@ -38,6 +39,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
     targetSearch: post.targetSearch,
     coverUrl: post.coverUrl,
     coverAlt: post.coverAlt,
+    coverCredit: post.coverCredit,
     blocks: post.blocks.length ? post.blocks : [{ t: "p", text: "" }],
   });
   const [status, setStatus] = React.useState(post.status);
@@ -89,6 +91,12 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
     setD((x) => ({ ...x, blocks: x.blocks.map((b) => (b.t === "ul" ? { ...b, items: (b.items ?? []).map((t) => t.replace(re, "$1")) } : { ...b, text: (b.text ?? "").replace(re, "$1") })) }));
   }
   const [uploading, setUploading] = React.useState(false);
+  const [picking, setPicking] = React.useState(false);
+  // Write with AI lands here with ?photos=1: open the photo choice straight away.
+  React.useEffect(() => {
+    if (!post.coverUrl && new URLSearchParams(window.location.search).get("photos") === "1") setPicking(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const first = React.useRef(true);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -128,7 +136,7 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
       fd.append("file", f);
       const r = await fetch("/api/blog-cover", { method: "POST", body: fd });
       const j = await r.json().catch(() => ({}));
-      if (r.ok && j.url) set("coverUrl", j.url);
+      if (r.ok && j.url) setD((x) => ({ ...x, coverUrl: j.url, coverCredit: "" }));
       else setSaveError(j.error ?? "The photo did not upload.");
     } finally {
       setUploading(false);
@@ -254,16 +262,30 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />} Upload photo
                 <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} />
               </label>
+              <button type="button" onClick={() => setPicking(true)} className="ml-2 inline-flex items-center gap-1.5 rounded-lg border px-3 min-h-9 font-semibold text-[13px] text-[var(--accent)] hover:surface-2">✦ Find photos</button>
               {d.coverUrl && (
-                <button type="button" onClick={() => set("coverUrl", "")} className="ml-2 text-[12.5px] text-2 hover:underline">Remove</button>
+                <button type="button" onClick={() => setD((x) => ({ ...x, coverUrl: "", coverCredit: "" }))} className="ml-2 text-[12.5px] text-2 hover:underline">Remove</button>
               )}
               <div className="flex gap-2">
                 <input value={d.coverAlt} onChange={(e) => set("coverAlt", e.target.value)} placeholder="Describe the photo, e.g. Aerial view of an Adelaide suburb" className={`${input} text-[13px]`} />
                 <SuggestButton onClick={() => ask("coverAlt", "coverAlt")} loading={sug.coverAlt?.loading} />
               </div>
               <SuggestBox s={sug.coverAlt} onUse={(v) => { set("coverAlt", v); dismiss("coverAlt"); }} onAgain={() => ask("coverAlt", "coverAlt")} onDismiss={() => dismiss("coverAlt")} />
+              {d.coverCredit && <p className="text-3 text-[11.5px]">Photo: {d.coverCredit} (shown small under the cover on the website)</p>}
             </div>
           </div>
+          {picking && (
+            <PhotoPicker
+              initial={photoQuery(d.targetSearch || d.title)}
+              onClose={() => setPicking(false)}
+              onPick={({ url, credit, tags }) => {
+                setD((x) => ({ ...x, coverUrl: url, coverCredit: credit }));
+                setPicking(false);
+                // The AI suggests the description from the photo's tags; the owner accepts it.
+                void ask("coverAlt", "coverAlt", `The new cover photo is a stock photo tagged: ${tags}. Describe what it shows, in the context of this post.`);
+              }}
+            />
+          )}
 
           <div className="flex flex-wrap items-center gap-1.5 mt-4 mb-2">
             <b className="text-[13px] mr-1">Body</b>

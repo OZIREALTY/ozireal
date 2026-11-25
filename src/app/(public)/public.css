@@ -3365,3 +3365,6 @@
 @media (prefers-reduced-motion: reduce) {
   .post-body p a, .post-body li a { animation: none; background-position: 0 0; }
 }
+
+/* Stock cover credit (2026-11-25) */
+.post-credit { margin: 6px 2px 0; font-size: 12px; color: #8b93a5; text-align: right; }

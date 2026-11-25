@@ -47,7 +47,7 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
         setStep("shape");
         return;
       }
-      router.push(`/seo/blog/${r.data.id}`);
+      router.push(`/seo/blog/${r.data.id}?photos=1`);
     } catch {
       setError("The draft could not be finished. Nothing was published; try again.");
       setStep("shape");

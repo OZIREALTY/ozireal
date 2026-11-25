@@ -93,6 +93,7 @@ export type BlogEditorPost = {
   targetSearch: string;
   coverUrl: string;
   coverAlt: string;
+  coverCredit: string;
   blocks: BlogBlock[];
   status: BlogListRow["status"];
   publishedAt: string | null;
@@ -114,6 +115,7 @@ export async function getBlogPost(id: string): Promise<BlogEditorPost | null> {
       targetSearch: p.targetSearch ?? "",
       coverUrl: p.coverUrl ?? "",
       coverAlt: p.coverAlt,
+      coverCredit: p.coverCredit,
       blocks: p.blocks ?? [],
       status: p.status,
       publishedAt: p.publishedAt?.toISOString() ?? null,

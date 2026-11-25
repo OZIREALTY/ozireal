@@ -179,6 +179,8 @@ export const blogPosts = pgTable(
     author: text("author").notNull().default("Esi Dor"),
     coverUrl: text("cover_url"),
     coverAlt: text("cover_alt").notNull().default(""),
+    /** "Name / Pixabay" for a stock cover; empty for the owner's own photo. */
+    coverCredit: text("cover_credit").notNull().default(""),
     blocks: jsonb("blocks").$type<BlogBlock[]>().notNull().default([]),
     firstPublishedAt: timestamp("first_published_at", { withTimezone: true }),
     aiGenerated: boolean("ai_generated").notNull().default(false),
