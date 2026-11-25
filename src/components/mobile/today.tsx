@@ -23,7 +23,7 @@ type Data = {
   prefs: Pref[];
 };
 type Pref = { key: string; pinned: boolean; hidden: boolean; snoozedUntil: string | null };
-type Filter = "all" | "enquiry" | "emails" | "overdue" | "today";
+type Filter = "all" | "enquiry" | "emails" | "overdue" | "today" | "parked";
 type Sort = "urgent" | "new" | "old";
 
 const time = (d: Date) => new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Adelaide" }).format(new Date(d));
@@ -37,6 +37,7 @@ const FILTERS: { k: Filter; l: string }[] = [
   { k: "emails", l: "Emails waiting" },
   { k: "overdue", l: "Overdue" },
   { k: "today", l: "Tasks today" },
+  { k: "parked", l: "Hidden & snoozed" },
 ];
 const chip = (on: boolean) =>
   `rounded-full border px-3 min-h-8 text-[13px] font-semibold ${on ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]" : "surface-2 text-2"}`;
@@ -99,11 +100,12 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
   const match = (i: Item, f: Filter) =>
     f === "all" || (f === "enquiry" && i.kind === "enquiry") || (f === "emails" && i.kind === "emails") ||
     (f === "overdue" && i.kind === "task" && i.overdue) || (f === "today" && i.kind === "task" && !i.overdue);
-  const countOf = (f: Filter) => shown.filter((i) => match(i, f)).length;
+  const parked = live.filter((i) => isHidden(i) || isSnoozed(i));
+  const countOf = (f: Filter) => (f === "parked" ? parked.length : shown.filter((i) => match(i, f)).length);
   const when = (i: Item) => (i.kind === "enquiry" ? new Date(i.at).getTime() : i.kind === "task" && i.dueAt ? new Date(i.dueAt).getTime() : null);
-  const items = shown
+  const items = (filter === "parked" ? parked : shown)
     .map((i, n) => ({ i, n }))
-    .filter(({ i }) => match(i, filter))
+    .filter(({ i }) => filter === "parked" || match(i, filter))
     .sort((a, b) => {
       const pin = Number(isPinned(b.i)) - Number(isPinned(a.i));
       if (pin) return pin;
@@ -150,6 +152,18 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
   };
   const snooze = (i: Item, d: Date, label: string) => savePref(keyOf(i), { snoozedUntil: d.toISOString() }, `Snoozed until ${label}`);
 
+  const parkedLabel = (i: Item) => {
+    if (prefs[keyOf(i)]?.hidden) return "🙈 Hidden";
+    if (kindKey(i) && prefs[kindKey(i)!]?.hidden) return "🚫 Hidden with all cards of this kind";
+    const u = prefs[keyOf(i)]?.snoozedUntil;
+    return u ? `⏰ Snoozed until ${new Date(u).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : "";
+  };
+  async function unpark(i: Item) {
+    const kk = kindKey(i);
+    if (kk && prefs[kk]?.hidden) await savePref(kk, { hidden: false }, "That kind of card shows again");
+    await savePref(keyOf(i), { hidden: false, snoozedUntil: null }, "Card is back");
+  }
+
   function CardMenu({ i, inline = false }: { i: Item; inline?: boolean }) {
     const k = keyOf(i);
     const open = menu === k;
@@ -164,6 +178,12 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} />
             <div className="absolute right-0 top-11 z-50 w-[240px] rounded-xl border surface-2 shadow-xl p-1.5 text-[var(--text)]">
+              {(isHidden(i) || isSnoozed(i)) && (
+                <>
+                  <button type="button" className={`${item} font-bold text-[var(--accent)]`} onClick={() => unpark(i)}>↩ Show it again</button>
+                  <div className="border-t my-1" />
+                </>
+              )}
               <button type="button" className={item} onClick={() => savePref(k, { pinned: !isPinned(i) }, isPinned(i) ? "Unpinned" : "Pinned to the top")}>
                 📌 {isPinned(i) ? "Unpin" : "Pin to top"}
               </button>
@@ -398,6 +418,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
           {items.map((i) => (
             <article key={keyOf(i)} data-kind={i.kind === "emails" ? "emails" : i.kind} className={`relative surface-2 border rounded-2xl p-4 lg:p-3 lg:pr-12 lg:rounded-xl ${isPinned(i) ? "border-[var(--accent)] ring-1 ring-[var(--accent)]" : ""}`}>
               <CardMenu i={i} />
+              {filter === "parked" && <p className="text-3 text-[12.5px] font-semibold mb-1">{parkedLabel(i)}</p>}
               {isPinned(i) && <span className="absolute top-[18px] right-14 lg:top-[13px] lg:right-12 inline-flex items-center gap-1 text-[12.5px] font-bold text-[var(--accent)]"><Pin size={13} /> Pinned</span>}
               {body(i)}
             </article>
