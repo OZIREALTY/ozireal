@@ -20,7 +20,7 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
   const [ai, setAi] = React.useState(false);
   const [audience, setAudience] = React.useState<"home buyers" | "investors" | "sellers" | "landlords" | "overseas buyers">("investors");
   const [length, setLength] = React.useState<600 | 900 | 1400>(900);
-  const [service, setService] = React.useState("/buyer-agent-adelaide");
+  const [services, setServices] = React.useState<string[]>([]);
   const [note, setNote] = React.useState("");
   const [tick, setTick] = React.useState(0);
   const [choice, setChoice] = React.useState<string>("");
@@ -41,7 +41,7 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
     setTick(0);
     setError(null);
     try {
-      const r = await draftBlogWithAI({ topic, audience, words: length, servicePath: service, note });
+      const r = await draftBlogWithAI({ topic, audience, words: length, servicePaths: services, note });
       if (!r.ok) {
         setError(r.error);
         setStep("shape");
@@ -140,12 +140,32 @@ export function NewPostButton({ ideas }: { ideas: Idea[] }) {
                       <button key={v} type="button" onClick={() => setLength(v)} className={`rounded-full border px-3 min-h-8 text-[13px] ${length === v ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] font-semibold" : "hover:surface-3"}`}>{l}</button>
                     ))}
                   </div>
-                  <div className="font-semibold text-[13px] mb-1.5">Link it to one of your services</div>
-                  <select value={service} onChange={(e) => setService(e.target.value)} className="w-full rounded-lg border px-3 min-h-10 surface-2 mb-3">
-                    {LINKABLE_PAGES.map((x) => (
+                  <div className="font-semibold text-[13px] mb-1.5">Link it to your services <span className="text-3 font-normal">(one or more)</span></div>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v && !services.includes(v) && services.length < 6) setServices([...services, v]);
+                    }}
+                    className="w-full rounded-lg border px-3 min-h-10 surface-2"
+                    aria-label="Add a service to link"
+                  >
+                    <option value="">{services.length ? "+ Add another service…" : "Choose one or more services…"}</option>
+                    {LINKABLE_PAGES.filter((x) => !services.includes(x.href)).map((x) => (
                       <option key={x.href} value={x.href}>{x.label}</option>
                     ))}
                   </select>
+                  <div className="flex flex-wrap gap-1.5 mt-2 mb-3 min-h-[8px]">
+                    {services.map((h) => (
+                      <span key={h} className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/[0.07] pl-2.5 pr-1 py-0.5 text-[12.5px] font-semibold">
+                        {LINKABLE_PAGES.find((x) => x.href === h)?.label ?? h}
+                        <button type="button" aria-label="Remove" title="Remove" onClick={() => setServices(services.filter((x) => x !== h))} className="grid place-items-center w-5 h-5 rounded-full text-3 hover:text-[#b02f2f] hover:surface-3">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                    {!services.length && <span className="text-3 text-[12px]">None chosen: the AI picks the most relevant one.</span>}
+                  </div>
                   <div className="font-semibold text-[13px] mb-1.5">Anything to include? <span className="text-3 font-normal">(optional; any figures you want used go here)</span></div>
                   <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. Mention our free suburb insight report. Keep it practical, no hype." className="w-full rounded-lg border px-3 py-2 surface-2" />
                   <p className="text-3 text-[12px] mt-2">AI uses only facts you give it; it won&#39;t invent figures. Nothing is published until you press Publish.</p>

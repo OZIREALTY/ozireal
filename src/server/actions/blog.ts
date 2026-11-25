@@ -256,13 +256,14 @@ export const draftBlogWithAI = defineAction({
     topic: z.string().trim().min(3, "Say what the post is about").max(160),
     audience: z.enum(["home buyers", "investors", "sellers", "landlords", "overseas buyers"]).default("home buyers"),
     words: z.union([z.literal(600), z.literal(900), z.literal(1400)]).default(900),
-    servicePath: z.string().regex(/^\/[a-z0-9-]+$/).default("/buyer-agent-adelaide"),
+    /** Several service pages (owner, 2026-11-25); the draft links each once. */
+    servicePaths: z.array(z.string().regex(/^\/[a-z0-9-]+$/)).max(6).default([]),
     note: z.string().trim().max(1000).default(""),
   }),
   async handler(input, ctx) {
     const { runTask } = await import("@/server/ai/run-task");
     const { loadPrompt } = await import("@/server/ai/prompts");
-    const prompt = loadPrompt("blog-draft.v1");
+    const prompt = loadPrompt("blog-draft.v2");
     const { data } = await runTask(aiDraft, {
       task: "blog-draft",
       model: "sonnet",
@@ -276,7 +277,7 @@ export const draftBlogWithAI = defineAction({
             `Search or topic: ${input.topic}`,
             `Written for: ${input.audience}`,
             `Target length: about ${input.words} words`,
-            `Service page to link: ${input.servicePath}`,
+            `Service pages to link (each once, where it fits naturally): ${input.servicePaths.length ? input.servicePaths.join(", ") : "(none chosen: link the most relevant one service page you know of)"}`,
             `Esi's note: ${input.note || "(none)"}`,
           ].join("\n"),
         },
