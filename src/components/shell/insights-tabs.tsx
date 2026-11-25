@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileSpreadsheet, TrendingUp } from "lucide-react";
+import { BarChart3, FileSpreadsheet, Mail, TrendingUp } from "lucide-react";
 
 /**
  * Insights holds three different features under one menu item (2026-11-11). Each keeps
@@ -11,6 +11,7 @@ import { BarChart3, FileSpreadsheet, TrendingUp } from "lucide-react";
 const TABS = [
   { href: "/insights", label: "Performance", note: "How the business is doing", icon: BarChart3 },
   { href: "/reports", label: "Reports", note: "Activity counts and exports", icon: FileSpreadsheet },
+  { href: "/campaigns/insights", label: "Email", note: "Opens, clicks and replies", icon: Mail },
   { href: "/seo", label: "SEO", note: "Website search health", icon: TrendingUp },
 ] as const;
 
@@ -20,7 +21,7 @@ export function InsightsTabs() {
   const pathname = usePathname();
   return (
     <nav aria-label="Insights" className="mb-5 -mt-1 overflow-x-auto">
-      <div className="grid grid-cols-3 gap-2 min-w-[420px]">
+      <div className="grid grid-cols-4 gap-2 min-w-[560px]">
         {TABS.map((t) => {
           const on = pathname === t.href || pathname.startsWith(t.href + "/");
           const Icon = t.icon;

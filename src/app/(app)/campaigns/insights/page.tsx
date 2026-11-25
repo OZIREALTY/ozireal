@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
+import { InsightsTabs } from "@/components/shell/insights-tabs";
 import { CampaignTabs } from "@/components/campaigns/tabs";
 import { emailInsights, TYPE_LABEL } from "@/server/queries/email-insights";
 import { currentTenantId } from "@/db";
@@ -42,6 +43,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
 
   return (
     <>
+      <InsightsTabs />
       <PageHeader title="Email insights" subtitle="Every email the CRM sent: emails you wrote here, matched-buyer emails and single emails to a contact." />
       <CampaignTabs active="insights" />
       <ReplyCheck last={last} />
