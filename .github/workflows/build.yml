@@ -46,6 +46,10 @@ jobs:
           # Placeholder only: the build must not reach a database. A page that tries
           # fails the build here rather than shipping something built against nothing.
           DATABASE_URL: postgres://build:build@127.0.0.1:1/none
+          # Some modules refuse to load in production without a secret. This placeholder
+          # only satisfies that check during the build; it is not copied into the output
+          # (verified 2026-11-25), and the server uses its own from /etc/ozirealty/env.
+          AUTH_SECRET: build-placeholder-not-a-secret-0000
           NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm build
 
