@@ -367,7 +367,10 @@ export const suggestForPost = defineAction({
     for (let attempt = 0; ; attempt++) {
       const { data } = await runTask(suggestOut, {
         task: `blog-suggest:${input.task}`,
-        model: "haiku",
+        // Length-bound text (description, titles) goes to the writing model at low effort:
+        // the fast model kept writing ~110-character descriptions (owner, 2026-11-25).
+        model: ["description", "title", "seoTitle"].includes(input.task) ? "sonnet" : "haiku",
+        effort: "low",
         output: "structured",
         system: [{ text: prompt.text, cache: true }],
         messages: [

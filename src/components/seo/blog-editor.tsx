@@ -391,6 +391,22 @@ export function BlogEditor({ post, posts }: { post: BlogEditorPost; posts: { slu
                     </button>
                   )}
                 </div>
+                {c.fix && c.fix.task !== "edit" && sug[c.fix.key] && !sug[c.fix.key].loading && (
+                  <div className="ml-5">
+                    <SuggestBox
+                      s={sug[c.fix.key]}
+                      title={c.fix.label.replace(/^Suggest an? /, "Suggested ")}
+                      onUse={(v) => {
+                        const k = c.fix!.key;
+                        if (k === "firstParagraph") setBlock(firstParaIndex, { t: "p", text: v });
+                        else set(k as "title" | "description" | "targetSearch" | "coverAlt", v);
+                        dismiss(k);
+                      }}
+                      onAgain={() => ask(c.fix!.key, c.fix!.task, c.fix!.instruction ?? "")}
+                      onDismiss={() => dismiss(c.fix!.key)}
+                    />
+                  </div>
+                )}
                 {c.fix?.task === "edit" && sug[c.fix.key] && !sug[c.fix.key].loading && (
                   <EditSuggestion s={sug[c.fix.key]} blocks={d.blocks} onUse={() => applyEdit(c.fix!.key)} onAgain={() => ask(c.fix!.key, "edit", c.fix!.instruction ?? "")} onDismiss={() => dismiss(c.fix!.key)} />
                 )}
