@@ -3333,3 +3333,32 @@
 /* Links under a legal section (Google Analytics opt-out etc., 2026-11-11). */
 .legal-links { margin: -6px 0 28px; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
 .legal-links a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/*
+ * Links inside a blog post (owner, 2026-11-25): small pill buttons in the main colour
+ * (cobalt), with a slow colour sheen that runs across them, and a lift and arrow nudge
+ * on hover. Motion stops for anyone who asks for reduced motion.
+ */
+.post-body p a, .post-body li a {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 2px 1px; padding: 2px 11px 3px; border-radius: 999px;
+  font-size: .86em; font-weight: 700; line-height: 1.55; text-decoration: none; white-space: nowrap;
+  color: #fff;
+  background: linear-gradient(110deg, var(--accent) 0%, var(--accent) 38%, #3d6bff 50%, var(--accent) 62%, var(--accent-dp) 100%);
+  background-size: 260% 100%;
+  box-shadow: 0 2px 8px -3px rgba(0, 52, 200, .55);
+  animation: post-link-sheen 4.5s ease-in-out infinite;
+  transition: transform .18s ease, box-shadow .18s ease;
+  vertical-align: baseline;
+}
+.post-body p a::after, .post-body li a::after { content: "→"; font-weight: 800; transition: transform .18s ease; }
+.post-body p a:hover, .post-body li a:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(0, 52, 200, .7);
+}
+.post-body p a:hover::after, .post-body li a:hover::after { transform: translateX(3px); }
+.post-body p a:focus-visible, .post-body li a:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+@keyframes post-link-sheen { 0% { background-position: 100% 0; } 60%, 100% { background-position: 0% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .post-body p a, .post-body li a { animation: none; background-position: 0 0; }
+}
