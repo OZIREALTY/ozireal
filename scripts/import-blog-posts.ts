@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { withTenant, systemTenantId } from "@/db";
 import { blogPosts } from "@/db/schema";
