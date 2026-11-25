@@ -3342,7 +3342,7 @@
 .post-body p a, .post-body li a {
   display: inline-flex; align-items: center; gap: 5px;
   margin: 2px 1px; padding: 2px 11px 3px; border-radius: 999px;
-  font-size: .86em; font-weight: 700; line-height: 1.55; text-decoration: none; white-space: nowrap;
+  font-family: var(--sans); font-size: .86em; font-weight: 700; line-height: 1.55; text-decoration: none; white-space: nowrap;
   color: #fff;
   background: linear-gradient(110deg, var(--accent) 0%, var(--accent) 38%, #3d6bff 50%, var(--accent) 62%, var(--accent-dp) 100%);
   background-size: 260% 100%;
