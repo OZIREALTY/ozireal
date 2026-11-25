@@ -477,3 +477,19 @@ export const taskAttachments = pgTable(
   (t) => [index("task_attachments_task_idx").on(t.taskId)],
 );
 
+
+/** Do-now card organising (2026-11-26): pin, snooze, hide. Home screen only. */
+export const todayCardPrefs = pgTable(
+  "today_card_prefs",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    key: text("key").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    hidden: boolean("hidden").notNull().default(false),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);

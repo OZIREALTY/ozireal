@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { query } from "@/db";
-import { approvalItems, calendarEvents, campaigns, contacts, interactions, notCorrected, tasks } from "@/db/schema";
+import { approvalItems, calendarEvents, todayCardPrefs, campaigns, contacts, interactions, notCorrected, tasks } from "@/db/schema";
 
 /**
  * The mobile Today screen (owner's request, 2026-11-19): what needs the agent now, from
@@ -115,7 +115,9 @@ export async function getToday() {
     void now;
 
     const pendingEmails = batches.reduce((n, b) => n + b.count, 0);
+    const prefs = (await tx.select().from(todayCardPrefs)).map((p) => ({ key: p.key, pinned: p.pinned, hidden: p.hidden, snoozedUntil: p.snoozedUntil?.toISOString() ?? null }));
     return {
+      prefs,
       next: next ?? null,
       counts: {
         enquiries: enquiries.length,
