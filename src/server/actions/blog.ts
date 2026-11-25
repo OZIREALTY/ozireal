@@ -339,6 +339,9 @@ const suggestOut = z.object({
   options: z.preprocess((v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, 6) : undefined), z.array(z.string()).optional()),
 }).passthrough();
 
+const cut200 = z.preprocess((v) => String(v ?? "").slice(0, 200), z.string());
+const cut1000 = z.preprocess((v) => String(v ?? "").slice(0, 1000), z.string());
+
 export const suggestForPost = defineAction({
   input: z.object({
     id: z.string().uuid(),
@@ -348,9 +351,9 @@ export const suggestForPost = defineAction({
     post: z.object({
       // Cut, never refuse: a too-long field is exactly what the owner asks the AI to fix
       // (2026-11-25: a 500-character description made every Fix fail).
-      title: z.string().transform((v) => v.slice(0, 200)),
-      targetSearch: z.string().transform((v) => v.slice(0, 200)),
-      description: z.string().transform((v) => v.slice(0, 1000)),
+      title: cut200,
+      targetSearch: cut200,
+      description: cut1000,
       blocks: z.array(block).max(400),
     }),
   }),
