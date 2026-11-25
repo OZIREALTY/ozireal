@@ -17,6 +17,10 @@ set -euo pipefail
 ACCOUNT=310792823958
 BUCKET=ozirealty-backups-$ACCOUNT
 REPO=OZIREALTY/ozireal
+# GitHub now puts the immutable owner and repo IDs in the OIDC subject (seen in
+# CloudTrail, 2026-11-25). Matching the IDs is stricter than the name: a deleted and
+# re-created repo of the same name gets different IDs, so it cannot assume the role.
+SUBJECT="repo:OZIREALTY@324348989/ozireal@1471125852:ref:refs/heads/master"
 ROLE=ozirealty-github-ci
 INSTANCE_ROLE=ozirealty-instance
 OIDC=token.actions.githubusercontent.com
@@ -31,7 +35,7 @@ cat > /tmp/trust.json <<JSON
  "Principal":{"Federated":"arn:aws:iam::$ACCOUNT:oidc-provider/$OIDC"},
  "Action":"sts:AssumeRoleWithWebIdentity",
  "Condition":{
-  "StringEquals":{"$OIDC:aud":"sts.amazonaws.com","$OIDC:sub":"repo:$REPO:ref:refs/heads/master"}}}]}
+  "StringEquals":{"$OIDC:aud":"sts.amazonaws.com","$OIDC:sub":"$SUBJECT"}}}]}
 JSON
 if aws iam get-role --role-name $ROLE >/dev/null 2>&1; then
   aws iam update-assume-role-policy --role-name $ROLE --policy-document file:///tmp/trust.json
