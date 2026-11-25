@@ -77,7 +77,8 @@ export const saveBlogPost = defineAction({
     id: z.string().uuid(),
     title: z.string().trim().min(3, "Give it a title").max(160),
     seoTitle: z.string().trim().max(70).default(""),
-    description: z.string().trim().max(170).default(""),
+    // Long drafts still save; the checklist flags anything over 160.
+    description: z.string().trim().max(1000).default(""),
     targetSearch: z.string().trim().max(160).default(""),
     slug: z.string().trim().max(90).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lower-case words joined by dashes").optional(),
     coverUrl: z.union([z.literal(""), z.string().max(500).regex(/^(\/|https:\/\/)/)]).default(""),
@@ -345,9 +346,11 @@ export const suggestForPost = defineAction({
     /** For "edit": what to do, e.g. "Add a link to /buyer-agent-adelaide where it fits". */
     instruction: z.string().trim().max(8000).default(""),
     post: z.object({
-      title: z.string().max(200),
-      targetSearch: z.string().max(200),
-      description: z.string().max(300),
+      // Cut, never refuse: a too-long field is exactly what the owner asks the AI to fix
+      // (2026-11-25: a 500-character description made every Fix fail).
+      title: z.string().transform((v) => v.slice(0, 200)),
+      targetSearch: z.string().transform((v) => v.slice(0, 200)),
+      description: z.string().transform((v) => v.slice(0, 1000)),
       blocks: z.array(block).max(400),
     }),
   }),
