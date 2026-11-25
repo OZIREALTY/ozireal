@@ -3340,9 +3340,12 @@
  * on hover. Motion stops for anyone who asks for reduced motion.
  */
 .post-body p a, .post-body li a {
-  display: inline-flex; align-items: center; gap: 5px;
-  margin: 2px 1px; padding: 2px 11px 3px; border-radius: 999px;
-  font-family: var(--sans); font-size: .86em; font-weight: 700; line-height: 1.55; text-decoration: none; white-space: nowrap;
+  /* Inline, not inline-flex, and wrapping allowed (owner, 2026-11-25): a long link ran off
+     a phone screen. box-decoration-break gives every wrapped line its own pill ends. */
+  display: inline;
+  margin: 0 1px; padding: 3px 10px 3px; border-radius: 999px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  font-family: var(--sans); font-size: .86em; font-weight: 700; line-height: 2.1; text-decoration: none; white-space: normal; overflow-wrap: anywhere;
   color: #fff;
   background: linear-gradient(110deg, var(--accent) 0%, var(--accent) 38%, #3d6bff 50%, var(--accent) 62%, var(--accent-dp) 100%);
   background-size: 260% 100%;
@@ -3351,7 +3354,7 @@
   transition: transform .18s ease, box-shadow .18s ease;
   vertical-align: baseline;
 }
-.post-body p a::after, .post-body li a::after { content: "→"; font-weight: 800; transition: transform .18s ease; }
+.post-body p a::after, .post-body li a::after { content: "→"; margin-left: 5px; font-weight: 800; display: inline-block; transition: transform .18s ease; }
 .post-body p a:hover, .post-body li a:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px -6px rgba(0, 52, 200, .7);
