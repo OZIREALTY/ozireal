@@ -30,6 +30,8 @@ const OPTIONAL_UUID = z
 export const createTask = defineAction({
   input: z.object({
     title: z.string().trim().min(3, "Say what needs doing").max(200),
+    details: z.string().trim().max(5000).default(""),
+    otherLabel: z.string().trim().max(120).default(""),
     contactId: OPTIONAL_UUID,
     listingId: OPTIONAL_UUID,
     dueInDays: optionalInt(0, 365),
@@ -72,6 +74,8 @@ export const createTask = defineAction({
         contactId,
         listingId,
         title: input.title,
+        details: input.details || null,
+        otherLabel: input.otherLabel || null,
         status: "open",
         dueAt:
           input.dueInDays !== undefined

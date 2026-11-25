@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Check } from "lucide-react";
+import { AlertTriangle, Check, Paperclip } from "lucide-react";
 import {
   PageHeader,
   Section,
@@ -42,7 +42,7 @@ export default async function TasksPage() {
         /* The old wording said every task came from the confirm queue. That
            stopped being true the moment this page grew an "add" button, and a
            subtitle that quietly lies is worse than no subtitle. */
-        subtitle="Added by hand, or committed by a human from the confirm queue. Nothing here was written automatically."
+        subtitle="Anything you need to do, with your own notes and files. Nothing here was written automatically."
         actions={<NewTaskButton contacts={contactOpts} listings={listingOpts} />}
       />
 
@@ -64,6 +64,17 @@ export default async function TasksPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium">{t.title}</div>
+                      {t.details && <p className="text-2 text-[12.5px] mt-1 whitespace-pre-line leading-relaxed">{t.details}</p>}
+                      {t.files.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {t.files.map((f) => (
+                            <a key={f.id} href={`/api/task-files/${f.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[12px] hover:surface-2">
+                              <Paperclip size={11} />
+                              {f.name}
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       <div className="text-3 text-[12px] mt-0.5 flex flex-wrap items-center gap-x-2">
                         {t.contactId && (
                           <Link
@@ -73,6 +84,7 @@ export default async function TasksPage() {
                             {t.contactName ?? "Unnamed contact"}
                           </Link>
                         )}
+                        {t.otherLabel && <span className="rounded bg-[var(--surface)] px-1.5">{t.otherLabel}</span>}
                         {t.contactId && t.source && <span>·</span>}
                         {t.source && <span>from {t.source}</span>}
                       </div>

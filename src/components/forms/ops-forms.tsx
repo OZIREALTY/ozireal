@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Check, Pencil, Trash2, RotateCcw, X } from "lucide-react";
 import {
   useAction,
@@ -51,13 +52,63 @@ export function NewTaskButton({
   listings: Option[];
 }) {
   const [open, setOpen] = React.useState(false);
-  const a = useAction(createTask, { onSuccess: () => setOpen(false) });
+  const [files, setFiles] = React.useState<File[]>([]);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [drag, setDrag] = React.useState(false);
+  const pick = React.useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  /** Any kind of task (owner, 2026-11-25): title, own notes, optional links, files. */
+  const a = useAction(createTask, {
+    onSuccess: async (data: { id: string }) => {
+      if (files.length) {
+        setUploading(true);
+        const fd = new FormData();
+        files.forEach((f) => fd.append("file", f));
+        try {
+          const r = await fetch(`/api/task-files/${data.id}`, { method: "POST", body: fd });
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            setUploadError(`The task was added, but the files were not: ${j.error ?? "upload failed"}. Add them again from the task.`);
+            setUploading(false);
+            router.refresh();
+            return;
+          }
+        } catch {
+          setUploadError("The task was added, but the files did not upload. Check the connection and add them again.");
+          setUploading(false);
+          return;
+        }
+        setUploading(false);
+      }
+      setFiles([]);
+      setOpen(false);
+      router.refresh();
+    },
+  });
+
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (f.size > 20 * 1024 * 1024) {
+        setUploadError(`${f.name} is over 20 MB.`);
+        continue;
+      }
+      if (next.length < 10) next.push(f);
+    }
+    setFiles(next);
+  };
+  const size = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
   return (
     <>
       <button
         onClick={() => {
           a.reset();
+          setFiles([]);
+          setUploadError(null);
           setOpen(true);
         }}
         className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] text-white text-[13px] font-medium px-3 min-h-9 hover:opacity-90"
@@ -71,50 +122,99 @@ export function NewTaskButton({
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
+            setUploadError(null);
             a.run(Object.fromEntries(new FormData(e.currentTarget).entries()));
           }}
         >
-          <Input
-            label="What needs doing"
-            name="title"
-            required
-            placeholder="e.g. Renew the licence, pay the office rent, call the accountant"
-            errors={a.fieldErrors.title}
+          <Input label="Title" name="title" required placeholder="e.g. Renew the agency licence" errors={a.fieldErrors.title} />
+          <Textarea
+            label="Details (optional)"
+            name="details"
+            rows={4}
+            placeholder="Anything you want to remember about it"
+            errors={a.fieldErrors.details}
           />
-          <Select
-            label="Due"
-            name="dueInDays"
-            defaultValue="1"
-            options={[
-              { value: "0", label: "Today" },
-              { value: "1", label: "Tomorrow" },
-              { value: "3", label: "In 3 days" },
-              { value: "7", label: "In a week" },
-              { value: "14", label: "In 2 weeks" },
-            ]}
-          />
-          {/* Any kind of task (owner, 2026-11-25): a person or property is an optional link, folded away. */}
-          <details className="rounded-md border px-3 py-2" open={!!(a.fieldErrors.contactId || a.fieldErrors.listingId)}>
-            <summary className="cursor-pointer text-[13px] text-2 select-none">Link to a person or property (optional)</summary>
-            <div className="grid sm:grid-cols-2 gap-3 mt-3">
-              <Select
-                label="Person"
-                name="contactId"
-                options={[{ value: "", label: "None" }, ...contacts]}
-                errors={a.fieldErrors.contactId}
-              />
-              <Select
-                label="Property"
-                name="listingId"
-                options={[{ value: "", label: "None" }, ...listings]}
-                errors={a.fieldErrors.listingId}
-              />
-            </div>
-          </details>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Select
+              label="Due"
+              name="dueInDays"
+              defaultValue="1"
+              options={[
+                { value: "0", label: "Today" },
+                { value: "1", label: "Tomorrow" },
+                { value: "3", label: "In 3 days" },
+                { value: "7", label: "In a week" },
+                { value: "14", label: "In 2 weeks" },
+                { value: "30", label: "In a month" },
+              ]}
+            />
+            <Select
+              label="Contact (optional)"
+              name="contactId"
+              options={[{ value: "", label: "None" }, ...contacts]}
+              errors={a.fieldErrors.contactId}
+            />
+            <Select
+              label="Property (optional)"
+              name="listingId"
+              options={[{ value: "", label: "None" }, ...listings]}
+              errors={a.fieldErrors.listingId}
+            />
+            <Input label="Other (optional)" name="otherLabel" placeholder="e.g. Accountant, Office, Car" errors={a.fieldErrors.otherLabel} />
+          </div>
 
-          <FormError message={a.error} />
+          <div>
+            <div className="text-[13px] font-medium mb-1.5">Attachments (optional)</div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => pick.current?.click()}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && pick.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDrag(true);
+              }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDrag(false);
+                addFiles(e.dataTransfer.files);
+              }}
+              className={`rounded-xl border-[1.5px] border-dashed px-4 py-4 text-center text-[13px] text-2 cursor-pointer ${drag ? "border-[var(--accent)] bg-[var(--accent)]/5" : "surface-2"}`}
+            >
+              Drop files here or <b className="text-[var(--accent)]">browse your computer</b>
+              <div className="text-3 text-[11.5px] mt-0.5">PDF, Word, Excel, images · up to 20 MB each</div>
+            </div>
+            <input
+              ref={pick}
+              type="file"
+              multiple
+              hidden
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border px-3 py-2 mt-2 text-[13px]">
+                <span className="truncate">{f.name}</span>
+                <span className="text-3 text-[11.5px] shrink-0">{size(f.size)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${f.name}`}
+                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                  className="ml-auto text-3 hover:text-[var(--fg)]"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <FormError message={a.error ?? uploadError} />
           <div className="flex gap-2 pt-1">
-            <SubmitButton pending={a.pending}>Add task</SubmitButton>
+            <SubmitButton pending={a.pending || uploading}>{uploading ? "Uploading…" : "Add task"}</SubmitButton>
             <button
               type="button"
               onClick={() => setOpen(false)}

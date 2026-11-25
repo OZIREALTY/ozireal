@@ -40,6 +40,10 @@ export const tasks = pgTable(
       onDelete: "set null",
     }),
     title: text("title").notNull(),
+    /** Free-text notes (0033). */
+    details: text("details"),
+    /** A free-text link when it is not a contact or property: "Accountant", "Office" (0033). */
+    otherLabel: text("other_label"),
     dueAt: timestamp("due_at", { withTimezone: true }),
     status: taskStatus("status").notNull().default("open"),
     /** What produced it - usually a voice note or an email, via the confirm queue. */
@@ -434,4 +438,24 @@ export const seoSearchDaily = pgTable(
     position: real("position").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.query, t.page] })],
+);
+
+/** Files attached to a task (0033), in the private media bucket. */
+export const taskAttachments = pgTable(
+  "task_attachments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    s3Key: text("s3_key").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("task_attachments_task_idx").on(t.taskId)],
 );
