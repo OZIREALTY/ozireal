@@ -24,6 +24,8 @@ export type TaskRow = {
   listingId: string | null;
   priority: number;
   sortOrder: number | null;
+  propertyId: string | null;
+  propertyLabel: string | null;
   dueAt: Date | null;
   done: boolean;
   completedAt: Date | null;
@@ -274,7 +276,13 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
                 {t.contactName ?? "Unnamed contact"}
               </Link>
             ) : null}
-            {t.otherLabel && <>{t.contactId ? " · " : ""}{t.otherLabel}</>}
+            {t.propertyId && (
+              <>
+                {t.contactId ? " · " : ""}
+                <Link href={`/properties/${t.propertyId}`} className="hover:underline underline-offset-2">🏠 {t.propertyLabel || "Property"}</Link>
+              </>
+            )}
+            {t.otherLabel && <>{t.contactId || t.propertyId ? " · " : ""}{t.otherLabel}</>}
             {t.details && <>{t.contactId || t.otherLabel ? " · " : ""}{t.details}</>}
           </span>
         </div>
@@ -379,8 +387,12 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
           tasks={sorted}
           menu={(t) => <Menu t={t} />}
           info={(t) => ({
-            text: [!t.dueAt ? "No date" : isOverdue(t) ? "Overdue" : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt)), t.contactName, t.files.length ? `📎 ${t.files.length}` : ""].filter(Boolean).join(" · "),
+            text: [!t.dueAt ? "No date" : isOverdue(t) ? "Overdue" : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt)), t.files.length ? `📎 ${t.files.length}` : ""].filter(Boolean).join(" · "),
             red: isOverdue(t),
+            links: [
+              ...(t.contactId ? [{ href: `/contacts/${t.contactId}`, label: `👤 ${t.contactName ?? "Contact"}` }] : []),
+              ...(t.propertyId ? [{ href: `/properties/${t.propertyId}`, label: `🏠 ${t.propertyLabel || "Property"}` }] : []),
+            ],
           })}
           onSaved={onSaved}
           onError={setErr}

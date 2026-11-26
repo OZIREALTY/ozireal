@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { arrangeTasks } from "@/server/actions/ops";
 import type { TaskRow } from "./task-manager";
 
@@ -38,7 +39,7 @@ export function TaskBoard({
   onError,
 }: {
   tasks: TaskRow[];
-  info: (t: TaskRow) => { text: string; red: boolean };
+  info: (t: TaskRow) => { text: string; red: boolean; links: { href: string; label: string }[] };
   menu: (t: TaskRow) => React.ReactNode;
   onSaved: (msg: string, undo: () => Promise<void>) => void;
   onError: (msg: string) => void;
@@ -259,7 +260,7 @@ export function TaskBoard({
   );
 }
 
-function CardBody({ t, edge, info, menu }: { t: TaskRow; edge: string; info: { text: string; red: boolean }; menu: React.ReactNode }) {
+function CardBody({ t, edge, info, menu }: { t: TaskRow; edge: string; info: { text: string; red: boolean; links: { href: string; label: string }[] }; menu: React.ReactNode }) {
   return (
     <>
       <span aria-hidden className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r" style={{ background: edge }} />
@@ -271,6 +272,15 @@ function CardBody({ t, edge, info, menu }: { t: TaskRow; edge: string; info: { t
         {menu}
       </div>
       <span className={`block text-[12px] mt-0.5 ${info.red ? "text-[#A12A12] font-semibold" : "text-2"}`}>{info.text}</span>
+      {info.links.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {info.links.map((l) => (
+            <Link key={l.href} href={l.href} className="inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[11.5px] font-semibold text-2 hover:text-[var(--accent)] hover:border-[var(--accent)] truncate">
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </>
   );
 }

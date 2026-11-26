@@ -276,6 +276,9 @@ export async function getTasks() {
         otherLabel: tasks.otherLabel,
         priority: tasks.priority,
         sortOrder: tasks.sortOrder,
+        // The attached property, for a link to its page (owner, 2026-11-26).
+        propertyId: sql<string | null>`(select l.property_id from listings l where l.id = ${tasks.listingId})`,
+        propertyLabel: sql<string | null>`(select trim(both ' ' from coalesce(p.street_number || ' ', '') || coalesce(p.street, '')) || coalesce(', ' || s.name, '') from listings l join properties p on p.id = l.property_id left join suburbs s on s.id = p.suburb_id where l.id = ${tasks.listingId})`,
         files: sql<{ id: string; name: string }[]>`coalesce((select json_agg(json_build_object('id', a.id, 'name', a.file_name) order by a.created_at) from task_attachments a where a.task_id = ${tasks.id}), '[]'::json)`,
         dueAt: tasks.dueAt,
         done: sql<boolean>`${tasks.status} = 'done'`,
