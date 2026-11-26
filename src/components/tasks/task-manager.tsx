@@ -7,6 +7,7 @@ import { Check, LayoutList, Columns3, MoreHorizontal, Paperclip, Search } from "
 import { completeTask, reopenTask, updateTask } from "@/server/actions/ops";
 import { EditTaskButton, DeleteTaskButton } from "@/components/forms/ops-forms";
 import { TaskBoard } from "./task-board";
+import { DateApply } from "@/components/ui/date-apply";
 
 /**
  * The Tasks page (owner-approved preview, 2026-11-26): numbers at a glance, search,
@@ -228,14 +229,7 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
               <button type="button" className={item} onClick={() => change(t, { dueAt: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 17) })}>📅 Today</button>
               <button type="button" className={item} onClick={() => change(t, { dueAt: at9(tomorrow) })}>📅 Tomorrow</button>
               <button type="button" className={item} onClick={() => change(t, { dueAt: nextMonday() })}>📅 Next Monday</button>
-              <label className={`${item} cursor-pointer`}>
-                📅 Pick a date…
-                <input
-                  type="date"
-                  className="block mt-1 w-full rounded-md border px-2 min-h-8 bg-transparent text-[13px]"
-                  onChange={(e) => e.target.value && change(t, { dueAt: new Date(`${e.target.value}T09:00:00`) })}
-                />
-              </label>
+              <DateApply label="📅 Pick a date…" onApply={(d) => change(t, { dueAt: d })} />
               <button type="button" className={item} onClick={() => change(t, { dueAt: null })}>No date</button>
               <div className="border-t my-1" />
               <div className="flex gap-1.5 px-1.5 py-1">

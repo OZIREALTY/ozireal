@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, Check, Mail, Navigation, Sparkles, ChevronRight, Loader2, MoreHorizontal, Pin, LayoutGrid, List as ListIcon } from "lucide-react";
 import { resetTodayCards, setTodayCard } from "@/server/actions/today";
+import { DateApply } from "@/components/ui/date-apply";
 import type { TodayBatch, TodayEnquiry, TodayTask } from "@/server/queries/today";
 import { completeTask, reopenTask, updateTask } from "@/server/actions/ops";
 import { openAssistant } from "@/components/assistant/ask-button";
@@ -196,18 +197,11 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
               )}
               <button type="button" className={item} onClick={() => snooze(i, at(1, 9), "tomorrow 9 am")}>⏰ Tomorrow morning</button>
               <button type="button" className={item} onClick={() => snooze(i, nextMonday(), "Monday 9 am")}>⏰ Next Monday</button>
-              <label className={`${item} cursor-pointer`}>
-                ⏰ Pick a date…
-                <input
-                  type="date"
-                  className="block mt-1 w-full rounded-md border px-2 min-h-8 bg-transparent text-[13px]"
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const d = new Date(`${e.target.value}T09:00:00`);
-                    if (d.getTime() > Date.now()) snooze(i, d, d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }));
-                  }}
-                />
-              </label>
+              <DateApply
+                label="⏰ Pick a date…"
+                min={new Date(Date.now() + 864e5).toLocaleDateString("en-CA")}
+                onApply={(d) => snooze(i, d, d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }))}
+              />
               <div className="border-t my-1" />
               {i.kind === "task" ? (
                 <button type="button" className={item} onClick={() => { setMenu(null); void done(i); }}>✓ Mark done</button>
