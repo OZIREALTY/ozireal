@@ -35,12 +35,14 @@ export function TaskBoard({
   tasks,
   info,
   menu,
+  controls,
   onSaved,
   onError,
 }: {
   tasks: TaskRow[];
   info: (t: TaskRow) => { text: string; red: boolean; links: { href: string; label: string }[] };
   menu: (t: TaskRow) => React.ReactNode;
+  controls: (t: TaskRow) => React.ReactNode;
   onSaved: (msg: string, undo: () => Promise<void>) => void;
   onError: (msg: string) => void;
 }) {
@@ -93,7 +95,9 @@ export function TaskBoard({
 
   function onPointerDown(e: React.PointerEvent, id: string, from: Col) {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest("button, a, input, label, select, textarea")) return;
+    // Only the ⋮⋮ grip starts a drag (owner, 2026-11-26): clicks anywhere else on a
+    // card, its pills and trays included, never pick it up.
+    if (!(e.target as HTMLElement).closest("[data-grip]")) return;
     const el = e.currentTarget as HTMLElement;
     if (e.pointerType === "mouse" || e.pointerType === "pen") {
       e.preventDefault();
@@ -235,10 +239,10 @@ export function TaskBoard({
                   className={
                     isDragged
                       ? "rounded-xl border-2 border-dashed border-[var(--accent)] bg-[var(--accent)]/5"
-                      : `group relative surface-2 border rounded-xl pl-8 pr-2.5 py-2 cursor-grab touch-pan-y ${glow === id ? "animate-[task-glow_.7s_ease-out]" : ""}`
+                      : `group relative surface-2 border rounded-xl pl-8 pr-2.5 py-2 ${glow === id ? "animate-[task-glow_.7s_ease-out]" : ""}`
                   }
                 >
-                  {!isDragged && <CardBody t={t} edge={META[c].edge} info={i} menu={menu(t)} />}
+                  {!isDragged && <CardBody t={t} edge={META[c].edge} info={i} menu={menu(t)} controls={controls(t)} />}
                 </div>
               );
             })}
@@ -252,7 +256,7 @@ export function TaskBoard({
           className="fixed z-[70] pointer-events-none surface-2 border-2 border-[var(--accent)] rounded-xl pl-8 pr-2.5 py-2 shadow-2xl"
           style={{ left: drag.x - drag.ox, top: drag.y - drag.oy, width: drag.w, transform: "rotate(2deg) scale(1.03)" }}
         >
-          <CardBody t={dragged} edge={META[(([1, 2, 3] as Col[]).find((c) => cols[c].includes(drag.id)) ?? drag.from)].edge} info={info(dragged)} menu={null} />
+          <CardBody t={dragged} edge={META[(([1, 2, 3] as Col[]).find((c) => cols[c].includes(drag.id)) ?? drag.from)].edge} info={info(dragged)} menu={null} controls={null} />
         </div>
       )}
       <style>{`@keyframes task-glow{0%{box-shadow:0 0 0 0 rgba(216,67,21,.55)}100%{box-shadow:0 0 0 12px rgba(216,67,21,0)}}`}</style>
@@ -260,18 +264,23 @@ export function TaskBoard({
   );
 }
 
-function CardBody({ t, edge, info, menu }: { t: TaskRow; edge: string; info: { text: string; red: boolean; links: { href: string; label: string }[] }; menu: React.ReactNode }) {
+function CardBody({ t, edge, info, menu, controls }: { t: TaskRow; edge: string; info: { text: string; red: boolean; links: { href: string; label: string }[] }; menu: React.ReactNode; controls: React.ReactNode }) {
   return (
     <>
       <span aria-hidden className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r" style={{ background: edge }} />
-      <span aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] tracking-[-3px] text-3 group-hover:text-[var(--accent)]">
+      <span
+        data-grip
+        title="Drag to move"
+        className="absolute left-0 top-0 bottom-0 w-7 grid place-items-center cursor-grab active:cursor-grabbing text-[13px] tracking-[-3px] text-3 hover:text-[var(--accent)] touch-none"
+      >
         ⋮⋮
       </span>
       <div className="flex items-start gap-2">
         <b className="flex-1 min-w-0 text-[13.5px] leading-snug">{t.title}</b>
         {menu}
       </div>
-      <span className={`block text-[12px] mt-0.5 ${info.red ? "text-[#A12A12] font-semibold" : "text-2"}`}>{info.text}</span>
+      {controls && <div className="mt-1.5">{controls}</div>}
+      {info.text && <span className={`block text-[12px] mt-1 ${info.red ? "text-[#A12A12] font-semibold" : "text-2"}`}>{info.text}</span>}
       {info.links.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1.5">
           {info.links.map((l) => (

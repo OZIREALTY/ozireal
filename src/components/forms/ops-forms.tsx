@@ -492,6 +492,7 @@ export function EditTaskButton({
           <div className="flex gap-2 pt-1">
             <SubmitButton pending={a.pending}>Save changes</SubmitButton>
             <CancelButton onClick={() => setOpen(false)} />
+            <span className="ml-auto"><DeleteTaskButton id={task.id} /></span>
           </div>
         </form>
       </Modal>

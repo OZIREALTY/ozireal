@@ -8,6 +8,7 @@ import { completeTask, reopenTask, updateTask } from "@/server/actions/ops";
 import { EditTaskButton, DeleteTaskButton } from "@/components/forms/ops-forms";
 import { TaskBoard } from "./task-board";
 import { DateApply } from "@/components/ui/date-apply";
+import { CardControls } from "./card-controls";
 
 /**
  * The Tasks page (owner-approved preview, 2026-11-26): numbers at a glance, search,
@@ -379,10 +380,25 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
       ) : (
         <TaskBoard
           tasks={sorted}
-          menu={(t) => <Menu t={t} />}
+          menu={(t) => (
+            <EditTaskButton
+              task={{ id: t.id, title: t.title, contactId: t.contactId, listingId: t.listingId, dueAt: t.dueAt, priority: t.priority, details: t.details, otherLabel: t.otherLabel }}
+              contacts={contacts}
+              listings={listings}
+            />
+          )}
+          controls={(t) => (
+            <CardControls
+              dueLabel={!t.dueAt ? "No date" : isOverdue(t) ? `Overdue · ${fmtDue(new Date(t.dueAt))}` : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt))}
+              overdue={isOverdue(t)}
+              priority={t.priority}
+              onDue={(d) => change(t, { dueAt: d })}
+              onPriority={(p) => change(t, { priority: p })}
+            />
+          )}
           info={(t) => ({
-            text: [!t.dueAt ? "No date" : isOverdue(t) ? "Overdue" : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt)), t.files.length ? `📎 ${t.files.length}` : ""].filter(Boolean).join(" · "),
-            red: isOverdue(t),
+            text: t.files.length ? `📎 ${t.files.length} file${t.files.length === 1 ? "" : "s"}` : "",
+            red: false,
             links: [
               ...(t.contactId ? [{ href: `/contacts/${t.contactId}`, label: `👤 ${t.contactName ?? "Contact"}` }] : []),
               ...(t.propertyId ? [{ href: `/properties/${t.propertyId}`, label: `🏠 ${t.propertyLabel || "Property"}` }] : []),
