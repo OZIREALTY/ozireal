@@ -117,6 +117,8 @@ export default async function TasksPage() {
                             listingId: t.listingId,
                             dueAt: t.dueAt,
                             priority: t.priority,
+                            details: t.details,
+                            otherLabel: t.otherLabel,
                           }}
                           contacts={contactOpts}
                           listings={listingOpts}

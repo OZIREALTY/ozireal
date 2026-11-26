@@ -393,6 +393,8 @@ export type EditableTask = {
   listingId: string | null;
   dueAt: Date | null;
   priority?: number;
+  details?: string | null;
+  otherLabel?: string | null;
 };
 
 /**
@@ -439,6 +441,14 @@ export function EditTaskButton({
             defaultValue={task.title}
             errors={a.fieldErrors.title}
           />
+          <Textarea
+            label="Details (optional)"
+            name="details"
+            rows={4}
+            defaultValue={task.details ?? ""}
+            placeholder="Anything you want to remember about it"
+            errors={a.fieldErrors.details}
+          />
           <div className="grid sm:grid-cols-2 gap-3">
             <Select
               label="About"
@@ -476,6 +486,7 @@ export function EditTaskButton({
             options={[{ value: "", label: "Not about a listing" }, ...listings]}
             errors={a.fieldErrors.listingId}
           />
+          <Input label="Other (optional)" name="otherLabel" defaultValue={task.otherLabel ?? ""} placeholder="e.g. Accountant, Office, Car" errors={a.fieldErrors.otherLabel} />
 
           <FormError message={a.error} />
           <div className="flex gap-2 pt-1">

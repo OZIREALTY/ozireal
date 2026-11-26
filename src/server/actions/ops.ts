@@ -223,6 +223,9 @@ export const updateTask = defineAction({
     /** Blank clears the due date, which is a real choice — "no date" is not "today". */
     dueAt: z.union([z.coerce.date(), z.literal("")]).optional(),
     priority: z.coerce.number().int().min(1).max(3).optional(),
+    /** Notes and the free-text "other" link (owner, 2026-11-26: editable too). */
+    details: z.string().trim().max(5000).optional(),
+    otherLabel: z.string().trim().max(80).optional(),
   }),
   async handler(input, ctx) {
     const [t] = await ctx.tx
@@ -274,6 +277,8 @@ export const updateTask = defineAction({
         listingId: input.listingId || null,
         dueAt,
         ...(input.priority ? { priority: input.priority } : {}),
+        ...(input.details !== undefined ? { details: input.details || null } : {}),
+        ...(input.otherLabel !== undefined ? { otherLabel: input.otherLabel || null } : {}),
       })
       .where(eq(tasks.id, input.id));
 
