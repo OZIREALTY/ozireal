@@ -66,7 +66,7 @@ export default async function TasksPage() {
                       <div className="text-[13px] font-medium flex items-center gap-1.5">
                         {t.priority === 1 && <span className="rounded-full bg-[#FDE7E2] text-[#A12A12] px-1.5 text-[11px] font-bold">High</span>}
                         {t.priority === 2 && <span className="rounded-full bg-[#FFF1DC] text-[#8A4B00] px-1.5 text-[11px] font-bold">Normal</span>}
-                        {t.priority === 3 && <span className="rounded-full surface-3 text-3 px-1.5 text-[11px] font-bold">Low</span>}
+                        {t.priority === 3 && <span className="rounded-full bg-[#C9D0DD] text-[#25314A] px-1.5 text-[11px] font-bold">Low</span>}
                         {t.title}
                       </div>
                       {t.details && <p className="text-2 text-[12.5px] mt-1 whitespace-pre-line leading-relaxed">{t.details}</p>}
