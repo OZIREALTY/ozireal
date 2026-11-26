@@ -580,7 +580,13 @@ export const tombstoneContact = defineAction({
  * Nothing the AI proposed reaches a contact record until a human presses this button.
  */
 export const commitConfirmItem = defineAction({
-  input: z.object({ id: z.string().uuid() }),
+  input: z.object({
+    id: z.string().uuid(),
+    /** A task suggestion the owner edited before adding it (2026-11-26). */
+    title: z.string().trim().min(3).max(200).optional(),
+    dueAt: z.union([z.coerce.date(), z.literal("")]).optional(),
+    priority: z.coerce.number().int().min(1).max(3).optional(),
+  }),
   async handler(input, ctx) {
     const [item] = await ctx.tx
       .select()
@@ -602,12 +608,17 @@ export const commitConfirmItem = defineAction({
       await ctx.tx.insert(tasks).values({
         tenantId: ctx.tenantId,
         contactId: item.contactId,
-        title: item.summary,
+        title: input.title || item.summary,
         status: "open",
+        priority: input.priority ?? 2,
         dueAt:
-          proposed?.dueInDays != null
-            ? new Date(Date.now() + proposed.dueInDays * 86_400_000)
-            : null,
+          input.dueAt instanceof Date && !Number.isNaN(input.dueAt.getTime())
+            ? input.dueAt
+            : input.dueAt === ""
+              ? null
+              : proposed?.dueInDays != null
+                ? new Date(Date.now() + proposed.dueInDays * 86_400_000)
+                : null,
         sourceInteractionId: item.sourceInteractionId,
         sourceLabel: "Committed from the confirm queue",
         assignedToUserId: ctx.userId,

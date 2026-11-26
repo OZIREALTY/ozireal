@@ -43,6 +43,7 @@ import {
 } from "@/components/forms/contact-forms";
 import { EditPreferencesButton } from "@/components/forms/preferences-form";
 import { roleLabel } from "@/lib/roles";
+import { TaskSuggestions, WaitForReading } from "@/components/contacts/task-suggestion";
 import { getContactListings, LISTING_ROLE_LABELS } from "@/server/queries/stock";
 
 export default async function ContactDetail({
@@ -236,6 +237,8 @@ export default async function ContactDetail({
                     <p className="text-2 text-[12.5px] leading-relaxed whitespace-pre-wrap">
                       {i.body}
                     </p>
+                    {i.taskSuggestions.length > 0 && <TaskSuggestions items={i.taskSuggestions} />}
+                    {!i.summarised && Date.now() - new Date(i.recordedAt).getTime() < 120_000 && <WaitForReading pending />}
                     {i.earlier.length > 0 && (
                       <details className="mt-2 text-[11.5px]">
                         <summary className="cursor-pointer text-3 w-max">

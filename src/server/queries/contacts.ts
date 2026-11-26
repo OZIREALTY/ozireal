@@ -270,6 +270,8 @@ export async function getInteractionsFor(contactId: string) {
         listingId: interactions.listingId,
         correctsId: interactions.correctsId,
         recordedAt: interactions.createdAt,
+        summarised: sql<boolean>`${interactions.aiSummary} is not null`,
+        taskSuggestions: sql<{ id: string; title: string; dueInDays: number | null; reason: string | null }[]>`coalesce((select json_agg(json_build_object('id', ci.id, 'title', ci.summary, 'dueInDays', ci.proposed->'dueInDays', 'reason', ci.proposed->>'reason') order by ci.created_at) from confirm_items ci where ci.source_interaction_id = ${interactions.id} and ci.kind = 'task' and ci.status = 'pending'), '[]'::json)`,
       })
       .from(interactions)
       .where(

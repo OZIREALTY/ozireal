@@ -97,7 +97,9 @@ export async function summariseInteraction(tenantId: string, interactionId: stri
   if ("done" in ctx) return { skipped: "already-summarised" };
 
   const config = await getLlmConfig(tenantId);
-  const prompt = loadPrompt("extract-interaction.v1");
+  const prompt = loadPrompt("extract-interaction.v2");
+  const today = new Intl.DateTimeFormat("en-AU", { weekday: "long", timeZone: "Australia/Adelaide" }).format(new Date()) +
+    " " + new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Adelaide" }).format(new Date());
   const { data } = await runTask(extraction, {
     task: "summarise-interaction",
     model: "haiku",
@@ -116,6 +118,7 @@ export async function summariseInteraction(tenantId: string, interactionId: stri
             roles: ctx.roles,
             currentIntent: ctx.currentIntent,
           },
+          today,
           interaction: {
             channel: ctx.i.channel,
             direction: ctx.i.direction,
