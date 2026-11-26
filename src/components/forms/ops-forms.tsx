@@ -166,6 +166,16 @@ export function NewTaskButton({
               />
             )}
             <Select
+              label="Priority"
+              name="priority"
+              defaultValue="2"
+              options={[
+                { value: "1", label: "🔴 High" },
+                { value: "2", label: "🟡 Normal" },
+                { value: "3", label: "⚪ Low" },
+              ]}
+            />
+            <Select
               label="Contact (optional)"
               name="contactId"
               options={[{ value: "", label: "None" }, ...contacts]}
@@ -382,6 +392,7 @@ export type EditableTask = {
   contactId: string | null;
   listingId: string | null;
   dueAt: Date | null;
+  priority?: number;
 };
 
 /**
@@ -416,10 +427,9 @@ export function EditTaskButton({
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            a.run({
-              ...Object.fromEntries(new FormData(e.currentTarget).entries()),
-              id: task.id,
-            });
+            const v: Record<string, FormDataEntryValue> = Object.fromEntries(new FormData(e.currentTarget).entries());
+            if (typeof v.dueAt === "string" && v.dueAt) v.dueAt = new Date(v.dueAt).toISOString();
+            a.run({ ...v, id: task.id });
           }}
         >
           <Input
@@ -443,6 +453,16 @@ export function EditTaskButton({
               type="datetime-local"
               defaultValue={toLocalInput(task.dueAt)}
               errors={a.fieldErrors.dueAt}
+            />
+            <Select
+              label="Priority"
+              name="priority"
+              defaultValue={String(task.priority ?? 2)}
+              options={[
+                { value: "1", label: "🔴 High" },
+                { value: "2", label: "🟡 Normal" },
+                { value: "3", label: "⚪ Low" },
+              ]}
             />
           </div>
           <p className="text-3 text-[11px] -mt-2">

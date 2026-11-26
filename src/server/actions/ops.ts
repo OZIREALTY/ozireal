@@ -37,6 +37,7 @@ export const createTask = defineAction({
     dueInDays: optionalInt(0, 365),
     /** An exact date and time (owner, 2026-11-26); wins over dueInDays. ISO from the browser. */
     dueAt: z.union([z.coerce.date(), z.literal("")]).optional(),
+    priority: z.coerce.number().int().min(1).max(3).default(2),
   }),
   async handler(input, ctx) {
     const contactId = input.contactId || null;
@@ -78,6 +79,7 @@ export const createTask = defineAction({
         title: input.title,
         details: input.details || null,
         otherLabel: input.otherLabel || null,
+        priority: input.priority,
         status: "open",
         dueAt:
           input.dueAt instanceof Date && !Number.isNaN(input.dueAt.getTime())
@@ -220,6 +222,7 @@ export const updateTask = defineAction({
     listingId: OPTIONAL_UUID,
     /** Blank clears the due date, which is a real choice — "no date" is not "today". */
     dueAt: z.union([z.coerce.date(), z.literal("")]).optional(),
+    priority: z.coerce.number().int().min(1).max(3).optional(),
   }),
   async handler(input, ctx) {
     const [t] = await ctx.tx
@@ -270,6 +273,7 @@ export const updateTask = defineAction({
         contactId,
         listingId: input.listingId || null,
         dueAt,
+        ...(input.priority ? { priority: input.priority } : {}),
       })
       .where(eq(tasks.id, input.id));
 

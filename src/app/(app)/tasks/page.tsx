@@ -63,7 +63,11 @@ export default async function TasksPage() {
                       <CompleteTaskButton id={t.id} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium">{t.title}</div>
+                      <div className="text-[13px] font-medium flex items-center gap-1.5">
+                        {t.priority === 1 && <span className="rounded-full bg-[#FDE7E2] text-[#A12A12] px-1.5 text-[11px] font-bold">High</span>}
+                        {t.priority === 3 && <span className="rounded-full surface-3 text-3 px-1.5 text-[11px] font-bold">Low</span>}
+                        {t.title}
+                      </div>
                       {t.details && <p className="text-2 text-[12.5px] mt-1 whitespace-pre-line leading-relaxed">{t.details}</p>}
                       {t.files.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -112,6 +116,7 @@ export default async function TasksPage() {
                             contactId: t.contactId,
                             listingId: t.listingId,
                             dueAt: t.dueAt,
+                            priority: t.priority,
                           }}
                           contacts={contactOpts}
                           listings={listingOpts}

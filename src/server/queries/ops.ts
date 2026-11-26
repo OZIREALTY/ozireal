@@ -274,6 +274,7 @@ export async function getTasks() {
         title: tasks.title,
         details: tasks.details,
         otherLabel: tasks.otherLabel,
+        priority: tasks.priority,
         files: sql<{ id: string; name: string }[]>`coalesce((select json_agg(json_build_object('id', a.id, 'name', a.file_name) order by a.created_at) from task_attachments a where a.task_id = ${tasks.id}), '[]'::json)`,
         dueAt: tasks.dueAt,
         done: sql<boolean>`${tasks.status} = 'done'`,
@@ -281,7 +282,7 @@ export async function getTasks() {
       })
       .from(tasks)
       .leftJoin(contacts, eq(contacts.id, tasks.contactId))
-      .orderBy(tasks.dueAt),
+      .orderBy(tasks.priority, tasks.dueAt),
   );
 }
 

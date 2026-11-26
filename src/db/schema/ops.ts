@@ -44,6 +44,8 @@ export const tasks = pgTable(
     details: text("details"),
     /** A free-text link when it is not a contact or property: "Accountant", "Office" (0033). */
     otherLabel: text("other_label"),
+    /** 1 High, 2 Normal, 3 Low (0038). */
+    priority: integer("priority").notNull().default(2),
     dueAt: timestamp("due_at", { withTimezone: true }),
     status: taskStatus("status").notNull().default("open"),
     /** What produced it - usually a voice note or an email, via the confirm queue. */

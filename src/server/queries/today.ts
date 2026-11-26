@@ -10,7 +10,7 @@ import { approvalItems, calendarEvents, todayCardPrefs, campaigns, contacts, int
 
 export type TodayEnquiry = { kind: "enquiry"; id: string; contactId: string; name: string; phone: string | null; subject: string; at: Date };
 export type TodayBatch = { kind: "emails"; campaignId: string; propertyId: string | null; name: string; count: number; href: string };
-export type TodayTask = { kind: "task"; id: string; title: string; dueAt: Date | null; overdue: boolean; contactId: string | null; name: string | null; phone: string | null };
+export type TodayTask = { kind: "task"; id: string; title: string; priority: number; dueAt: Date | null; overdue: boolean; contactId: string | null; name: string | null; phone: string | null };
 
 export async function getToday() {
   // Adelaide day boundaries, computed in the database so DST is right.
@@ -96,6 +96,7 @@ export async function getToday() {
       .select({
         id: tasks.id,
         title: tasks.title,
+        priority: tasks.priority,
         dueAt: tasks.dueAt,
         contactId: tasks.contactId,
         name: sql<string | null>`(select c.first_name || ' ' || c.last_name from contacts c where c.id = ${tasks.contactId})`,
@@ -103,7 +104,7 @@ export async function getToday() {
       })
       .from(tasks)
       .where(and(eq(tasks.status, "open"), lte(tasks.dueAt, end)))
-      .orderBy(asc(tasks.dueAt))
+      .orderBy(asc(tasks.priority), asc(tasks.dueAt))
       .limit(30);
     const now = Date.now();
     const start = new Date(bounds.start).getTime();

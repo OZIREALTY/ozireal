@@ -266,6 +266,8 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
                   <Tag tone={i.overdue ? "bad" : "warn"}>
                     {i.overdue ? "Overdue" : i.dueAt ? `Due ${time(i.dueAt)}` : "Today"}
                   </Tag>
+                  {i.priority === 1 && <span className="ml-1.5"><Tag tone="bad">🔴 High</Tag></span>}
+                  {i.priority === 3 && <span className="ml-1.5 text-3 text-[12px] font-semibold">Low priority</span>}
                   <p className="text-[19px] lg:text-[15.5px] font-bold mt-2 lg:mt-1.5 leading-snug">{i.title}</p>
                   {i.name && (
                     <p className="text-[16px] lg:text-[13.5px] lg:text-2">
