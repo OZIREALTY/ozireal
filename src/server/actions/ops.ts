@@ -683,3 +683,25 @@ export const deleteRedirect = defineAction({
     return { deleted: true };
   },
 });
+
+/**
+ * The Tasks board (owner-approved motion preview, 2026-11-26): a column is saved as a
+ * whole after a drag, so its priority and hand order are set for every card in it.
+ */
+export const arrangeTasks = defineAction({
+  input: z.object({
+    priority: z.coerce.number().int().min(1).max(3),
+    ids: z.array(z.string().uuid()).max(500),
+  }),
+  async handler(input, ctx) {
+    for (const [i, id] of input.ids.entries()) {
+      await ctx.tx
+        .update(tasks)
+        .set({ priority: input.priority, sortOrder: i })
+        .where(and(eq(tasks.id, id), ne(tasks.status, "done")));
+    }
+    revalidatePath("/tasks");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  },
+});

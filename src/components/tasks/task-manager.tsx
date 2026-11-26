@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, LayoutList, Columns3, MoreHorizontal, Paperclip, Search } from "lucide-react";
 import { completeTask, reopenTask, updateTask } from "@/server/actions/ops";
 import { EditTaskButton, DeleteTaskButton } from "@/components/forms/ops-forms";
+import { TaskBoard } from "./task-board";
 
 /**
  * The Tasks page (owner-approved preview, 2026-11-26): numbers at a glance, search,
@@ -22,6 +23,7 @@ export type TaskRow = {
   contactName: string | null;
   listingId: string | null;
   priority: number;
+  sortOrder: number | null;
   dueAt: Date | null;
   done: boolean;
   completedAt: Date | null;
@@ -57,7 +59,17 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
   const [menu, setMenu] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
-  const [drag, setDrag] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<{ msg: string; undo: () => Promise<void> } | null>(null);
+  const toastTimer = React.useRef<number | undefined>(undefined);
+  const onSaved = React.useCallback(
+    (msg: string, undo: () => Promise<void>) => {
+      window.clearTimeout(toastTimer.current);
+      setToast({ msg, undo });
+      toastTimer.current = window.setTimeout(() => setToast(null), 5000);
+      router.refresh();
+    },
+    [router],
+  );
   // Optimistic changes until the server's fresh list arrives.
   const [local, setLocal] = React.useState<Record<string, Partial<TaskRow>>>({});
   React.useEffect(() => setLocal({}), [tasks]);
@@ -363,49 +375,16 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
           ))}
         </>
       ) : (
-        <div className="grid sm:grid-cols-3 gap-3">
-          {[1, 2, 3].map((p) => {
-            const items = sorted.filter((t) => t.priority === p);
-            return (
-              <div
-                key={p}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  const t = all.find((x) => x.id === drag);
-                  setDrag(null);
-                  if (t && t.priority !== p) void change(t, { priority: p });
-                }}
-                className={`rounded-2xl surface-3 p-2.5 min-h-[140px] ${drag ? "outline-dashed outline-2 outline-[var(--accent)]/40" : ""}`}
-              >
-                <h3 className="flex items-center gap-2 px-1 mb-2 text-[13.5px] font-bold">
-                  <Badge p={p} /> {items.length}
-                </h3>
-                <div className="space-y-2">
-                  {items.map((t) => (
-                    <div
-                      key={t.id}
-                      draggable
-                      onDragStart={() => setDrag(t.id)}
-                      onDragEnd={() => setDrag(null)}
-                      className={`surface-2 border rounded-xl px-2.5 py-2 cursor-grab active:cursor-grabbing ${drag === t.id ? "opacity-50" : ""}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <b className="flex-1 min-w-0 text-[13.5px] leading-snug">{t.title}</b>
-                        <Menu t={t} />
-                      </div>
-                      <span className={`block text-[12px] mt-0.5 ${isOverdue(t) ? "text-[#A12A12] font-semibold" : "text-2"}`}>
-                        {!t.dueAt ? "No date" : isOverdue(t) ? "Overdue" : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt))}
-                        {t.contactName && ` · ${t.contactName}`}
-                        {t.files.length > 0 && ` · 📎 ${t.files.length}`}
-                      </span>
-                    </div>
-                  ))}
-                  {items.length === 0 && <p className="text-3 text-[12.5px] px-1 py-3">Drag a task here</p>}
-                </div>
-              </div>
-            );
+        <TaskBoard
+          tasks={sorted}
+          menu={(t) => <Menu t={t} />}
+          info={(t) => ({
+            text: [!t.dueAt ? "No date" : isOverdue(t) ? "Overdue" : isToday(t) ? "Today" : fmtDue(new Date(t.dueAt)), t.contactName, t.files.length ? `📎 ${t.files.length}` : ""].filter(Boolean).join(" · "),
+            red: isOverdue(t),
           })}
-        </div>
+          onSaved={onSaved}
+          onError={setErr}
+        />
       )}
 
       {showDone && (
@@ -422,6 +401,23 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
               ))}
           </div>
         </section>
+      )}
+      {toast && (
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[80] w-[min(440px,calc(100%-32px))] rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex items-center gap-3 text-[14.5px] font-semibold shadow-lg">
+          <span className="flex-1">{toast.msg}</span>
+          <button
+            type="button"
+            className="text-[#FF8A5C] font-extrabold px-2"
+            onClick={async () => {
+              const u = toast.undo;
+              setToast(null);
+              await u();
+              router.refresh();
+            }}
+          >
+            Undo
+          </button>
+        </div>
       )}
     </div>
   );
