@@ -166,10 +166,17 @@ export function ServiceGrid({ services = SERVICES }: { services?: Service[] }) {
           </span>
           <h3>{s.label}</h3>
           <p>{s.blurb}</p>
-          <span className="svc-card-go">
-            {s.form ? "Start an enquiry" : "Read more"}{" "}
-            <span aria-hidden="true">&rarr;</span>
-          </span>
+          {s.form ? (
+            <span className="svc-card-go">
+              <span className="svc-cta">
+                Start an enquiry <span aria-hidden="true">&rarr;</span>
+              </span>
+            </span>
+          ) : (
+            <span className="svc-card-go">
+              Read more <span aria-hidden="true">&rarr;</span>
+            </span>
+          )}
         </Link>
       ))}
     </div>

@@ -3368,3 +3368,24 @@
 
 /* Stock cover credit (2026-11-25) */
 .post-credit { margin: 6px 2px 0; font-size: 12px; color: #8b93a5; text-align: right; }
+
+/*
+ * Enquiry button on service cards (owner chose A, 2026-11-26): the blog-link pill, bigger,
+ * with the same cobalt sheen; the whole card is the link, so hovering the card lifts it.
+ */
+.svc-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 999px;
+  color: #fff; font-weight: 700; font-size: 13.5px; letter-spacing: .06em; text-transform: uppercase;
+  background: linear-gradient(110deg, var(--accent) 0%, var(--accent) 38%, #3d6bff 50%, var(--accent) 62%, var(--accent-dp) 100%);
+  background-size: 260% 100%;
+  box-shadow: 0 4px 14px -6px rgba(0, 52, 200, .7);
+  animation: post-link-sheen 4.5s ease-in-out infinite;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.svc-cta span { display: inline-block; transition: transform .18s ease; }
+.svc-card:hover .svc-cta { transform: translateY(-2px); box-shadow: 0 10px 22px -8px rgba(0, 52, 200, .8); }
+.svc-card:hover .svc-cta span { transform: translateX(4px); }
+.svc-card:has(.svc-cta):hover .svc-card-go { gap: 8px; }
+.dark .svc-cta { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .svc-cta { animation: none; background-position: 0 0; } }
