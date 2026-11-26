@@ -74,6 +74,8 @@ export async function contactOptions() {
       .select({
         value: contacts.id,
         label: sql<string>`${contacts.firstName} || ' ' || ${contacts.lastName}`,
+        // Shown under the name in the searchable picker, and searched (2026-11-26).
+        hint: sql<string | null>`concat_ws(' · ', ${contacts.phoneRaw}, ${contacts.emailRaw})`,
       })
       .from(contacts)
       .where(and(isNull(contacts.tombstonedAt), isNull(contacts.mergedIntoId)))

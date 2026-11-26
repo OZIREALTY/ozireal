@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { SearchSelect } from "./search-select";
 import { useRouter } from "next/navigation";
 import { Plus, Check, Pencil, Trash2, RotateCcw, X } from "lucide-react";
 import {
@@ -175,15 +176,17 @@ export function NewTaskButton({
                 { value: "3", label: "⚪ Low" },
               ]}
             />
-            <Select
+            <SearchSelect
               label="Contact (optional)"
               name="contactId"
               options={[{ value: "", label: "None" }, ...contacts]}
               errors={a.fieldErrors.contactId}
             />
-            <Select
+            <SearchSelect
               label="Property (optional)"
               name="listingId"
+              avatars={false}
+              placeholder="Search address or suburb…"
               options={[{ value: "", label: "None" }, ...listings]}
               errors={a.fieldErrors.listingId}
             />
@@ -347,15 +350,17 @@ export function NewEventButton({
             errors={a.fieldErrors.startsAt}
           />
           <div className="grid sm:grid-cols-2 gap-3">
-            <Select
+            <SearchSelect
               label="With"
               name="contactId"
               options={[{ value: "", label: "Nobody in particular" }, ...contacts]}
               errors={a.fieldErrors.contactId}
             />
-            <Select
+            <SearchSelect
               label="Property"
               name="listingId"
+              avatars={false}
+              placeholder="Search address or suburb…"
               options={[{ value: "", label: "Not about a listing" }, ...listings]}
               errors={a.fieldErrors.listingId}
             />
@@ -450,7 +455,7 @@ export function EditTaskButton({
             errors={a.fieldErrors.details}
           />
           <div className="grid sm:grid-cols-2 gap-3">
-            <Select
+            <SearchSelect
               label="About"
               name="contactId"
               defaultValue={task.contactId ?? ""}
@@ -479,9 +484,11 @@ export function EditTaskButton({
             Clearing the date leaves the task with no deadline, which sorts it last
             rather than making it look due today.
           </p>
-          <Select
+          <SearchSelect
             label="Property"
             name="listingId"
+              avatars={false}
+              placeholder="Search address or suburb…"
             defaultValue={task.listingId ?? ""}
             options={[{ value: "", label: "Not about a listing" }, ...listings]}
             errors={a.fieldErrors.listingId}
@@ -634,16 +641,18 @@ export function EditEventButton({
             errors={a.fieldErrors.startsAt}
           />
           <div className="grid sm:grid-cols-2 gap-3">
-            <Select
+            <SearchSelect
               label="With"
               name="contactId"
               defaultValue={event.contactId ?? ""}
               options={[{ value: "", label: "Nobody in particular" }, ...contacts]}
               errors={a.fieldErrors.contactId}
             />
-            <Select
+            <SearchSelect
               label="Property"
               name="listingId"
+              avatars={false}
+              placeholder="Search address or suburb…"
               defaultValue={event.listingId ?? ""}
               options={[{ value: "", label: "Not about a listing" }, ...listings]}
               errors={a.fieldErrors.listingId}
