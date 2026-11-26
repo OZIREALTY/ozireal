@@ -35,6 +35,8 @@ export const createTask = defineAction({
     contactId: OPTIONAL_UUID,
     listingId: OPTIONAL_UUID,
     dueInDays: optionalInt(0, 365),
+    /** An exact date and time (owner, 2026-11-26); wins over dueInDays. ISO from the browser. */
+    dueAt: z.union([z.coerce.date(), z.literal("")]).optional(),
   }),
   async handler(input, ctx) {
     const contactId = input.contactId || null;
@@ -78,7 +80,9 @@ export const createTask = defineAction({
         otherLabel: input.otherLabel || null,
         status: "open",
         dueAt:
-          input.dueInDays !== undefined
+          input.dueAt instanceof Date && !Number.isNaN(input.dueAt.getTime())
+            ? input.dueAt
+            : input.dueInDays !== undefined
             ? new Date(Date.now() + input.dueInDays * 86_400_000)
             : null,
         // Distinguishes a hand-written task from one committed off an AI

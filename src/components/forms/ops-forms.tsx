@@ -53,6 +53,7 @@ export function NewTaskButton({
 }) {
   const [open, setOpen] = React.useState(false);
   const [files, setFiles] = React.useState<File[]>([]);
+  const [pickDate, setPickDate] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [drag, setDrag] = React.useState(false);
@@ -109,6 +110,7 @@ export function NewTaskButton({
           a.reset();
           setFiles([]);
           setUploadError(null);
+          setPickDate(false);
           setOpen(true);
         }}
         className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent)] text-white text-[13px] font-medium px-3 min-h-9 hover:opacity-90"
@@ -123,7 +125,10 @@ export function NewTaskButton({
           onSubmit={(e) => {
             e.preventDefault();
             setUploadError(null);
-            a.run(Object.fromEntries(new FormData(e.currentTarget).entries()));
+            const v: Record<string, FormDataEntryValue> = Object.fromEntries(new FormData(e.currentTarget).entries());
+            // The browser knows the local time zone; the server does not.
+            if (typeof v.dueAt === "string" && v.dueAt) v.dueAt = new Date(v.dueAt).toISOString();
+            a.run(v);
           }}
         >
           <Input label="Title" name="title" required placeholder="e.g. Renew the agency licence" errors={a.fieldErrors.title} />
@@ -137,8 +142,9 @@ export function NewTaskButton({
           <div className="grid sm:grid-cols-2 gap-3">
             <Select
               label="Due"
-              name="dueInDays"
+              name={pickDate ? undefined : "dueInDays"}
               defaultValue="1"
+              onChange={(e) => setPickDate(e.target.value === "date")}
               options={[
                 { value: "0", label: "Today" },
                 { value: "1", label: "Tomorrow" },
@@ -146,8 +152,19 @@ export function NewTaskButton({
                 { value: "7", label: "In a week" },
                 { value: "14", label: "In 2 weeks" },
                 { value: "30", label: "In a month" },
+                { value: "date", label: "Pick a date…" },
               ]}
             />
+            {pickDate && (
+              <Input
+                label="Date and time"
+                name="dueAt"
+                type="datetime-local"
+                required
+                defaultValue={toLocalInput(new Date(Date.now() + 86_400_000))}
+                errors={a.fieldErrors.dueAt}
+              />
+            )}
             <Select
               label="Contact (optional)"
               name="contactId"
