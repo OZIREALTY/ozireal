@@ -237,7 +237,9 @@ export default async function HomePage() {
       <header className="hero">
         <div className="hero-media">
           <Image
-            src={photo("photo-1494526585095-c41746248156", 2000)}
+            /* Adelaide skyline at night over the Torrens (owner chose it, 2026-11-26).
+               Pixabay licence, free for commercial use, no credit required. Photo: wagjm. */
+            src="/hero/adelaide-skyline-night.jpg"
             alt=""
             fill
             priority
