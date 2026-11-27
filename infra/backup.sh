@@ -38,3 +38,14 @@ fi
 
 aws s3 cp "$DUMP" "s3://$BUCKET/pg/$STAMP.dump" --region "$REGION" --only-show-errors
 echo "backed up $(numfmt --to=iec "$SIZE") to s3://$BUCKET/pg/$STAMP.dump"
+
+# Photos, task attachments, blog covers and the free book (owner, 2026-11-27). An
+# incremental mirror of the media bucket: only new or changed files are copied, and
+# nothing is ever deleted from the mirror, so a file removed by mistake can still be
+# recovered. Non-fatal: the database dump above is the part that must never fail.
+MEDIA_BUCKET="${S3_BUCKET:-ozirealty-media-310792823958}"
+if aws s3 sync "s3://$MEDIA_BUCKET" "s3://$BUCKET/media-mirror/" --region "$REGION" --only-show-errors; then
+  echo "media mirrored to s3://$BUCKET/media-mirror/"
+else
+  echo "media mirror failed (database backup above is unaffected)" >&2
+fi
