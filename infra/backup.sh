@@ -44,7 +44,7 @@ echo "backed up $(numfmt --to=iec "$SIZE") to s3://$BUCKET/pg/$STAMP.dump"
 # nothing is ever deleted from the mirror, so a file removed by mistake can still be
 # recovered. Non-fatal: the database dump above is the part that must never fail.
 MEDIA_BUCKET="${S3_BUCKET:-ozirealty-media-310792823958}"
-if aws s3 sync "s3://$MEDIA_BUCKET" "s3://$BUCKET/media-mirror/" --region "$REGION" --only-show-errors; then
+if aws s3 sync "s3://$MEDIA_BUCKET" "s3://$BUCKET/media-mirror/" --region "$REGION" --copy-props none --only-show-errors; then
   echo "media mirrored to s3://$BUCKET/media-mirror/"
 else
   echo "media mirror failed (database backup above is unaffected)" >&2
