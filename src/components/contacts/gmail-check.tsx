@@ -236,7 +236,7 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
       </div>
       <div className="dock-bar mt-3 rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex flex-wrap items-center gap-3 shadow-lg">
         <span className="text-[14px]">
-          {chosen.length} ticked: added with their role and <b>no marketing consent</b>.
+          {chosen.length} ticked: added with their role and the agency's standing consent.
         </span>
         <button type="button" disabled={!chosen.length || busy} onClick={add} className="ml-auto rounded-[10px] bg-[var(--accent)] px-4 min-h-9 font-bold text-[14px] inline-flex items-center gap-1.5 disabled:opacity-50">
           {busy && <Loader2 size={14} className="animate-spin" />}Add {chosen.length} to the CRM

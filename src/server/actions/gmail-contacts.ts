@@ -5,12 +5,12 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { defineAction, ActionError, normaliseEmail, toE164 } from "./action";
 import { contacts, contactRoles, gmailContactItems } from "@/db/schema";
+import { grantStandingConsent } from "@/server/consent/manual";
 
 /**
  * The owner's decisions on the Gmail contacts check (owner-approved, 2026-11-27).
- * Every write here is a click. People added from Gmail get NO consent row: they did
- * not opt in through a form, so the send-time consent check keeps them out of
- * campaigns until they do (Spam Act; owner told and agreed).
+ * Every write here is a click. People added from Gmail get the agency's standing
+ * consent, like every other channel (owner's decision, 2026-11-27, replacing "no consent").
  */
 const ROLES = ["buyer", "vendor", "landlord", "tenant", "referrer", "investor", "developer", "business_vendor", "agent"] as const;
 
@@ -71,6 +71,8 @@ export const addGmailContacts = defineAction({
         .returning({ id: contacts.id });
       const role = input.items.find((i) => i.id === r.id)?.role;
       if (role) await ctx.tx.insert(contactRoles).values({ tenantId: ctx.tenantId, contactId: c.id, role }).onConflictDoNothing();
+      // Standing consent, as for every other way a contact enters the CRM (owner, 2026-11-27).
+      await grantStandingConsent(ctx.tx, { tenantId: ctx.tenantId, contactId: c.id });
       await ctx.tx.update(gmailContactItems).set({ status: "added", crmContactId: c.id }).where(eq(gmailContactItems.id, r.id));
       added++;
     }
