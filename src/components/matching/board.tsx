@@ -433,7 +433,7 @@ function Focus({ p, pinned, onPin }: { p: BoardProperty; pinned: boolean; onPin:
           )}
 
           {ready.length > 0 && (
-            <div className="sticky bottom-3 z-10 surface-2 border rounded-xl shadow-lg p-3 flex flex-wrap items-center gap-3">
+            <div className="dock-bar surface-2 border rounded-xl shadow-lg p-3 flex flex-wrap items-center gap-3">
               <p className="text-[13px] flex-1 min-w-[200px]">
                 <strong>{picked.size}</strong> ticked. The AI writes each a personal email from what they want. You review them
                 before anything is sent.

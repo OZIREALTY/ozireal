@@ -456,8 +456,7 @@ export function MobileToday({ data, firstName }: { data: Data; firstName: string
       {toast && (
         <div
           role="status"
-          className="fixed left-1/2 -translate-x-1/2 z-[60] w-[min(408px,calc(100%-32px))] rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex items-center gap-3 text-[16px] font-semibold shadow-lg"
-          style={{ bottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+          className="dock-toast rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex items-center gap-3 text-[16px] font-semibold shadow-lg"
         >
           <span className="flex-1">{toast.msg}</span>
           {toast.undo && (

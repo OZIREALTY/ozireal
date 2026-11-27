@@ -303,3 +303,28 @@ body {
     font-weight: 700;
   }
 }
+
+/*
+ * Bottom docking (owner, 2026-11-27: "Ask AI" covered the Add button, on phone and
+ * computer). One rule for every action bar and message that sits at the bottom of a
+ * CRM page, so none of them ever lands under the Ask AI button or the phone tab bar.
+ *   Phone: tab bar ~72px, Ask AI from 88px to 144px  -> dock above 156px.
+ *   Computer (lg): Ask AI 24px from the bottom-right, ~140px wide -> keep 170px clear on the right.
+ */
+.dock-bar {
+  position: sticky;
+  z-index: 40;
+  bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+}
+.dock-toast {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 1024px) {
+  .dock-bar { bottom: 24px; margin-right: 170px; }
+  .dock-toast { bottom: 24px; left: calc(50% - 85px); width: min(440px, calc(100% - 380px)); }
+}

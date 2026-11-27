@@ -601,7 +601,8 @@ export function ConsoleShell({
       <MobileDrawer open={menuOpen} onClose={() => setMenuOpen(false)} data={data} />
       <div className="flex-1 min-w-0 flex flex-col">
         <TopBar onOpenMenu={() => setMenuOpen(true)} data={data} signOut={signOut} />
-        <main className="flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6 lg:pb-6 w-full max-w-[1500px] min-w-0">
+        {/* Bottom padding clears the tab bar and Ask AI (phone) and Ask AI (computer), so the last row is never hidden. */}
+        <main className="flex-1 px-4 pt-4 pb-44 sm:px-6 sm:pt-6 lg:pb-28 w-full max-w-[1500px] min-w-0">
           <FeatureAssist />
           {children}
         </main>

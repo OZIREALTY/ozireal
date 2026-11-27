@@ -193,7 +193,7 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
     <>
       <div className="space-y-1.5">
         {items.map((i) => (
-          <div key={i.id} className="surface-2 border rounded-xl px-3 py-2.5 flex flex-wrap items-center gap-3">
+          <div key={i.id} className="surface-2 border rounded-xl px-3 py-2.5 grid grid-cols-[18px_minmax(0,1fr)_170px] lg:grid-cols-[18px_minmax(0,1.1fr)_190px_minmax(0,1.6fr)_auto] gap-x-3 gap-y-1.5 items-start">
             <input
               type="checkbox"
               aria-label={`Add ${i.name}`}
@@ -206,11 +206,11 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
               }}
               className="w-4 h-4 accent-[var(--accent)]"
             />
-            <div className="min-w-[180px] flex-1">
+            <div className="min-w-0 [&_span]:break-all">
               <b className="block text-[14px]">{i.name}</b>
               <span className="text-2 text-[12.5px]">{[i.emails[0], i.phones[0]].filter(Boolean).join(" · ")}</span>
             </div>
-            <div className="min-w-[160px]">
+            <div className="min-w-0 [&_select]:w-full">
               <select
                 value={roleOf(i)}
                 onChange={(e) => setRoles({ ...roles, [i.id]: e.target.value })}
@@ -225,16 +225,16 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
               </select>
               {i.suggestedRole === "not_client" && <span className="block mt-1 text-[11.5px] font-bold text-3">AI: not a client</span>}
             </div>
-            <p className="basis-full sm:basis-auto sm:flex-[2] text-2 text-[12.5px]">
+            <p className="col-start-2 col-span-2 lg:col-start-auto lg:col-span-1 text-2 text-[12.5px] leading-snug">
               {i.suggestedRole == null ? "Role not suggested yet (next check)." : i.roleReason || (i.suggestedRole === "unknown" ? "No emails that show a role." : "")}
             </p>
-            <button type="button" onClick={() => skip([i.id])} className="text-2 text-[12.5px] font-semibold hover:underline">
+            <button type="button" onClick={() => skip([i.id])} className="col-start-3 lg:col-start-auto justify-self-end text-2 text-[12.5px] font-semibold hover:underline">
               Skip
             </button>
           </div>
         ))}
       </div>
-      <div className="sticky bottom-3 mt-3 rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex flex-wrap items-center gap-3 shadow-lg">
+      <div className="dock-bar mt-3 rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex flex-wrap items-center gap-3 shadow-lg">
         <span className="text-[14px]">
           {chosen.length} ticked: added with their role and <b>no marketing consent</b>.
         </span>

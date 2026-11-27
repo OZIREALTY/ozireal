@@ -425,7 +425,7 @@ export function TaskManager({ tasks, contacts, listings }: { tasks: TaskRow[]; c
         </section>
       )}
       {toast && (
-        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[80] w-[min(440px,calc(100%-32px))] rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex items-center gap-3 text-[14.5px] font-semibold shadow-lg">
+        <div role="status" className="dock-toast rounded-[14px] bg-[#13254A] text-white px-4 py-3 flex items-center gap-3 text-[14.5px] font-semibold shadow-lg">
           <span className="flex-1">{toast.msg}</span>
           <button
             type="button"
