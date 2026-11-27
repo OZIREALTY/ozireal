@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, sql , lt } from "drizzle-orm";
 import { query } from "@/db";
 import { approvalItems, campaignRecipients, campaigns, consents, contacts, NOT_CORRECTED_I } from "@/db/schema";
 
@@ -90,7 +90,8 @@ export async function emailInsights(win: { from: Date | null; to: Date | null })
             eq(approvalItems.status, "sent"),
             isNotNull(approvalItems.sentAt),
             prevFrom ? gte(approvalItems.sentAt, prevFrom) : undefined,
-            sql`${approvalItems.sentAt} < ${to}`,
+            // Through the column, so the driver encodes the Date (a raw sql`` param does not).
+            lt(approvalItems.sentAt, to),
           ),
         )
         .orderBy(desc(approvalItems.sentAt))
@@ -102,7 +103,7 @@ export async function emailInsights(win: { from: Date | null; to: Date | null })
     const unsub = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(consents)
-      .where(and(eq(consents.channel, "email"), eq(consents.status, "revoked"), from ? gte(consents.occurredAt, from) : undefined, sql`${consents.occurredAt} < ${to}`));
+      .where(and(eq(consents.channel, "email"), eq(consents.status, "revoked"), from ? gte(consents.occurredAt, from) : undefined, lt(consents.occurredAt, to)));
 
     const totals = summarise(cur);
     const before = summarise(prev);
