@@ -94,6 +94,12 @@ export default async function ContactsPage({
               <Download size={13} />
               Export CSV
             </a>
+            <a
+              href="/contacts/gmail-check"
+              className="inline-flex items-center gap-1.5 rounded-md surface-2 border text-[13px] font-medium px-3 min-h-9 hover:surface-3"
+            >
+              Gmail check
+            </a>
             <ImportContactsButton />
             <NewContactButton />
           </>

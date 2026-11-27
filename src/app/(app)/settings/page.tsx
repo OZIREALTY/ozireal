@@ -35,7 +35,8 @@ export default async function SettingsPage() {
     getSettings(),
     currentTenantId(),
   ]);
-  const secretStatuses = await getSecretStatus(tenantId);
+  // The Google Contacts sign-in is set by Connect on Contacts → Gmail check, never pasted.
+  const secretStatuses = (await getSecretStatus(tenantId)).filter((x) => x.name !== "GOOGLE_CONTACTS_REFRESH_TOKEN");
   const encryptionReady = secretsConfigured();
   const [llmRow, llmDefaults, budget] = await Promise.all([
     readLlmSettings(tenantId),

@@ -34,6 +34,8 @@ export const SECRET_NAMES = [
   "MESSAGEMEDIA_SECRET",
   /** Google Workspace app password for admin@ozirealty.com.au (2026-11-18): sends marketing email through Gmail. */
   "GMAIL_APP_PASSWORD",
+  /** Google Contacts, read-only (People API, 2026-11-27): the long-lived sign-in from Connect. */
+  "GOOGLE_CONTACTS_REFRESH_TOKEN",
 ] as const;
 export type SecretName = (typeof SECRET_NAMES)[number];
 

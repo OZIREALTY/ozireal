@@ -36,7 +36,9 @@ export type JobName =
   /** entityId = "all": read the agency Gmail for replies to emails the CRM sent. */
   | "CheckReplies"
   /** entityId = "all": pull Google Search Console figures (daily, 2026-11-24). */
-  | "SyncSearchConsole";
+  | "SyncSearchConsole"
+  /** Google Contacts against the CRM (2026-11-27): entityId "auto", or a run id when pressed. */
+  | "GmailContactsCheck";
 
 export type JobPayload = {
   tenantId: string;

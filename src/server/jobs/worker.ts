@@ -124,6 +124,25 @@ const handlers: Record<JobName, Handler> = {
     const { syncSearchConsole } = await import("@/server/seo/search-console");
     return syncSearchConsole();
   },
+  async GmailContactsCheck(job) {
+    const g = await import("@/server/gcontacts/check");
+    if (job.data.entityId !== "auto") return g.runCheck(job.data.tenantId, job.data.entityId);
+    // Every Monday 7 am; runs every second week, only where Google Contacts is connected.
+    const { db } = await import("@/db");
+    const { tenants } = await import("@/db/schema");
+    const { getSecret } = await import("@/server/secrets");
+    const out: Record<string, unknown> = {};
+    for (const t of await db.select({ id: tenants.id }).from(tenants)) {
+      if (!(await getSecret(t.id, "GOOGLE_CONTACTS_REFRESH_TOKEN"))) continue;
+      if (!(await g.dueForAuto(t.id))) {
+        out[t.id] = "off week";
+        continue;
+      }
+      const run = await g.startRun(t.id, "auto");
+      out[t.id] = run ? await g.runCheck(t.id, run).catch((e) => String(e)) : "already running";
+    }
+    return out;
+  },
   async NotifyEnquiry(job) {
     const { notifyEnquiry } = await import("@/server/outbound/notices");
     return notifyEnquiry(job.data.tenantId, job.data.entityId);
@@ -152,6 +171,11 @@ export function startWorker() {
         "SyncSearchConsole",
         { pattern: "0 15 6 * * *", tz: "Australia/Adelaide" },
         { name: "SyncSearchConsole", data: { tenantId: "all", entityId: "all" } },
+      );
+      await getQueue().upsertJobScheduler(
+        "GmailContactsCheck",
+        { pattern: "0 0 7 * * 1", tz: "Australia/Adelaide" },
+        { name: "GmailContactsCheck", data: { tenantId: "all", entityId: "auto" } },
       );
     } catch (e) {
       console.error("[worker] could not schedule the nightly match:", e instanceof Error ? e.message : e);

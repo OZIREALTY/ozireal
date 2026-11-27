@@ -14,6 +14,7 @@ import { getAgency, getHomeCounts } from "@/server/queries";
 import { AskButton } from "@/components/assistant/ask-button";
 import { MobileToday } from "@/components/mobile/today";
 import { getToday } from "@/server/queries/today";
+import { gmailCheckCounts } from "@/server/queries/gmail-contacts";
 
 /**
  * The home screen: four doors, and nothing else to read.
@@ -142,7 +143,14 @@ function Tile({
 }
 
 export default async function DashboardPage() {
-  const [agency, c, todayData, waitingHref] = await Promise.all([getAgency(), getHomeCounts(), getToday(), firstWaitingHref()]);
+  const [agency, c, todayData, waitingHref, gmail] = await Promise.all([
+    getAgency(),
+    getHomeCounts(),
+    getToday(),
+    firstWaitingHref(),
+    gmailCheckCounts().catch(() => ({ new: 0, duplicate: 0, extra: 0 })),
+  ]);
+  const gmailOpen = gmail.new + gmail.duplicate + gmail.extra;
   const firstName = agency.user.name.split(" ")[0];
   const waiting = c.approvals + c.confirms;
 
@@ -161,6 +169,19 @@ export default async function DashboardPage() {
   return (
     <>
     <MobileToday data={todayData} firstName={firstName} />
+    {gmailOpen > 0 && (
+      /* Gmail contacts check (2026-11-27): shown after a check finds something to review. */
+      <Link href="/contacts/gmail-check" className="max-w-[1120px] mt-4 flex items-center gap-3 surface-2 border rounded-2xl px-4 py-3 hover:border-[var(--accent)]">
+        <span className="text-[24px]" aria-hidden>👥</span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-[15px]">Gmail contacts check</b>
+          <span className="text-2 text-[13.5px]">
+            {[gmail.new && `${gmail.new} not in the CRM`, gmail.duplicate && `${gmail.duplicate} possible duplicate${gmail.duplicate === 1 ? "" : "s"}`, gmail.extra && `${gmail.extra} with extra details`].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <span className="rounded-[10px] bg-[var(--accent)] text-white px-3.5 min-h-9 inline-flex items-center text-[13.5px] font-bold">Review</span>
+      </Link>
+    )}
     <div className="max-w-[1120px] mt-6 lg:mt-10 pt-6 border-t pb-4">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
         <div>

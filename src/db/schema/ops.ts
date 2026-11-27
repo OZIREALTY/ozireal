@@ -497,3 +497,42 @@ export const todayCardPrefs = pgTable(
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
 );
+
+/** Gmail contacts check (0040): each run, and what it found for the owner to review. */
+export const gmailContactRuns = pgTable("gmail_contact_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "restrict" }),
+  trigger: text("trigger").$type<"auto" | "manual">().notNull(),
+  status: text("status").$type<"running" | "done" | "failed">().notNull().default("running"),
+  step: text("step"),
+  totals: jsonb("totals").$type<{ gmail: number; crm: number; new: number; duplicate: number; extra: number }>(),
+  error: text("error"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+export const gmailContactItems = pgTable(
+  "gmail_contact_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    resourceName: text("resource_name").notNull(),
+    etag: text("etag"),
+    kind: text("kind").$type<"new" | "duplicate" | "extra">().notNull(),
+    status: text("status").$type<"open" | "added" | "skipped" | "done">().notNull().default("open"),
+    name: text("name").notNull(),
+    emails: text("emails").array().notNull().default([]),
+    phones: text("phones").array().notNull().default([]),
+    crmContactId: uuid("crm_contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+    extra: jsonb("extra").$type<{ emails?: string[]; phones?: string[] }>(),
+    suggestedRole: text("suggested_role"),
+    roleReason: text("role_reason"),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("gmail_contact_items_tenant_id_resource_name_kind_key").on(t.tenantId, t.resourceName, t.kind)],
+);
