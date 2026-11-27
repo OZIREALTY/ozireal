@@ -94,6 +94,8 @@ async function checkTenant(tenantId: string, pass: string) {
     try {
       for await (const m of client.fetch({ since: new Date(Date.now() - 14 * 864e5) }, { uid: true, envelope: true, headers: ["references"] })) {
         looked++;
+        // A bounce notice is not a reply (owner, 2026-11-27: bounces showed as "Got back to you").
+        if (isBounce(m.envelope?.from?.[0]?.address, m.envelope?.subject)) continue;
         const refs = [m.envelope?.inReplyTo ?? "", ...(m.headers?.toString("utf8").replace(/^references:/i, "").split(/\s+/) ?? [])]
           .filter(Boolean)
           .map(norm);
@@ -153,6 +155,12 @@ export async function handleReplyInbox(tenantId: string, destinations: string[],
   const { readReplyAddress } = await import("./tracking");
   const itemId = destinations.map(readReplyAddress).find(Boolean);
   if (!itemId) return false;
+  {
+    const { simpleParser } = await import("mailparser");
+    const head = await simpleParser(mime).catch(() => null);
+    const f = head?.from && !Array.isArray(head.from) ? head.from.value?.[0]?.address : undefined;
+    if (isBounce(f, head?.subject)) return true; // swallowed: a bounce is neither a reply nor worth forwarding as one
+  }
   const snippet = await replySnippet(mime).catch(() => null);
   await withTenant(tenantId, (tx) =>
     tx
@@ -177,4 +185,12 @@ export async function handleReplyInbox(tenantId: string, destinations: string[],
     console.error("[replies] forwarding to Gmail failed:", e instanceof Error ? e.message : e);
   }
   return true;
+}
+
+/** Delivery failure notices from mail servers, which are never a person replying. */
+export function isBounce(from: string | null | undefined, subject: string | null | undefined) {
+  return (
+    /^(mailer-daemon|postmaster|mail-daemon|bounce[s]?)@/i.test(from ?? "") ||
+    /^(returned mail|delivery status notification|undeliver|mail delivery (failed|subsystem)|delivery (has )?failed|failure notice)/i.test((subject ?? "").trim())
+  );
 }
