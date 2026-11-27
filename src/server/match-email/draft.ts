@@ -84,7 +84,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
   const { r, gate, person, brief, extra } = ctx;
 
   const request = draftRequest({ firstName: person.firstName, ...ctx, profile: ctx.profile, brief });
-  const prompt = loadPrompt(brief ? COMPOSE_PROMPT : "match-email.v4");
+  const prompt = loadPrompt(brief ? COMPOSE_PROMPT : "match-email.v5");
   try {
     const { data, generationId } = await runTask(draftSchema, {
       task: brief ? "campaign-email" : "match-email",
@@ -145,7 +145,7 @@ export async function draftMatchEmail(tenantId: string, recipientId: string) {
 }
 
 /** The composer's brief (Campaigns, 2026-11-20): what the email is about, and its tone. */
-export const COMPOSE_PROMPT = "campaign-email.v2";
+export const COMPOSE_PROMPT = "campaign-email.v3";
 export const TONES = ["warm", "short", "investor"] as const;
 export type ComposeBrief = { tone: (typeof TONES)[number]; note: string; listingIds: string[] };
 export function composeBrief(segment: unknown): ComposeBrief | null {
