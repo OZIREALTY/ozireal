@@ -211,22 +211,19 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
               <span className="text-2 text-[12.5px]">{[i.emails[0], i.phones[0]].filter(Boolean).join(" · ")}</span>
             </div>
             <div className="min-w-[160px]">
-              {i.suggestedRole === "not_client" ? (
-                <span className="rounded-full surface-3 text-2 px-2.5 py-0.5 text-[12px] font-bold">Not a client</span>
-              ) : (
-                <select
-                  value={roleOf(i)}
-                  onChange={(e) => setRoles({ ...roles, [i.id]: e.target.value })}
-                  aria-label="Role"
-                  className="rounded-[9px] border surface-2 px-2 min-h-8 text-[13px]"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r.v} value={r.v}>
-                      {r.l}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <select
+                value={roleOf(i)}
+                onChange={(e) => setRoles({ ...roles, [i.id]: e.target.value })}
+                aria-label="Role"
+                className="rounded-[9px] border surface-2 px-2 min-h-8 text-[13px]"
+              >
+                {ROLES.map((r) => (
+                  <option key={r.v} value={r.v}>
+                    {r.l}
+                  </option>
+                ))}
+              </select>
+              {i.suggestedRole === "not_client" && <span className="block mt-1 text-[11.5px] font-bold text-3">AI: not a client</span>}
             </div>
             <p className="basis-full sm:basis-auto sm:flex-[2] text-2 text-[12.5px]">
               {i.suggestedRole == null ? "Role not suggested yet (next check)." : i.roleReason || (i.suggestedRole === "unknown" ? "No emails that show a role." : "")}
@@ -252,6 +249,7 @@ function NewList({ items, onError }: { items: Item[]; onError: (e: string | null
 function PairList({ items, kind, onError }: { items: Item[]; kind: "duplicate" | "extra"; onError: (e: string | null) => void }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [roles, setRoles] = React.useState<Record<string, string>>({});
   async function run(id: string, fn: () => Promise<{ ok: boolean; error?: string } | null>) {
     setBusy(id);
     onError(null);
@@ -290,7 +288,16 @@ function PairList({ items, kind, onError }: { items: Item[]; kind: "duplicate" |
               {kind === "duplicate" ? "Same person: add details" : "Add to the CRM record"}
             </button>
             {kind === "duplicate" && (
-              <button type="button" disabled={busy === i.id} onClick={() => run(i.id, () => addGmailContacts({ items: [{ id: i.id, role: "" }] }))} className="rounded-[10px] border surface-2 px-3 min-h-9 text-[13px] font-bold">
+              <select value={roles[i.id] ?? ""} onChange={(e) => setRoles({ ...roles, [i.id]: e.target.value })} aria-label="Role if added as new" className="rounded-[9px] border surface-2 px-2 min-h-9 text-[13px]">
+                {ROLES.map((r) => (
+                  <option key={r.v} value={r.v}>
+                    {r.l}
+                  </option>
+                ))}
+              </select>
+            )}
+            {kind === "duplicate" && (
+              <button type="button" disabled={busy === i.id} onClick={() => run(i.id, () => addGmailContacts({ items: [{ id: i.id, role: (roles[i.id] ?? "") as never }] }))} className="rounded-[10px] border surface-2 px-3 min-h-9 text-[13px] font-bold">
                 Different people: add new
               </button>
             )}
