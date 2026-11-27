@@ -92,11 +92,13 @@ async function checkTenant(tenantId: string, pass: string) {
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
-      for await (const m of client.fetch({ since: new Date(Date.now() - 14 * 864e5) }, { uid: true, envelope: true, headers: ["references"] })) {
+      for await (const m of client.fetch({ since: new Date(Date.now() - 14 * 864e5) }, { uid: true, envelope: true, headers: ["references", "auto-submitted", "x-autoreply", "x-autorespond", "precedence"] })) {
         looked++;
         // A bounce notice is not a reply (owner, 2026-11-27: bounces showed as "Got back to you").
         if (isBounce(m.envelope?.from?.[0]?.address, m.envelope?.subject)) continue;
-        const refs = [m.envelope?.inReplyTo ?? "", ...(m.headers?.toString("utf8").replace(/^references:/i, "").split(/\s+/) ?? [])]
+        // Nor is an automatic reply ("Out of office", "I'll get back to you within 4 hours").
+        if (isAutoReply(m.headers?.toString("utf8") ?? "", m.envelope?.subject)) continue;
+        const refs = [m.envelope?.inReplyTo ?? "", ...((m.headers?.toString("utf8").match(/^references:([\s\S]*?)(?:\r?\n(?![ \t])|(?![\s\S]))/im)?.[1] ?? "").split(/\s+/))]
           .filter(Boolean)
           .map(norm);
         let itemId = refs.map((r) => byMsg.get(r)).find(Boolean);
@@ -192,5 +194,15 @@ export function isBounce(from: string | null | undefined, subject: string | null
   return (
     /^(mailer-daemon|postmaster|mail-daemon|bounce[s]?)@/i.test(from ?? "") ||
     /^(returned mail|delivery status notification|undeliver|mail delivery (failed|subsystem)|delivery (has )?failed|failure notice)/i.test((subject ?? "").trim())
+  );
+}
+
+/** Out-of-office and other automatic answers (RFC 3834 headers, or the usual subjects). */
+export function isAutoReply(headers: string, subject: string | null | undefined) {
+  return (
+    /^auto-submitted:s*auto-(replied|generated)/im.test(headers) ||
+    /^x-auto(reply|respond)/im.test(headers) ||
+    /^precedence:s*(auto_reply|bulk|junk)/im.test(headers) ||
+    /^(automatic reply|auto:|auto reply|autoreply|out of (the )?office)/i.test((subject ?? "").trim())
   );
 }
