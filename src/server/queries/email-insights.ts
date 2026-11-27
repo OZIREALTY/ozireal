@@ -52,11 +52,15 @@ const respondedAt = sql<Date | null>`coalesce(${approvalItems.repliedAt}, (selec
 
 const rate = (n: number, d: number) => (d ? n / d : 0);
 
-export async function emailInsights(days: number | null) {
+/**
+ * A window [from, to). Null from = all time. The comparison is the same length of time
+ * just before it (owner, 2026-11-27: custom date and time ranges).
+ */
+export async function emailInsights(win: { from: Date | null; to: Date | null }) {
   return query(async (tx) => {
-    const now = Date.now();
-    const from = days ? new Date(now - days * 864e5) : null;
-    const prevFrom = days ? new Date(now - 2 * days * 864e5) : null;
+    const from = win.from;
+    const to = win.to ?? new Date();
+    const prevFrom = from ? new Date(from.getTime() - (to.getTime() - from.getTime())) : null;
 
     const rows: Row[] = (
       await tx
@@ -86,6 +90,7 @@ export async function emailInsights(days: number | null) {
             eq(approvalItems.status, "sent"),
             isNotNull(approvalItems.sentAt),
             prevFrom ? gte(approvalItems.sentAt, prevFrom) : undefined,
+            sql`${approvalItems.sentAt} < ${to}`,
           ),
         )
         .orderBy(desc(approvalItems.sentAt))
@@ -97,7 +102,7 @@ export async function emailInsights(days: number | null) {
     const unsub = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(consents)
-      .where(and(eq(consents.channel, "email"), eq(consents.status, "revoked"), from ? gte(consents.occurredAt, from) : undefined));
+      .where(and(eq(consents.channel, "email"), eq(consents.status, "revoked"), from ? gte(consents.occurredAt, from) : undefined, sql`${consents.occurredAt} < ${to}`));
 
     const totals = summarise(cur);
     const before = summarise(prev);

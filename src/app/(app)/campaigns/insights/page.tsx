@@ -6,6 +6,8 @@ import { emailInsights, TYPE_LABEL } from "@/server/queries/email-insights";
 import { currentTenantId } from "@/db";
 import { checkRepliesFor, lastReplyCheck } from "@/server/outbound/replies";
 import { ReplyCheck } from "@/components/campaigns/reply-check";
+import { RangePicker } from "@/components/campaigns/range-picker";
+import { adelaide, adelaideLabel, adelaideToday } from "@/lib/adelaide-time";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,7 @@ export const dynamic = "force-dynamic";
  * started it. Replies are the number that matters; opens are a rough signal.
  */
 const RANGES = [
+  { k: "today", label: "Today", days: null },
   { k: "7", label: "7 days", days: 7 },
   { k: "30", label: "30 days", days: 30 },
   { k: "90", label: "90 days", days: 90 },
@@ -21,9 +24,26 @@ const RANGES = [
 ] as const;
 const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 
-export default async function EmailInsightsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
-  const { range = "30" } = await searchParams;
-  const r = RANGES.find((x) => x.k === range) ?? RANGES[1];
+export default async function EmailInsightsPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string; ft?: string; tt?: string }> }) {
+  const sp = await searchParams;
+  const range = sp.range ?? "30";
+  /**
+   * The window (owner, 2026-11-27): Today and Custom (dates and times, Adelaide time) as
+   * well as the rolling 7 / 30 / 90 days and All.
+   */
+  let custom: { from: Date; to: Date; label: string } | null = null;
+  if (range === "custom" && sp.from && sp.to) {
+    const f = adelaide(sp.from, sp.ft ?? "00:00");
+    const tEnd = sp.tt ? adelaide(sp.to, sp.tt) : adelaide(sp.to, "00:00");
+    const t = tEnd && !sp.tt ? new Date(tEnd.getTime() + 864e5) : tEnd;
+    if (f && t && f < t) custom = { from: f, to: t, label: sp.tt ? `${adelaideLabel(f)} → ${adelaideLabel(t)}` : `${sp.from === sp.to ? "" : adelaideLabel(f).replace(/,.*$/, "") + " → "}${adelaideLabel(new Date(t.getTime() - 1)).replace(/,.*$/, "")} (whole days)` };
+  }
+  const r = custom ? { k: "custom", label: "Custom", days: null } : (RANGES.find((x) => x.k === range) ?? RANGES[2]);
+  const win = custom
+    ? { from: custom.from, to: custom.to }
+    : r.k === "today"
+      ? { from: adelaide(adelaideToday()), to: null }
+      : { from: r.days ? new Date(Date.now() - r.days * 864e5) : null, to: null };
   /**
    * Opening the report also starts a reply check (at most once a minute), so the numbers do
    * not depend on the background worker alone (owner, 2026-11-20).
@@ -39,10 +59,12 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
   if (!last || Date.now() - new Date(last.at).getTime() > 60_000) {
     void checkRepliesFor(tenantId).catch(() => undefined);
   }
-  const d = await emailInsights(r.days);
+  const d = await emailInsights(win);
   const t = d.totals;
-  const diff = r.days ? t.sent - d.before.sent : null;
-  const rDiff = r.days && d.before.sent ? (t.replyRate - d.before.replyRate) * 100 : null;
+  const compared = !!win.from;
+  const diff = compared ? t.sent - d.before.sent : null;
+  const rDiff = compared && d.before.sent ? (t.replyRate - d.before.replyRate) * 100 : null;
+  const beforeLabel = r.days ? `the ${r.days} days before` : r.k === "today" ? "the day before" : "the same length before";
 
   return (
     <>
@@ -51,7 +73,7 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
       <CampaignTabs active="insights" />
       <ReplyCheck last={last} />
 
-      <div className="flex gap-1 surface-2 border rounded-xl p-1 w-max max-w-full overflow-x-auto mb-4">
+      <div className="flex gap-1 surface-2 border rounded-xl p-1 w-max max-w-full flex-wrap mb-4">
         {RANGES.map((x) => (
           <Link
             key={x.k}
@@ -61,10 +83,19 @@ export default async function EmailInsightsPage({ searchParams }: { searchParams
             {x.label}
           </Link>
         ))}
+        <RangePicker
+          active={!!custom}
+          initial={{ from: sp.from ?? adelaideToday(), to: sp.to ?? adelaideToday(), fromTime: sp.ft ?? "09:00", toTime: sp.tt ?? "17:00", whole: !sp.ft }}
+        />
       </div>
+      {custom && (
+        <Link href="/campaigns/insights?range=7" className="inline-flex items-center gap-2 -mt-2 mb-4 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] px-3 py-1.5 text-[13.5px] font-bold">
+          {custom.label} <span aria-label="Clear">✕</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <Kpi label="Sent" value={String(t.sent)} note={diff !== null ? `${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff)} on the ${r.days} days before` : undefined} />
+        <Kpi label="Sent" value={String(t.sent)} note={diff !== null ? `${diff >= 0 ? "▲" : "▼"} ${Math.abs(diff)} on ${beforeLabel}` : undefined} />
         <Kpi
           label="Opened (confirmed)"
           value={pct(t.openRate)}
