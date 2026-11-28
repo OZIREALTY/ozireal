@@ -11,14 +11,16 @@ import { users } from "@/db/schema";
  * signs out every OTHER device (auth.ts jwt callback); this device is re-stamped so it
  * stays signed in.
  */
-export const changePassword = defineAction({
-  input: z
+const changeInput = z
     .object({
       current: z.string().max(200).default(""),
       next: z.string().min(12, "Use at least 12 characters").max(200),
       again: z.string().max(200),
     })
-    .refine((v) => v.next === v.again, { message: "The two new passwords do not match", path: ["again"] }),
+    .refine((v) => v.next === v.again, { message: "The two new passwords do not match", path: ["again"] });
+
+export const changePassword = defineAction({
+  input: changeInput,
   async handler(input, ctx) {
     const { hashPassword, verifyPassword } = await import("@/server/auth/password");
     const [u] = await ctx.tx
