@@ -1,19 +1,10 @@
-import { Lock, Info, BookOpen, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import {
-  PageHeader,
-  Section,
-  Card,
-  Badge,
-  KeyValue,
-  Callout,
-  ProtoNote,
-  Empty,
-} from "@/components/ui";
+import { BookOpen, ChevronRight, Lock } from "lucide-react";
+import { PageHeader, Badge, Empty } from "@/components/ui";
 import { getAgency, getSettings } from "@/server/queries";
 import { QueueHealthCard } from "@/components/jobs/queue-health";
 import { CredentialsCard } from "@/components/settings/credentials";
-import { getSecretStatus, secretsConfigured } from "@/server/secrets";
+import { getSecret, getSecretStatus, secretsConfigured } from "@/server/secrets";
 import { LlmSettingsForm } from "@/components/settings/llm-settings";
 import { readLlmSettings } from "@/server/queries/llm";
 import { getLlmConfig, getBudgetState } from "@/server/ai/config";
@@ -22,40 +13,175 @@ import { auth, availableProviders } from "@/auth";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { PasswordCard } from "@/components/settings/password-card";
+import { AgencyRows, NameRow } from "@/components/settings/edit-rows";
+import { systemStatus } from "@/server/queries/system-status";
 
-/** "Sam Whitfield" -> "SW". Empty when there is no name to take them from. */
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
+export const dynamic = "force-dynamic";
+
+/**
+ * Settings (owner-approved redesign, 2026-11-28): a menu of six topics, one shown at a
+ * time, plain words and a status on each item. Every control the old page had is still
+ * here; only the arrangement and the wording changed.
+ */
+const TABS = [
+  { k: "account", label: "My account", icon: "👤" },
+  { k: "agency", label: "Agency", icon: "🏢" },
+  { k: "ai", label: "AI", icon: "✦" },
+  { k: "connections", label: "Connections", icon: "🔌" },
+  { k: "compliance", label: "Consent & compliance", icon: "⚖️" },
+  { k: "system", label: "Backups & system", icon: "🛡" },
+] as const;
+type Tab = (typeof TABS)[number]["k"];
+
+const when = (d: Date | string) =>
+  new Date(d).toLocaleString("en-AU", { timeZone: "Australia/Adelaide", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+function Ok({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-[#E8F5E9] text-[#1B5E20] dark:bg-[#183A1C] dark:text-[#9BE3A2] px-2.5 py-0.5 text-[12px] font-bold">{children}</span>;
 }
+function Warn({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-[#FFF1DC] text-[#8A4B00] dark:bg-[#3A2C12] dark:text-[#FFC266] px-2.5 py-0.5 text-[12px] font-bold">{children}</span>;
+}
+function Row({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-t text-[14px]">
+      <span className="w-[140px] sm:w-[190px] shrink-0 text-2">{label}</span>
+      <span className="flex-1 min-w-0 flex flex-wrap items-center gap-2">{children}</span>
+      {action}
+    </div>
+  );
+}
+function Panel({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
+  return (
+    <section className="surface-2 border rounded-2xl p-4 sm:p-5">
+      <h2 className="text-[17px] font-bold">{title}</h2>
+      <p className="text-2 text-[13.5px] mt-0.5 mb-3">{desc}</p>
+      {children}
+    </section>
+  );
+}
+const linkBtn = "rounded-[10px] border surface-2 px-3 min-h-8 inline-flex items-center text-[13px] font-bold hover:surface-3";
 
-export default async function SettingsPage() {
-  const [agency, settings, tenantId] = await Promise.all([
-    getAgency(),
-    getSettings(),
-    currentTenantId(),
-  ]);
-  // The Google Contacts sign-in is set by Connect on Contacts → Gmail check, never pasted.
-  const secretStatuses = (await getSecretStatus(tenantId)).filter((x) => x.name !== "GOOGLE_CONTACTS_REFRESH_TOKEN");
-  const encryptionReady = secretsConfigured();
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab: raw } = await searchParams;
+  const tab: Tab = (TABS.find((t) => t.k === raw)?.k ?? "account") as Tab;
+  const [agency, settings, tenantId] = await Promise.all([getAgency(), getSettings(), currentTenantId()]);
   const session = await auth();
   const me = session?.user?.id
     ? await db
-        .select({ email: users.email, setAt: users.passwordSetAt })
+        .select({ email: users.email, name: users.name, setAt: users.passwordSetAt })
         .from(users)
         .where(eq(users.id, session.user.id))
         .limit(1)
-        .then((r) => (r[0] ? { email: r[0].email, setAt: r[0].setAt?.toISOString() ?? null } : null))
+        .then((r) => (r[0] ? { email: r[0].email, name: r[0].name, setAt: r[0].setAt?.toISOString() ?? null } : null))
     : null;
-  const [llmRow, llmDefaults, budget] = await Promise.all([
-    readLlmSettings(tenantId),
-    getLlmConfig(tenantId),
-    getBudgetState(tenantId),
-  ]);
+  const budget = await getBudgetState(tenantId);
+  const spent = `A$${budget.spentAud.toFixed(2)}`;
+
+  return (
+    <>
+      <PageHeader title="Settings" subtitle="Your account, your agency, the AI, and the services the CRM connects to." />
+
+      <div className="grid lg:grid-cols-[230px_1fr] gap-5 items-start">
+        <nav className="surface-2 border rounded-2xl p-1.5 lg:sticky lg:top-4 flex lg:flex-col gap-1 overflow-x-auto" aria-label="Settings sections">
+          {TABS.map((t) => (
+            <Link
+              key={t.k}
+              href={`/settings?tab=${t.k}`}
+              aria-current={tab === t.k ? "page" : undefined}
+              className={`flex items-center gap-2.5 rounded-[10px] px-3 min-h-10 text-[14.5px] whitespace-nowrap ${tab === t.k ? "bg-[var(--accent)]/10 text-[var(--accent)] font-bold" : "text-2 hover:surface-3"}`}
+            >
+              <span aria-hidden>{t.icon}</span>
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex flex-col gap-4 min-w-0">
+          {tab === "account" && (
+            <>
+              <Panel title="👤 My account" desc="Who you are in the CRM.">
+                <NameRow name={me?.name ?? agency.user.name} role={agency.user.role} licence={agency.licence} />
+              </Panel>
+              {me && (
+                <Panel title="🔑 Sign-in & password" desc="How you sign in to the CRM.">
+                  <PasswordCard email={me.email} setAt={me.setAt} google={availableProviders.google} entra={availableProviders.entra} />
+                </Panel>
+              )}
+            </>
+          )}
+
+          {tab === "agency" && (
+            <Panel title="🏢 Agency" desc="Your business details, used on emails, proposals and the website.">
+              <AgencyRows v={{ name: agency.name, tradingName: agency.tradingName, licence: agency.licence, abn: agency.abn, jurisdiction: agency.jurisdiction, timezone: agency.timezone }} />
+              <p className="text-3 text-[12.5px] mt-3">One office, one user for now. Adding team members later will be a new feature, not a rebuild.</p>
+            </Panel>
+          )}
+
+          {tab === "ai" && <AiTab tenantId={tenantId} spent={spent} budget={budget} />}
+
+          {tab === "connections" && <ConnectionsTab tenantId={tenantId} />}
+
+          {tab === "compliance" && (
+            <>
+              <Panel title="⚖️ Consent wording" desc="What people agree to on each form. It is stored word for word with every consent, so changing it never rewrites what someone already agreed to.">
+                {settings.templates.length ? (
+                  <div>
+                    {settings.templates.map((t) => (
+                      <div key={t.form} className="py-2.5 border-t">
+                        <b className="text-[14px]">{t.form}</b>
+                        <p className="text-2 text-[13px] mt-1 italic">“{t.wording}”</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty>No consent wording set up yet.</Empty>
+                )}
+              </Panel>
+              <Panel title="📜 Disclosure rules" desc="Your state’s rules for what must be disclosed. South Australia for now; other states can be added later.">
+                {settings.rules.length ? (
+                  settings.rules.map((d) => (
+                    <div key={d.name} className="py-2.5 border-t">
+                      <div className="flex items-center gap-2">
+                        <b className="text-[14px]">{d.name}</b>
+                        <Badge tone="stock">{d.state}</Badge>
+                      </div>
+                      <p className="text-2 text-[13px] mt-0.5">{d.detail}</p>
+                    </div>
+                  ))
+                ) : (
+                  <Empty>No disclosure rules loaded yet.</Empty>
+                )}
+              </Panel>
+              <Panel title="🔒 Always on" desc="Safety rules that cannot be switched off, on purpose.">
+                {[
+                  ["Nothing is sent without your OK", "Every email and SMS waits for you to approve it."],
+                  ["Consent is checked at the moment of sending", "Someone who unsubscribes after a draft is written never gets it."],
+                  ["The AI never changes a contact on its own", "Its suggestions wait for you to confirm them."],
+                  ["Website changes need your approval", "SEO suggestions are proposals until you apply them."],
+                ].map(([t, d]) => (
+                  <div key={t} className="flex gap-2.5 py-2.5 border-t">
+                    <Lock size={14} className="text-3 mt-0.5 shrink-0" />
+                    <div>
+                      <b className="block text-[14px]">{t}</b>
+                      <span className="text-2 text-[13px]">{d}</span>
+                    </div>
+                  </div>
+                ))}
+              </Panel>
+            </>
+          )}
+
+          {tab === "system" && <SystemTab />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+async function AiTab({ tenantId, spent, budget }: { tenantId: string; spent: string; budget: Awaited<ReturnType<typeof getBudgetState>> }) {
+  const [llmRow, llmDefaults] = await Promise.all([readLlmSettings(tenantId), getLlmConfig(tenantId)]);
   const llmValues = {
     fastModel: llmRow?.fastModel ?? llmDefaults.fastModel,
     writingModel: llmRow?.writingModel ?? llmDefaults.writingModel,
@@ -71,183 +197,80 @@ export default async function SettingsPage() {
     writingOutputUsdPerMtok: llmRow?.writingOutputUsdPerMtok ?? String(llmDefaults.pricing.writing.output),
     audPerUsd: llmRow?.audPerUsd ?? String(llmDefaults.audPerUsd),
   };
-
+  const tile = "flex items-center gap-3 border rounded-xl p-3 hover:border-[var(--accent)]";
   return (
     <>
-      <PageHeader
-        title="Settings"
-        subtitle="Agency configuration. Everything jurisdiction-specific lives here rather than in code."
-      />
-
-      <Link
-        href="/settings/knowledge"
-        className="flex items-center gap-3 surface-2 border rounded-xl p-4 mb-6 hover:border-[var(--accent)] transition-colors"
-      >
-        <span className="h-11 w-11 rounded-xl bg-[var(--accent)] text-white grid place-items-center shrink-0">
-          <BookOpen size={22} />
-        </span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[16px] font-bold">AI training</span>
-          <span className="block text-2 text-[14px]">Teach the AI your instructions, your agency and the law. Every AI feature follows it.</span>
-        </span>
-        <ChevronRight size={20} className="text-3 shrink-0" />
-      </Link>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {me && (
-          <Section title="Sign-in & password">
-            <Card>
-              <PasswordCard email={me.email} setAt={me.setAt} google={availableProviders.google} entra={availableProviders.entra} />
-            </Card>
-          </Section>
-        )}
-        <Section title="Agency">
-          <Card>
-            <KeyValue
-              cols={1}
-              items={[
-                ["Legal name", agency.name],
-                ["Trading as", agency.tradingName ?? "—"],
-                ["Licence", agency.licence ?? "—"],
-                ["ABN", agency.abn ?? "—"],
-                ["Jurisdiction", agency.jurisdiction],
-                ["Timezone", agency.timezone],
-              ]}
-            />
-          </Card>
-        </Section>
-
-        <Section title="Users">
-          <Card>
-            <div className="flex items-center gap-3">
-              <span className="h-8 w-8 rounded-full surface-3 border grid place-items-center text-[11px] font-semibold shrink-0">
-                {initials(agency.user.name) || "—"}
-              </span>
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium">
-                  {agency.user.name || "No user yet"}
-                </div>
-                <div className="text-3 text-[12px] truncate">
-                  {agency.user.email || "—"}
-                </div>
-              </div>
-              <Badge tone="brand" className="ml-auto">
-                {agency.user.role}
-              </Badge>
-            </div>
-            <div className="mt-3">
-              <Callout tone="brand" title="One office, one user">
-                Multi-user is deferred (D1). The users table has a real shape and every
-                row carries an agency column, so adding people later is a feature rather
-                than a rewrite — but there is no invite flow, no roles screen and no
-                agency switcher.
-              </Callout>
-            </div>
-          </Card>
-        </Section>
-
-        <Section title="Consent wording" hint="captured verbatim at submission">
-          {settings.templates.length > 0 ? (
-            <Card padded={false} className="p-0">
-              {settings.templates.map((t) => (
-                <div key={t.form} className="p-3 border-b last:border-b-0">
-                  <div className="text-[12.5px] font-medium">{t.form}</div>
-                  <p className="text-2 text-[12px] mt-1 leading-relaxed italic">
-                    “{t.wording}”
-                  </p>
-                </div>
-              ))}
-            </Card>
-          ) : (
-            <Empty>No consent wording configured yet.</Empty>
-          )}
-          <ProtoNote>
-            The exact text shown is stored on every consent row. Change the template and
-            existing records keep the wording those people actually agreed to.
-          </ProtoNote>
-        </Section>
-
-        <Section title="Disclosure rules" hint="per jurisdiction, never hardcoded">
-          {settings.rules.length > 0 ? (
-            <Card padded={false} className="p-0">
-              {settings.rules.map((d) => (
-                <div key={d.name} className="p-3 border-b last:border-b-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12.5px] font-medium">{d.name}</span>
-                    <Badge tone="stock">{d.state}</Badge>
-                  </div>
-                  <p className="text-2 text-[12px] mt-0.5">{d.detail}</p>
-                </div>
-              ))}
-            </Card>
-          ) : (
-            <Empty>No disclosure rules loaded yet.</Empty>
-          )}
-          <ProtoNote>
-            Seeded with South Australia only (D2). Adding NSW later is a data load, not a
-            rewrite — which only holds because nothing in the code hardcodes “SA”.
-          </ProtoNote>
-        </Section>
-
-        <Section title="Background jobs" hint="the dead-letter view">
-          <QueueHealthCard />
-        </Section>
-
-        <Section title="AI configuration" hint="models, limits and the spend cap">
-          <LlmSettingsForm values={llmValues} budget={budget} />
-        </Section>
-
-        <Section title="Credentials" hint="encrypted; entered here, not in a file">
-          <CredentialsCard statuses={secretStatuses} encryptionReady={encryptionReady} />
-          <ProtoNote>
-            Stored with AES-256-GCM, so a database dump yields ciphertext. The
-            wrapping key stays in the server environment — one secret outside the
-            database is the most this arrangement can remove, and it is the one that
-            matters. Keys are never sent back to this screen; only the last four
-            characters are, so you can tell which key is which.
-          </ProtoNote>
-        </Section>
-      </div>
-
-      <Section title="Not configurable, by design" className="mt-2">
-        <Card>
-          <div className="space-y-3">
-            {[
-              [
-                "Autonomous sending",
-                "There is no setting that lets a message leave without human approval. Rule 1.",
-              ],
-              [
-                "Skipping the send-time consent check",
-                "Consent is re-checked at the instant of sending, always. Rule 2.",
-              ],
-              [
-                "Direct AI writes to a contact record",
-                "Extracted tasks and preference changes go to the confirm queue. Rule 5.",
-              ],
-              [
-                "Publishing an SEO change set automatically",
-                "The agent proposes a diff; a human applies it. Rule 4.",
-              ],
-            ].map(([title, detail]) => (
-              <div key={title} className="flex items-start gap-2.5">
-                <Lock size={13} className="text-3 mt-0.5 shrink-0" />
-                <div>
-                  <div className="text-[12.5px] font-medium">{title}</div>
-                  <p className="text-2 text-[12px] mt-0.5">{detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-3 border-t flex items-start gap-2 text-3 text-[11.5px]">
-            <Info size={12} className="mt-0.5 shrink-0" />
-            <span>
-              These are listed here deliberately. A setting that does not exist should be
-              visibly absent, not quietly missing.
+      <Panel title="✦ AI" desc="What the AI knows about you, what it costs, and which models it uses.">
+        <div className="grid sm:grid-cols-2 gap-2.5">
+          <Link href="/settings/knowledge" className={tile}>
+            <BookOpen size={20} className="text-[var(--accent)] shrink-0" />
+            <span className="flex-1 min-w-0"><b className="block text-[14px]">AI training</b><span className="text-2 text-[12.5px]">Your instructions, agency facts and the law</span></span>
+            <ChevronRight size={16} className="text-3" />
+          </Link>
+          <Link href="/costs" className={tile}>
+            <span className="text-[20px]">💰</span>
+            <span className="flex-1 min-w-0">
+              <b className="block text-[14px]">Spend this month</b>
+              <span className="text-2 text-[12.5px]">{spent}{budget.budgetAud ? ` of A$${budget.budgetAud} limit` : " · no limit set"}</span>
             </span>
-          </div>
-        </Card>
-      </Section>
+            {budget.overBudget ? <Warn>Over</Warn> : <ChevronRight size={16} className="text-3" />}
+          </Link>
+        </div>
+      </Panel>
+      <Panel title="⚙️ Models & spending limit" desc="Which AI models write and read for you, and the monthly cap.">
+        <LlmSettingsForm values={llmValues} budget={budget} />
+      </Panel>
     </>
   );
 }
+
+async function ConnectionsTab({ tenantId }: { tenantId: string }) {
+  const statuses = (await getSecretStatus(tenantId)).filter((x) => x.name !== "GOOGLE_CONTACTS_REFRESH_TOKEN");
+  const [contacts, st] = await Promise.all([getSecret(tenantId, "GOOGLE_CONTACTS_REFRESH_TOKEN").catch(() => null), systemStatus()]);
+  return (
+    <>
+      <Panel title="🔌 Connected services" desc="Services the CRM uses that sign in by themselves.">
+        <Row label="Google Contacts" action={<Link href="/contacts/gmail-check" className={linkBtn}>Open check</Link>}>
+          {contacts ? <Ok>✓ Connected</Ok> : <Warn>Not connected</Warn>}
+          <span className="text-2 text-[13px]">checked every second Monday</span>
+        </Row>
+        <Row label="Google Search Console" action={<Link href="/seo" className={linkBtn}>Open SEO</Link>}>
+          {st.searchConsoleLast ? <Ok>✓ Connected</Ok> : <Warn>No data yet</Warn>}
+          {st.searchConsoleLast && <span className="text-2 text-[13px]">data to {day(st.searchConsoleLast)}</span>}
+        </Row>
+        <Row label="Pixabay (free photos)">{process.env.PIXABAY_API_KEY ? <Ok>✓ Connected</Ok> : <Warn>Not set up</Warn>}</Row>
+      </Panel>
+      <Panel title="🔑 Keys and passwords" desc="Stored encrypted. Only the last 4 characters are ever shown, so you can tell which key is which.">
+        <CredentialsCard statuses={statuses} encryptionReady={secretsConfigured()} />
+      </Panel>
+    </>
+  );
+}
+
+async function SystemTab() {
+  const st = await systemStatus();
+  const dumpFresh = st.dump && Date.now() - st.dump.at.getTime() < 36 * 3600e3;
+  return (
+    <>
+      <Panel title="🛡 Backups" desc="Is your data safe. Copies are kept in Amazon (Sydney); deleted or overwritten copies stay recoverable for 30 days.">
+        <Row label="Database backup">
+          {st.dump === undefined ? <Warn>Status unknown</Warn> : st.dump ? (dumpFresh ? <Ok>✓ {when(st.dump.at)}</Ok> : <Warn>Last {when(st.dump.at)}: older than a day</Warn>) : <Warn>None found</Warn>}
+          <span className="text-2 text-[13px]">every night · restore last tested {day(st.restoreTested)}</span>
+        </Row>
+        <Row label="Photos & files backup">
+          {st.media === undefined ? <Warn>Status unknown</Warn> : <Ok>✓ {st.media.files} files</Ok>}
+          {st.media?.at && <span className="text-2 text-[13px]">latest copy {when(st.media.at)}</span>}
+        </Row>
+      </Panel>
+      <Panel title="⚙️ Background work" desc="Jobs the CRM runs by itself: reading emails, matching, backups and syncs.">
+        <QueueHealthCard />
+      </Panel>
+      <Panel title="🧾 Records" desc="Every change and who made it.">
+        <Row label="Audit log" action={<Link href="/audit" className={linkBtn}>Open</Link>}>
+          <span className="text-2 text-[13px]">kept permanently</span>
+        </Row>
+      </Panel>
+    </>
+  );
+}
+
