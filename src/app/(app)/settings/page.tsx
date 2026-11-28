@@ -17,7 +17,11 @@ import { getSecretStatus, secretsConfigured } from "@/server/secrets";
 import { LlmSettingsForm } from "@/components/settings/llm-settings";
 import { readLlmSettings } from "@/server/queries/llm";
 import { getLlmConfig, getBudgetState } from "@/server/ai/config";
-import { currentTenantId } from "@/db";
+import { currentTenantId, db } from "@/db";
+import { auth, availableProviders } from "@/auth";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { PasswordCard } from "@/components/settings/password-card";
 
 /** "Sam Whitfield" -> "SW". Empty when there is no name to take them from. */
 function initials(name: string) {
@@ -38,6 +42,15 @@ export default async function SettingsPage() {
   // The Google Contacts sign-in is set by Connect on Contacts → Gmail check, never pasted.
   const secretStatuses = (await getSecretStatus(tenantId)).filter((x) => x.name !== "GOOGLE_CONTACTS_REFRESH_TOKEN");
   const encryptionReady = secretsConfigured();
+  const session = await auth();
+  const me = session?.user?.id
+    ? await db
+        .select({ email: users.email, setAt: users.passwordSetAt })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1)
+        .then((r) => (r[0] ? { email: r[0].email, setAt: r[0].setAt?.toISOString() ?? null } : null))
+    : null;
   const [llmRow, llmDefaults, budget] = await Promise.all([
     readLlmSettings(tenantId),
     getLlmConfig(tenantId),
@@ -81,6 +94,13 @@ export default async function SettingsPage() {
       </Link>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {me && (
+          <Section title="Sign-in & password">
+            <Card>
+              <PasswordCard email={me.email} setAt={me.setAt} google={availableProviders.google} entra={availableProviders.entra} />
+            </Card>
+          </Section>
+        )}
         <Section title="Agency">
           <Card>
             <KeyValue

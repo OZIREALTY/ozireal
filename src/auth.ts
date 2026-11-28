@@ -151,7 +151,7 @@ const passwordProvider = Credentials({
   },
 });
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   providers: [...oauthProviders, passwordProvider, ...devProvider],
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
@@ -170,11 +170,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return list.includes(email);
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       // Only look the row up on first sign-in; afterwards it rides in the token.
       if (user?.email) {
         const [row] = await db
-          .select({ id: users.id, tenantId: users.tenantId, role: users.role })
+          .select({ id: users.id, tenantId: users.tenantId, role: users.role, pwAt: users.passwordSetAt })
           .from(users)
           .where(eq(users.email, user.email.toLowerCase()))
           .limit(1);
@@ -183,6 +183,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.userId = row.id;
           token.tenantId = row.tenantId;
           token.role = row.role;
+          token.pwAt = row.pwAt?.getTime() ?? 0;
         } else {
           // Authenticated with the provider, but no user row - so no tenant, and
           // therefore no rows visible. Better to refuse than to guess a tenant.
@@ -190,6 +191,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.tenantId = t?.id;
           token.role = "agent";
         }
+      }
+      /**
+       * A password change signs out every other device (owner, 2026-11-28). The changing
+       * device is re-stamped through unstable_update; any token older than the change ends.
+       * Tokens from before this rule have no pwAt and are adopted, not signed out.
+       */
+      if (trigger === "update" && typeof (session as { user?: { pwAt?: number } } | undefined)?.user?.pwAt === "number") {
+        token.pwAt = (session as { user: { pwAt: number } }).user.pwAt;
+      } else if (!user && token.userId) {
+        const [row] = await db.select({ pwAt: users.passwordSetAt }).from(users).where(eq(users.id, token.userId as string)).limit(1);
+        const set = row?.pwAt?.getTime() ?? 0;
+        if (typeof token.pwAt !== "number") token.pwAt = set;
+        else if (set > (token.pwAt as number) + 1000) return null;
       }
       return token;
     },
